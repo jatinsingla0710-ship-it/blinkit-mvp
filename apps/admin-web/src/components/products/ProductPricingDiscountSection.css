@@ -1,0 +1,144 @@
+.ga-pricing-discount__title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+}
+
+.ga-pricing-discount__card {
+  border: 1px solid var(--ga-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  background: #fff;
+}
+
+.ga-pricing-discount__card-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.ga-pricing-discount__subtitle {
+  margin: 0 0 0.75rem;
+  color: var(--ga-text-muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.ga-pricing-discount__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.ga-pricing-discount__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.ga-pricing-discount__fieldset {
+  border: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.ga-pricing-discount__fieldset legend {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.ga-pricing-discount__radio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.ga-pricing-discount__radio-hint {
+  color: var(--ga-text-muted, #64748b);
+  font-size: 0.82rem;
+  margin-left: 1.4rem;
+}
+
+.ga-pricing-discount__preview {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 0.9rem;
+}
+
+.ga-pricing-discount__preview p {
+  margin: 0.15rem 0;
+}
+
+.ga-pricing-discount__error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  margin: 0.35rem 0 0;
+}
+
+.ga-pricing-discount__warn {
+  color: #b45309;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+.ga-pricing-discount__card--tiers {
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 40%);
+}
+
+.ga-pricing-discount__tier-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2rem;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ga-text-muted, #64748b);
+  margin-bottom: 0.35rem;
+}
+
+.ga-pricing-discount__tier-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2rem;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 0.5rem;
+}
+
+.ga-pricing-discount__tier-remove {
+  border: none;
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 8px;
+  height: 2.25rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.ga-pricing-discount__add-tier {
+  margin-top: 0.5rem;
+  border: 1px dashed var(--ga-border, #cbd5e1);
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.ga-product-pricing__tier-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.ga-product-pricing__tier-list li {
+  margin: 0.25rem 0;
+}
+
+@media (max-width: 640px) {
+  .ga-pricing-discount__row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,5 @@
+.ga-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ga-space-2);
+}

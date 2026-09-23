@@ -1,0 +1,108 @@
+.ga-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ga-space-3);
+  background:
+    radial-gradient(ellipse at top, rgba(26, 141, 73, 0.12), transparent 55%),
+    linear-gradient(180deg, #f4f7f5 0%, #e8eee9 100%);
+}
+
+.ga-login__card {
+  width: 100%;
+  max-width: 400px;
+  padding: 1.75rem 1.5rem;
+  border-radius: var(--ga-radius-md, 12px);
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface, #fff);
+  box-shadow: 0 12px 40px rgba(15, 31, 24, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ga-login__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.ga-login__mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--ga-primary, #1a8d49);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.ga-login__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ga-primary-dark, #0b5345);
+  letter-spacing: -0.02em;
+}
+
+.ga-login__subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ga-text-muted);
+}
+
+.ga-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ga-login__error {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--ga-radius-sm, 8px);
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  color: var(--ga-danger, #b42318);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.ga-login__submit {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.ga-skeleton {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--ga-surface-muted, #eef1ef) 0%,
+    #f7f8f7 50%,
+    var(--ga-surface-muted, #eef1ef) 100%
+  );
+  background-size: 200% 100%;
+  animation: ga-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.ga-skeleton--line {
+  height: 2.5rem;
+}
+
+.ga-skeleton--button {
+  height: 2.75rem;
+  margin-top: 0.25rem;
+}
+
+@keyframes ga-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}

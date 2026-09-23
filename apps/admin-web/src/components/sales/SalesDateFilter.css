@@ -1,0 +1,24 @@
+.ga-sales-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ga-space-2);
+  align-items: flex-end;
+}
+
+.ga-sales-filter label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-sales-filter select,
+.ga-sales-filter input {
+  min-width: 140px;
+  padding: 6px 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  font-size: 13px;
+}

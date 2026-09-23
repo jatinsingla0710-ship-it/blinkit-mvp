@@ -1,0 +1,27 @@
+.ga-dl-vehicle {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.ga-dl-vehicle dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-dl-vehicle dd {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ga-text);
+}
+
+@media (max-width: 960px) {
+  .ga-dl-vehicle {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

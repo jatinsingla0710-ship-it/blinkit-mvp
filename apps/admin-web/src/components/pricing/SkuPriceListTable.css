@@ -1,0 +1,16 @@
+.ga-price-link {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
+}
+
+.ga-price-link:hover {
+  color: var(--ga-primary-dark);
+  text-decoration: underline;
+}
+
+.ga-price-link__code {
+  font-weight: 500;
+  color: var(--ga-text-muted);
+}

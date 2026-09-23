@@ -1,0 +1,14 @@
+/* Delivery PWA shell overrides. Tokens + base reset come from @groaurum/ui. */
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ga-bg);
+  color: var(--ga-text);
+  font-family: var(--ga-font);
+}

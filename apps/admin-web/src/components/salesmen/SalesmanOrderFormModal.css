@@ -1,0 +1,17 @@
+.ga-sm-order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ga-sm-order-form__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-sm-order-form__hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+}

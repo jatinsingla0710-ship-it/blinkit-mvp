@@ -1,0 +1,69 @@
+.ga-product-list-card .ga-card__title {
+  display: none;
+}
+
+.ga-product-list-table__product {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ga-product-list-table__thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--ga-surface-muted, #f4f4f6);
+}
+
+.ga-product-list-table__thumb--placeholder {
+  display: block;
+  border: 1px solid var(--ga-border-subtle, #e8e8ec);
+}
+
+.ga-product-list-table__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+.ga-product-list-table__packaging {
+  font-size: 0.85rem;
+  color: var(--ga-text-secondary);
+}
+
+.ga-product-list-table__stock {
+  display: block;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.ga-product-list-table__publish {
+  display: block;
+  margin-top: 4px;
+}
+
+.ga-product-list-table__action-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ga-product-list-table__action {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ga-primary-dark);
+  text-decoration: none;
+}
+
+.ga-product-list-table__action:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .ga-product-list-table th:nth-child(3),
+  .ga-product-list-table td:nth-child(3) {
+    display: none;
+  }
+}

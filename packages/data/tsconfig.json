@@ -1,0 +1,5 @@
+{
+  "extends": "@groaurum/config/tsconfig/base",
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

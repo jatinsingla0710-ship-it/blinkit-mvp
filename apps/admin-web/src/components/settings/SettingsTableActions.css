@@ -1,0 +1,11 @@
+.ga-st-table-block__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.ga-st-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

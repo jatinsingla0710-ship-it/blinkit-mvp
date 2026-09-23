@@ -1,0 +1,6 @@
+.ga-sm-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1440px;
+}

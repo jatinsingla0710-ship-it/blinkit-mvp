@@ -1,0 +1,34 @@
+.ga-card {
+  background: var(--ga-surface);
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  box-shadow: var(--ga-shadow);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ga-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ga-space-2);
+  padding: var(--ga-space-3);
+  border-bottom: 1px solid var(--ga-border);
+}
+
+.ga-card__title {
+  font-size: var(--ga-text-md);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-card__action {
+  flex-shrink: 0;
+}
+
+.ga-card__body {
+  padding: var(--ga-space-3);
+}

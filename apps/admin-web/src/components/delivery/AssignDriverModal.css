@@ -1,0 +1,17 @@
+.ga-dl-assign {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ga-dl-assign__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-dl-assign__hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+}

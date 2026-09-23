@@ -1,0 +1,114 @@
+.ga-ord-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--ga-space-2);
+}
+.ga-ord-summary--empty {
+  padding: var(--ga-space-3);
+  border: 1px dashed var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  color: var(--ga-text-secondary);
+}
+
+.ga-ord-summary__card {
+  display: flex;
+  flex-direction: column;
+  min-height: 110px;
+  padding: var(--ga-space-3);
+  background: var(--ga-surface);
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  box-shadow: var(--ga-shadow);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+a.ga-ord-summary__card:hover {
+  border-color: var(--ga-primary);
+  background: var(--ga-primary-soft);
+  transform: translateY(-1px);
+}
+
+.ga-ord-summary__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+  line-height: 1.3;
+}
+
+.ga-ord-summary__value {
+  margin: var(--ga-space-2) 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ga-text);
+  line-height: 1.1;
+}
+
+.ga-ord-summary__subtitle {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  line-height: 1.35;
+}
+
+.ga-ord-summary__bullets {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 11px;
+  color: var(--ga-text-secondary);
+  line-height: 1.45;
+}
+
+.ga-ord-summary__bullets li + li {
+  margin-top: 2px;
+}
+
+.ga-ord-summary__card--attention {
+  border-color: color-mix(in srgb, var(--ga-danger) 40%, var(--ga-border));
+  background: color-mix(in srgb, var(--ga-danger) 5%, var(--ga-surface));
+}
+
+.ga-ord-summary__hint {
+  margin: auto 0 0;
+  padding-top: var(--ga-space-2);
+  font-size: 12px;
+  color: var(--ga-text-secondary);
+}
+
+.ga-ord-summary__card--positive .ga-ord-summary__value {
+  color: var(--ga-success);
+}
+
+.ga-ord-summary__card--warning .ga-ord-summary__value {
+  color: var(--ga-warning);
+}
+
+.ga-ord-summary__card--danger .ga-ord-summary__value {
+  color: var(--ga-danger);
+}
+
+@media (max-width: 1200px) {
+  .ga-ord-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .ga-ord-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .ga-ord-summary {
+    grid-template-columns: 1fr;
+  }
+}

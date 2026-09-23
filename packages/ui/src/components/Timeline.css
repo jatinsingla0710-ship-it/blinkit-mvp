@@ -1,0 +1,106 @@
+.ga-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ga-timeline__item {
+  display: flex;
+  gap: 12px;
+  min-height: 56px;
+}
+
+.ga-timeline__rail {
+  width: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ga-timeline__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--ga-border);
+  background: var(--ga-surface);
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.ga-timeline__dot--done,
+.ga-timeline__dot--completed {
+  border-color: var(--ga-primary);
+  background: var(--ga-primary);
+}
+
+.ga-timeline__dot--current,
+.ga-timeline__dot--planned {
+  border-color: var(--ga-primary);
+  background: var(--ga-primary-soft);
+  box-shadow: 0 0 0 3px var(--ga-primary-soft);
+}
+
+.ga-timeline__dot--upcoming {
+  border-color: var(--ga-border);
+  background: var(--ga-surface);
+}
+
+.ga-timeline__dot--skipped {
+  border-color: var(--ga-border);
+  background: var(--ga-surface-muted);
+  opacity: 0.5;
+}
+
+.ga-timeline__dot--missed {
+  border-color: var(--ga-danger);
+  background: var(--ga-danger-soft);
+}
+
+.ga-timeline__line {
+  width: 2px;
+  flex: 1;
+  background: var(--ga-border);
+  margin: 4px 0;
+}
+
+.ga-timeline__body {
+  flex: 1;
+  padding-bottom: var(--ga-space-3);
+  min-width: 0;
+}
+
+.ga-timeline__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ga-timeline__title {
+  font-size: var(--ga-text-base);
+  font-weight: 700;
+  color: var(--ga-text);
+}
+
+.ga-timeline__meta,
+.ga-timeline__meta-line {
+  font-size: var(--ga-text-sm);
+  font-weight: 600;
+  color: var(--ga-text-muted);
+  white-space: nowrap;
+}
+
+.ga-timeline__meta-line {
+  margin-top: 4px;
+  white-space: normal;
+}
+
+.ga-timeline__note {
+  margin-top: 4px;
+  font-size: var(--ga-text-sm);
+  color: var(--ga-text-secondary);
+}
+
+.ga-timeline__trailing {
+  flex-shrink: 0;
+}

@@ -1,0 +1,36 @@
+.ga-rp-card__question {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  line-height: 1.4;
+}
+
+.ga-rp-card__headline {
+  margin-top: 12px;
+}
+
+.ga-rp-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ga-primary-dark);
+  line-height: 1.1;
+}
+
+.ga-rp-card__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+.ga-rp-card__table {
+  margin-top: 12px;
+}
+
+.ga-rp-card__badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}

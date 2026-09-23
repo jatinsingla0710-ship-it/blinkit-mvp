@@ -1,0 +1,107 @@
+.ga-ord-payment {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.ga-ord-payment__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+}
+
+.ga-ord-payment__row strong {
+  color: var(--ga-text);
+  font-weight: 700;
+}
+
+.ga-ord-payment__row--total {
+  padding-top: 8px;
+  border-top: 1px solid var(--ga-border);
+  font-size: 14px;
+}
+
+.ga-ord-payment__row--total strong {
+  font-size: 18px;
+  color: var(--ga-primary-dark);
+}
+
+.ga-ord-payment__action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ga-border);
+}
+
+.ga-ord-payment__action-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ga-text-secondary);
+}
+
+.ga-ord-payment__paid-note {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--ga-radius-sm);
+  background: color-mix(in srgb, var(--ga-primary) 10%, transparent);
+  color: var(--ga-primary-dark);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ga-ord-payment__error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.ga-ord-payment__refund-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.ga-ord-payment__reason {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ga-text-muted);
+}
+
+.ga-ord-payment__reason textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ga-text);
+  resize: vertical;
+  font-family: inherit;
+}
+
+.ga-ord-payment__restock {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+}
+
+.ga-ord-payment__refund-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

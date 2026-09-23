@@ -1,0 +1,104 @@
+.ga-orders-link {
+  font-weight: 700;
+  color: var(--ga-primary-dark);
+  text-decoration: none;
+}
+
+.ga-orders-link:hover {
+  text-decoration: underline;
+}
+
+.ga-orders-action {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-primary-dark);
+  text-decoration: none;
+}
+
+.ga-orders-action:hover {
+  text-decoration: underline;
+}
+
+.ga-orders-action--primary {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--ga-primary-soft);
+  border: 1px solid color-mix(in srgb, var(--ga-primary) 25%, var(--ga-border));
+}
+
+.ga-orders-attention-reason {
+  display: inline-block;
+  max-width: 220px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ga-danger);
+}
+
+.ga-orders-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ga-space-2);
+  margin-top: var(--ga-space-3);
+  padding-top: var(--ga-space-3);
+  border-top: 1px solid var(--ga-border);
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+}
+
+.ga-orders-pager__btns {
+  display: flex;
+  gap: var(--ga-space-2);
+}
+
+.ga-orders-pager__btn {
+  padding: 6px 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ga-orders-pager__btn:hover:not(:disabled) {
+  border-color: var(--ga-primary);
+  background: var(--ga-primary-soft);
+}
+
+.ga-orders-pager__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ga-orders-row--attention {
+  background: color-mix(in srgb, #fecaca 18%, transparent);
+}
+
+.ga-orders-attention {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.ga-orders-sale,
+.ga-orders-invoice {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--ga-font-mono, monospace);
+}
+
+.ga-orders-invoice {
+  color: var(--ga-text-secondary);
+}

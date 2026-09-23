@@ -1,0 +1,55 @@
+.ga-ord-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--ga-radius-md);
+  border: 1px solid #fcd34d;
+  background: #fffbeb;
+}
+
+.ga-ord-setup__ok {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #047857;
+}
+
+.ga-ord-setup__warn {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #b45309;
+}
+
+.ga-ord-setup__msg {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ga-text-secondary);
+}
+
+.ga-ord-setup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ga-ord-setup__link {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: var(--ga-radius-sm);
+  border: 1px solid var(--ga-border);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--ga-text);
+}
+
+.ga-ord-setup__link:hover {
+  border-color: var(--ga-primary);
+  color: var(--ga-primary-dark);
+}

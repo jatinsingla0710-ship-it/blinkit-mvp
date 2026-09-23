@@ -1,0 +1,56 @@
+.ga-product-pricing__lead {
+  margin: 0 0 1rem;
+  color: var(--ga-text-secondary);
+  font-size: 0.9rem;
+}
+
+.ga-product-pricing__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ga-product-pricing__table th,
+.ga-product-pricing__table td {
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--ga-border-subtle, #e8e8ec);
+  vertical-align: top;
+}
+
+.ga-product-pricing__table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ga-text-muted);
+  font-weight: 700;
+}
+
+.ga-product-pricing__hint {
+  margin: 0.85rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ga-text-secondary);
+}
+
+.ga-product-pricing__empty {
+  color: var(--ga-text-muted, #6b7280);
+  margin: 0;
+}
+
+.ga-product-pricing__offer-chips {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ga-product-pricing__offer-chips li {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  font-size: 0.9rem;
+  font-weight: 650;
+}

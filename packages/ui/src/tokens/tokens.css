@@ -1,0 +1,60 @@
+:root {
+  /* Colors */
+  --ga-primary: #1a8d49;
+  --ga-primary-dark: #0b5345;
+  --ga-primary-soft: #e8f6ee;
+  --ga-accent: #a8d44a;
+  --ga-accent-soft: #f3f9e8;
+  --ga-bg: #f7faf8;
+  --ga-surface: #ffffff;
+  --ga-surface-muted: #eef4f0;
+  --ga-text: #0f1f18;
+  --ga-text-secondary: #4f6358;
+  --ga-text-muted: #84968c;
+  --ga-border: #dce8e0;
+  --ga-danger: #c62828;
+  --ga-danger-soft: #fdecec;
+  --ga-warning: #b7791f;
+  --ga-warning-soft: #fef6e8;
+  --ga-success: #1a8d49;
+  --ga-overlay: rgba(15, 31, 24, 0.45);
+
+  /* Spacing (8px base) */
+  --ga-space-1: 4px;
+  --ga-space-2: 8px;
+  --ga-space-3: 16px;
+  --ga-space-4: 24px;
+  --ga-space-5: 32px;
+  --ga-space-6: 40px;
+
+  /* Radius */
+  --ga-radius-sm: 8px;
+  --ga-radius-md: 12px;
+  --ga-radius-lg: 16px;
+  --ga-radius-xl: 20px;
+
+  /* Shadows */
+  --ga-shadow: 0 1px 2px rgba(15, 31, 24, 0.04);
+  --ga-shadow-md: 0 4px 12px rgba(15, 31, 24, 0.08);
+  --ga-shadow-lg: 0 12px 32px rgba(15, 31, 24, 0.12);
+
+  /* Typography */
+  --ga-font: 'Source Sans 3', 'Segoe UI', sans-serif;
+  --ga-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ga-text-xs: 11px;
+  --ga-text-sm: 12px;
+  --ga-text-md: 13px;
+  --ga-text-base: 14px;
+  --ga-text-lg: 16px;
+  --ga-text-xl: 22px;
+  --ga-text-2xl: 28px;
+
+  /* Icons */
+  --ga-icon-sm: 14px;
+  --ga-icon-md: 18px;
+  --ga-icon-lg: 24px;
+
+  /* Layout chrome */
+  --ga-sidebar-width: 240px;
+  --ga-topnav-height: 56px;
+}

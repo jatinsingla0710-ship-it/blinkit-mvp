@@ -1,0 +1,11 @@
+.ga-wh-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ga-wh-form__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}

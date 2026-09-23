@@ -1,0 +1,16 @@
+.ga-empty {
+  padding: var(--ga-space-4) var(--ga-space-2);
+  text-align: center;
+}
+
+.ga-empty__title {
+  font-size: var(--ga-text-base);
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+}
+
+.ga-empty__detail {
+  margin-top: var(--ga-space-1);
+  font-size: var(--ga-text-sm);
+  color: var(--ga-text-muted);
+}

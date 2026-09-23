@@ -1,0 +1,51 @@
+.ga-sales-chart {
+  padding: var(--ga-space-3) 0;
+}
+
+.ga-sales-chart__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ga-space-2);
+  margin-bottom: var(--ga-space-3);
+}
+
+.ga-sales-chart__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ga-sales-chart__sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+}
+
+.ga-sales-chart__select {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-sales-chart__select select {
+  min-width: 200px;
+  padding: 6px 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  font-size: 13px;
+}
+
+.ga-sales-chart__empty {
+  margin: 0;
+  padding: var(--ga-space-4);
+  text-align: center;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+  background: var(--ga-surface-muted, #f8f8f8);
+  border-radius: var(--ga-radius-sm);
+}

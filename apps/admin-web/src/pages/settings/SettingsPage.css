@@ -1,0 +1,14 @@
+.ga-st-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1440px;
+}
+
+.ga-st-page__main .ga-card__body {
+  padding-top: 0;
+}
+
+.ga-st-page__panel {
+  padding-top: 16px;
+}

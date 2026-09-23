@@ -1,0 +1,79 @@
+# Minimal Supabase local development stub for GroAurum B2B.
+# Replace project_id after linking: supabase link --project-ref <ref>
+
+project_id = "groaurum-b2b-local"
+
+[api]
+enabled = true
+port = 54421
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54422
+shadow_port = 54420
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54423
+
+[inbucket]
+enabled = true
+port = 54424
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[edge_runtime]
+enabled = true
+
+# Sprint 9.1 — Edge Function JWT policy
+# Webhook + cron workers: no end-user JWT (protected by HMAC / CRON_SECRET instead).
+[functions.razorpay-webhook]
+verify_jwt = false
+
+[functions.expire-reservations]
+verify_jwt = false
+
+[functions.expire-invitations]
+verify_jwt = false
+
+[functions.send-notification]
+verify_jwt = false
+
+# Create-order requires caller JWT (customer/sales authenticated).
+[functions.razorpay-create-order]
+verify_jwt = true
+
+[functions.provision-salesman]
+verify_jwt = true
+
+[functions.provision-delivery]
+verify_jwt = true
+
+# Cron scheduling is configured in migration 20260716220001 via pg_cron
+# (job_expire_stock_reservations, job_expire_shop_invitations, job_drain_notification_outbox).
+# Hosted production may also invoke edge workers with X-Cron-Secret via pg_net.
+
+# Analytics defaults to 54327 which falls in Windows Hyper-V reserved ranges on some hosts.
+# Not required for Phase 3 adapter / RLS proof runs.
+[analytics]
+enabled = false

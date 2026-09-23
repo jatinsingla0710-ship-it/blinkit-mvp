@@ -1,0 +1,40 @@
+.ga-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ga-field--grow {
+  flex: 1 1 auto;
+}
+
+.ga-field__label {
+  font-size: var(--ga-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-field__control {
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface);
+  padding: 10px 12px;
+  font-size: var(--ga-text-md);
+  color: var(--ga-text);
+  min-height: 40px;
+  width: 100%;
+}
+
+.ga-field__control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--ga-surface-muted);
+}
+
+.ga-field__hint {
+  font-size: var(--ga-text-sm);
+  color: var(--ga-text-muted);
+}

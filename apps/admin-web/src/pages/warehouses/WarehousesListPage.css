@@ -1,0 +1,4 @@
+.ga-wh-list__error {
+  margin: 0 0 1rem;
+  color: var(--ga-color-danger, #b42318);
+}

@@ -1,0 +1,122 @@
+.ga-inv-table-card .ga-card__body {
+  padding-top: 0.5rem;
+}
+
+.ga-inv-table__product {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 180px;
+}
+
+.ga-inv-table__thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--ga-surface-muted, #f3f4f6);
+  border: 1px solid var(--ga-border-subtle, #e8e8ec);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ga-text-muted);
+}
+
+.ga-inv-table__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ga-inv-table__sku-name {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ga-text-muted);
+  margin-top: 2px;
+}
+
+.ga-inv-table__stock {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.ga-inv-table__stock-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ga-text-muted);
+}
+
+.ga-inv-table__packaging {
+  font-size: 0.8125rem;
+  color: var(--ga-text-secondary);
+}
+
+.ga-inv-table__wh {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.ga-inv-table__wh li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.75rem;
+  color: var(--ga-text-muted);
+}
+
+.ga-inv-table__wh strong {
+  font-size: 0.8125rem;
+  color: var(--ga-text);
+  font-weight: 700;
+}
+
+.ga-inv-table__wh-more {
+  font-weight: 600;
+  color: var(--ga-text-secondary) !important;
+}
+
+.ga-inv-table__action {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ga-primary-dark, #1f4d3a);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ga-inv-table__action:hover {
+  text-decoration: underline;
+}
+
+.ga-inv-link {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
+}
+
+.ga-inv-link:hover {
+  color: var(--ga-primary-dark);
+  text-decoration: underline;
+}
+
+.ga-inv-link__code {
+  font-weight: 500;
+  color: var(--ga-text-muted);
+}
+
+@media (max-width: 1100px) {
+  .ga-inv-table th:nth-child(5),
+  .ga-inv-table td:nth-child(5) {
+    display: none;
+  }
+}

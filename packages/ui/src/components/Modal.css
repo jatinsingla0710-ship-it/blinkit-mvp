@@ -1,0 +1,59 @@
+.ga-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ga-space-3);
+}
+
+.ga-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: var(--ga-overlay);
+  cursor: pointer;
+}
+
+.ga-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--ga-surface);
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  box-shadow: var(--ga-shadow-lg);
+}
+
+.ga-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ga-space-2);
+  padding: var(--ga-space-3);
+  border-bottom: 1px solid var(--ga-border);
+}
+
+.ga-modal__title {
+  font-size: var(--ga-text-lg);
+  font-weight: 700;
+  color: var(--ga-text);
+}
+
+.ga-modal__body {
+  padding: var(--ga-space-3);
+  overflow: auto;
+}
+
+.ga-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ga-space-2);
+  padding: var(--ga-space-3);
+  border-top: 1px solid var(--ga-border);
+}

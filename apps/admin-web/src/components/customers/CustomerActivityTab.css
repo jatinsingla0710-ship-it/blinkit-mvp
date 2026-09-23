@@ -1,0 +1,50 @@
+.ga-cust-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ga-cust-activity__item {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ga-border);
+}
+
+.ga-cust-activity__item:last-child {
+  border-bottom: 0;
+}
+
+.ga-cust-activity__when {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-cust-activity__action {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ga-text);
+}
+
+.ga-cust-activity__detail {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+  line-height: 1.45;
+}
+
+.ga-cust-activity__actor {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+@media (max-width: 720px) {
+  .ga-cust-activity__item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

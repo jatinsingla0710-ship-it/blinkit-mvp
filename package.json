@@ -1,0 +1,34 @@
+{
+  "name": "groaurum",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "build": "turbo run build",
+    "dev:customer": "pnpm --filter @groaurum/customer start",
+    "dev:admin": "pnpm --filter @groaurum/admin-web dev",
+    "dev:sales": "pnpm --filter @groaurum/sales-pwa dev",
+    "dev:delivery": "pnpm --filter @groaurum/delivery-pwa dev",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:status": "supabase status",
+    "db:types": "node scripts/generate-db-types.mjs",
+    "db:check": "node scripts/check-db-prerequisites.mjs",
+    "test:db": "node scripts/check-db-prerequisites.mjs && pnpm --filter @groaurum/db-tests test:db",
+    "db:proof": "node scripts/check-db-prerequisites.mjs && pnpm db:reset && pnpm db:types && pnpm test:db",
+    "db:seed:sprint4": "node scripts/seed-sprint4.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@groaurum/config": "workspace:*",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "supabase": "^2.30.4",
+    "turbo": "^2.5.4",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.48.0"
+  }
+}

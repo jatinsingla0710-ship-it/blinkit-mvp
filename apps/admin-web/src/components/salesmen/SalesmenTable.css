@@ -1,0 +1,25 @@
+.ga-sm-link {
+  text-decoration: none;
+}
+
+.ga-sm-link:hover {
+  color: var(--ga-primary-dark);
+  text-decoration: underline;
+}
+
+.ga-sm-table__meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-sm-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}

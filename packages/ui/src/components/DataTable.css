@@ -1,0 +1,42 @@
+.ga-table-wrap {
+  overflow-x: auto;
+}
+
+.ga-table {
+  width: 100%;
+  font-size: var(--ga-text-md);
+}
+
+.ga-table th {
+  text-align: left;
+  font-size: var(--ga-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+  padding: 0 8px 8px 0;
+  border-bottom: 1px solid var(--ga-border);
+  white-space: nowrap;
+}
+
+.ga-table td {
+  padding: 10px 8px 10px 0;
+  border-bottom: 1px solid var(--ga-border);
+  color: var(--ga-text-secondary);
+  vertical-align: middle;
+}
+
+.ga-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.ga-table__primary {
+  color: var(--ga-text);
+  font-weight: 600;
+}
+
+.ga-table__mono {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--ga-font-mono);
+  font-size: var(--ga-text-sm);
+}

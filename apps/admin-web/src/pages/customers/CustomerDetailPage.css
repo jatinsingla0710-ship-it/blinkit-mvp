@@ -1,0 +1,41 @@
+.ga-cust-account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1440px;
+}
+
+.ga-cust-account__error {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--ga-color-danger-bg, #fef3f2);
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-cust-account__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.75fr);
+  gap: var(--ga-space-2);
+  align-items: start;
+}
+
+.ga-cust-account__main,
+.ga-cust-account__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+}
+
+.ga-cust-account-card .ga-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .ga-cust-account__layout {
+    grid-template-columns: 1fr;
+  }
+}

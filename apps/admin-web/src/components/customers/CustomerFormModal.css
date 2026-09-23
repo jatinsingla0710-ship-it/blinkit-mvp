@@ -1,0 +1,116 @@
+.ga-cust-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ga-cust-form__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-cust-form__success {
+  margin: 0;
+  color: var(--ga-color-success, #067647);
+  font-size: 0.95rem;
+}
+
+.ga-cust-form__location {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--ga-border-subtle, #eaecf0);
+}
+
+.ga-cust-form__location-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ga-cust-form__location-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ga-text);
+}
+
+.ga-cust-form__location-hint,
+.ga-cust-form__location-value,
+.ga-cust-form__location-ok {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.ga-cust-form__location-hint {
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-cust-form__location-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ga-text);
+}
+
+.ga-cust-form__location-ok {
+  color: var(--ga-color-success, #067647);
+}
+
+.ga-cust-form__warning {
+  margin: 0;
+  color: var(--ga-color-warning, #b54708);
+  font-size: 0.875rem;
+  background: var(--ga-color-warning-soft, #fffaeb);
+  border: 1px solid var(--ga-color-warning-border, #fedf89);
+  border-radius: 8px;
+  padding: 0.625rem 0.75rem;
+}
+
+.ga-cust-form__checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--ga-text);
+}
+
+.ga-cust-form__success-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ga-cust-form__hint {
+  margin: 0;
+  color: var(--ga-text-muted, #667085);
+  font-size: 0.875rem;
+}
+
+.ga-cust-form__section {
+  margin: 16px 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ga-text-muted);
+}
+
+.ga-cust-form__access-note {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--ga-surface-muted, #f8f8fa);
+  font-size: 0.875rem;
+}
+
+.ga-cust-form__access-note p {
+  margin: 0 0 6px;
+}
+
+.ga-cust-form__confirm {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}

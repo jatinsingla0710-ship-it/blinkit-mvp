@@ -1,0 +1,16 @@
+.ga-sm-cust-link {
+  color: var(--ga-primary-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ga-sm-cust-link:hover {
+  text-decoration: underline;
+}
+
+.ga-sm-cust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}

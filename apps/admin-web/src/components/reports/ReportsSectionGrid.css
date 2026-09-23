@@ -1,0 +1,19 @@
+.ga-rp-section__intro {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.45;
+}
+
+.ga-rp-section__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 960px) {
+  .ga-rp-section__grid {
+    grid-template-columns: 1fr;
+  }
+}

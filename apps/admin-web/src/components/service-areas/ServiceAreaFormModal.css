@@ -1,0 +1,43 @@
+.ga-sa-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ga-sa-form__textarea {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ga-sa-form__label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-sa-form__textarea textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface);
+  color: var(--ga-text);
+  font: inherit;
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.ga-sa-form__error {
+  margin: 0;
+  color: var(--ga-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-sa-form__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ga-text-muted);
+}

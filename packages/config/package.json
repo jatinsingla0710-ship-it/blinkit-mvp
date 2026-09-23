@@ -1,0 +1,19 @@
+{
+  "name": "@groaurum/config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./eslint": "./eslint.config.mjs",
+    "./tsconfig/base": "./tsconfig.base.json",
+    "./vite/mergedPublicEnv": "./vite/mergedPublicEnv.ts"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "typescript-eslint": "^8.48.0"
+  }
+}

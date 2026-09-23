@@ -1,0 +1,38 @@
+{
+  "name": "@groaurum/admin-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GroAurum Admin Dashboard — operational console for wholesale ops.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint src --config ../../packages/config/eslint.config.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@groaurum/catalogue-display": "workspace:*",
+    "@groaurum/api": "workspace:*",
+    "@groaurum/api-client": "workspace:*",
+    "@groaurum/auth": "workspace:*",
+    "@groaurum/data": "workspace:*",
+    "@groaurum/shared-types": "workspace:*",
+    "@groaurum/ui": "workspace:*",
+    "@groaurum/validation": "workspace:*",
+    "@tanstack/react-query": "^5.101.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2"
+  },
+  "devDependencies": {
+    "@groaurum/config": "workspace:*",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.2",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

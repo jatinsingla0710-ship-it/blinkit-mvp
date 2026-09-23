@@ -1,0 +1,56 @@
+-- GroAurum B2B: enable row level security on all business tables.
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_areas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.serviceability_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.operational_locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_contacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_auth_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_salesman_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.skus ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sku_prices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_balances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_reservations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_confirmation_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_routes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.route_stops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- Force RLS even for table owners (except service_role bypass).
+ALTER TABLE public.profiles FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.service_areas FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.serviceability_rules FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.operational_locations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.shops FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_contacts FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_invitations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_auth_links FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_salesman_assignments FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.categories FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.products FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.skus FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.sku_prices FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_balances FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_movements FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_reservations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.orders FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.order_lines FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.order_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.order_confirmation_challenges FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.payments FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_events FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_routes FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.route_stops FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.delivery_attempts FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs FORCE ROW LEVEL SECURITY;

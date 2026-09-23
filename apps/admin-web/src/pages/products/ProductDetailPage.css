@@ -1,0 +1,126 @@
+.ga-product-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1440px;
+}
+
+.ga-product-detail__hero {
+  display: flex;
+  gap: var(--ga-space-2);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.ga-product-detail__hero .ga-product-detail-header {
+  flex: 1;
+  min-width: 240px;
+}
+
+.ga-product-detail__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-product-detail__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ga-product-detail__back {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  text-decoration: none;
+}
+
+.ga-product-detail__back:hover {
+  color: var(--ga-primary-dark);
+}
+
+.ga-product-detail__error {
+  margin: 0;
+  color: var(--ga-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-product-detail__pending {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 0.875rem;
+}
+
+.ga-product-detail__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.7fr);
+  gap: var(--ga-space-2);
+  align-items: start;
+}
+
+.ga-product-detail__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+}
+
+.ga-product-detail__main .ga-card__body {
+  padding-top: 0;
+}
+
+.ga-product-info__grid dd a {
+  color: var(--ga-primary-dark);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.ga-product-info__grid dd a:hover {
+  text-decoration: underline;
+}
+
+.ga-product-detail__stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+}
+
+.ga-product-link {
+  color: var(--ga-primary-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ga-product-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1100px) {
+  .ga-product-detail__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ga-product-detail-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 720px;
+}
+
+.ga-product-detail-fallback__back {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  text-decoration: none;
+}
+
+.ga-product-detail-fallback__actions {
+  padding: 0 1rem 1rem;
+}

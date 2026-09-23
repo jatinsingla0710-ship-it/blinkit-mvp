@@ -1,0 +1,33 @@
+.ga-sm-collections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ga-sm-collections__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ga-sm-collections__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-sm-collections__value {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ga-primary-dark);
+}
+
+@media (max-width: 900px) {
+  .ga-sm-collections__cards {
+    grid-template-columns: 1fr;
+  }
+}

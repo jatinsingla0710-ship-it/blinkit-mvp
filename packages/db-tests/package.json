@@ -1,0 +1,22 @@
+{
+  "name": "@groaurum/db-tests",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests --config ../../packages/config/eslint.config.mjs",
+    "test:db": "vitest run"
+  },
+  "dependencies": {
+    "@groaurum/api-client": "workspace:*",
+    "@groaurum/shared-types": "workspace:*",
+    "@supabase/supabase-js": "^2.49.8"
+  },
+  "devDependencies": {
+    "@groaurum/config": "workspace:*",
+    "@types/pg": "^8.11.11",
+    "pg": "^8.14.1",
+    "typescript": "~6.0.3",
+    "vitest": "^3.2.4"
+  }
+}

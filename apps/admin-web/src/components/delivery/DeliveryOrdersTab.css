@@ -1,0 +1,16 @@
+.ga-dl-order-link {
+  color: var(--ga-primary-dark);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ga-dl-order-link:hover {
+  text-decoration: underline;
+}
+
+.ga-dl-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}

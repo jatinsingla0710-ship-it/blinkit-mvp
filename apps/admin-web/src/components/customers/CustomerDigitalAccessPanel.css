@@ -1,0 +1,62 @@
+.ga-cust-digital-access {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--ga-space-3);
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface);
+}
+
+.ga-cust-digital-access__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-cust-digital-access__desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ga-text-secondary);
+}
+
+.ga-cust-digital-access__meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+.ga-cust-digital-access__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ga-cust-digital-access__copy-ok {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-color-success, #067647);
+}
+
+.ga-cust-digital-access__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+.ga-cust-digital-access__preview {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+}
+
+.ga-cust-digital-access__preview pre {
+  white-space: pre-wrap;
+  font-size: 11px;
+  margin: 8px 0 0;
+}

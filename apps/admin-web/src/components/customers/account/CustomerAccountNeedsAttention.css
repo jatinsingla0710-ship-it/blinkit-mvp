@@ -1,0 +1,47 @@
+.ga-cust-account-attention {
+  border-color: color-mix(in srgb, var(--ga-color-warning, #f79009) 40%, #e8e8ec);
+  background: color-mix(in srgb, var(--ga-color-warning, #f79009) 5%, white);
+}
+
+.ga-cust-account-attention__lead {
+  margin: 0 0 12px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+}
+
+.ga-cust-account-attention__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ga-cust-account-attention__list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.ga-cust-account-attention__list p {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--ga-text-secondary);
+}
+
+.ga-cust-account-attention__action {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ga-primary-dark);
+  text-decoration: none;
+}
+
+.ga-cust-account-attention__action:hover {
+  text-decoration: underline;
+}

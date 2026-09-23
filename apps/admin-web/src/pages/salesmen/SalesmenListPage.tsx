@@ -1,0 +1,116 @@
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '@groaurum/auth/react';
+import {
+  EMPTY_SALESMAN_BROWSE,
+  browseSalesmen,
+} from '@/data/browse-helpers';
+import type { SalesmanBrowseState } from '@/data/salesmen-types';
+import { SalesmenBrowseBar } from '@/components/salesmen/SalesmenBrowseBar';
+import { SalesmenQuickActions } from '@/components/salesmen/SalesmenQuickActions';
+import { SalesmanOrderFormModal } from '@/components/salesmen/SalesmanOrderFormModal';
+import { SalesmanProvisionModal } from '@/components/salesmen/SalesmanProvisionModal';
+import { CustomerFormModal } from '@/components/customers/CustomerFormModal';
+import { SalesmenTable } from '@/components/salesmen/SalesmenTable';
+import { KpiCards } from '@/components/dashboard/KpiCards';
+import { Card } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { QueryStateGate } from '@/data/QueryStateGate';
+import { useSalesmenSnapshotQuery } from '@/data/hooks';
+import './SalesmenListPage.css';
+
+/**
+ * Salesman Management — Auth-backed provision + assisted create flows.
+ */
+export function SalesmenListPage() {
+  const { state } = useSalesmenSnapshotQuery();
+  const [browse, setBrowse] = useState<SalesmanBrowseState>(EMPTY_SALESMAN_BROWSE);
+  const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
+  const [createOrderOpen, setCreateOrderOpen] = useState(false);
+  const [provisionOpen, setProvisionOpen] = useState(false);
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canManageCustomers = hasPermission('customers:manage');
+  const canManageOrders = hasPermission('orders:manage');
+  const canManageSalesmen = hasPermission('salesmen:manage');
+
+  const result = useMemo(() => {
+    if (!state.data) {
+      return { rows: [], pageCount: 1, total: 0 };
+    }
+    return browseSalesmen(state.data.rows, browse);
+  }, [state.data, browse]);
+
+  return (
+    <QueryStateGate title="Salesmen" state={state}>
+      {(snapshot) => (
+        <div className="ga-sm-list">
+          <PageHeader
+            title="Salesmen"
+            subtitle="Field sales operations · coverage and performance"
+            meta={snapshot.generatedAtLabel}
+          />
+
+          <KpiCards items={snapshot.kpis} />
+
+          <Card title="Quick Actions">
+            <SalesmenQuickActions
+              canManageCustomers={canManageCustomers}
+              canManageOrders={canManageOrders}
+              canManageSalesmen={canManageSalesmen}
+              onAction={(id) => {
+                if (id === 'provision_salesman' && canManageSalesmen) {
+                  setProvisionOpen(true);
+                  return;
+                }
+                if (id === 'add_customer' && canManageCustomers) {
+                  setCreateCustomerOpen(true);
+                  return;
+                }
+                if (id === 'create_order' && canManageOrders) {
+                  setCreateOrderOpen(true);
+                  return;
+                }
+                if (id === 'view_territory') {
+                  navigate('/service-areas');
+                }
+              }}
+            />
+          </Card>
+
+          <SalesmenBrowseBar state={browse} onChange={setBrowse} />
+
+          <SalesmenTable
+            rows={result.rows}
+            page={Math.min(browse.page, result.pageCount)}
+            pageCount={result.pageCount}
+            total={result.total}
+            onPageChange={(page) => setBrowse((s) => ({ ...s, page }))}
+          />
+
+          {canManageSalesmen ? (
+            <SalesmanProvisionModal
+              open={provisionOpen}
+              onClose={() => setProvisionOpen(false)}
+              onSuccess={(profileId) => navigate(`/salesmen/${profileId}`)}
+            />
+          ) : null}
+          {canManageCustomers ? (
+            <CustomerFormModal
+              open={createCustomerOpen}
+              onClose={() => setCreateCustomerOpen(false)}
+              onSuccess={(customerId) => navigate(`/customers/${customerId}`)}
+            />
+          ) : null}
+          {canManageOrders ? (
+            <SalesmanOrderFormModal
+              open={createOrderOpen}
+              onClose={() => setCreateOrderOpen(false)}
+              onSuccess={(orderId) => navigate(`/orders/${orderId}`)}
+            />
+          ) : null}
+        </div>
+      )}
+    </QueryStateGate>
+  );
+}

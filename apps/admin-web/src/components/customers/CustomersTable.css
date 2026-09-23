@@ -1,0 +1,8 @@
+.ga-cust-link {
+  text-decoration: none;
+}
+
+.ga-cust-link:hover {
+  color: var(--ga-primary-dark);
+  text-decoration: underline;
+}

@@ -1,0 +1,36 @@
+.ga-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: var(--ga-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ga-badge--neutral {
+  background: var(--ga-surface-muted);
+  color: var(--ga-text-secondary);
+}
+
+.ga-badge--success {
+  background: var(--ga-primary-soft);
+  color: var(--ga-primary-dark);
+}
+
+.ga-badge--warning {
+  background: var(--ga-warning-soft);
+  color: var(--ga-warning);
+}
+
+.ga-badge--danger {
+  background: var(--ga-danger-soft);
+  color: var(--ga-danger);
+}
+
+.ga-badge--info {
+  background: var(--ga-primary-soft);
+  color: var(--ga-primary);
+}

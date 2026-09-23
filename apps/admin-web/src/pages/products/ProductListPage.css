@@ -1,0 +1,29 @@
+.ga-product-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1440px;
+}
+
+.ga-product-list__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ga-product-list__title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.ga-product-list__subtitle {
+  margin: 4px 0 0;
+  color: var(--ga-text-secondary);
+}
+
+.ga-product-list__summary {
+  font-size: 13px;
+  color: var(--ga-text-muted);
+}

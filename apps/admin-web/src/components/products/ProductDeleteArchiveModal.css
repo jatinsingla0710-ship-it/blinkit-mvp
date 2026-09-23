@@ -1,0 +1,23 @@
+.ga-product-delete__checks {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+}
+
+.ga-product-delete__hint {
+  color: var(--ga-text-muted, #64748b);
+  font-size: 0.9rem;
+}
+
+.ga-product-delete__warn {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+
+.ga-product-delete__error {
+  color: #b91c1c;
+  margin-top: 0.75rem;
+}

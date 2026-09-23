@@ -1,0 +1,50 @@
+.ga-sm-att {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ga-sm-att__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm, 6px);
+}
+
+.ga-sm-att__heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ga-sm-att__form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.ga-sm-att__form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ga-sm-att__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-sm-att__ok {
+  margin: 0;
+  color: var(--ga-color-success, #067647);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .ga-sm-att__form-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,60 @@
+.ga-cust-account-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.ga-cust-account-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--ga-surface-raised, #fff);
+  border: 1px solid var(--ga-border-subtle, #e8e8ec);
+}
+
+.ga-cust-account-kpi--link {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ga-cust-account-kpi--link:hover {
+  border-color: color-mix(in srgb, var(--ga-primary) 35%, #e8e8ec);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ga-cust-account-kpi--warning {
+  border-color: color-mix(in srgb, var(--ga-color-warning, #f79009) 35%, #e8e8ec);
+  background: color-mix(in srgb, var(--ga-color-warning, #f79009) 6%, white);
+}
+
+.ga-cust-account-kpi--info {
+  border-color: color-mix(in srgb, var(--ga-primary) 25%, #e8e8ec);
+}
+
+.ga-cust-account-kpi--positive {
+  border-color: color-mix(in srgb, var(--ga-color-success, #067647) 25%, #e8e8ec);
+}
+
+.ga-cust-account-kpi__icon {
+  font-size: 1.1rem;
+}
+
+.ga-cust-account-kpi__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-cust-account-kpi__value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--ga-text-primary);
+}
+
+.ga-cust-account-kpi__hint {
+  font-size: 11px;
+  color: var(--ga-text-muted);
+}

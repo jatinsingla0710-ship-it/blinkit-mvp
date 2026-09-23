@@ -1,0 +1,57 @@
+.ga-sales-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--ga-space-3);
+}
+
+.ga-sales-stat__label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ga-sales-stat__value {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ga-sales-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--ga-space-3);
+}
+
+.ga-sales-compare__label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ga-text-muted);
+  font-weight: 600;
+}
+
+.ga-sales-compare__value {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.ga-sales-compare--positive .ga-sales-compare__value:last-child {
+  color: var(--ga-color-success, #027a48);
+}
+
+.ga-sales-compare--negative .ga-sales-compare__value:last-child {
+  color: var(--ga-color-danger, #b42318);
+}
+
+.ga-sales-fy-table td:first-child {
+  font-weight: 600;
+}
+
+.ga-sales-insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--ga-space-3);
+}

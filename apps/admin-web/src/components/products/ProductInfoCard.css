@@ -1,0 +1,35 @@
+.ga-product-info__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+  margin: 0;
+}
+
+.ga-product-info__grid dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ga-text-muted, #64748b);
+  margin-bottom: 0.25rem;
+}
+
+.ga-product-info__grid dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.ga-product-info__grid dd a {
+  color: var(--ga-primary-dark);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.ga-product-info__grid dd a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .ga-product-info__grid {
+    grid-template-columns: 1fr;
+  }
+}

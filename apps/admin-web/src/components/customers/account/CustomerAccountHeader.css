@@ -1,0 +1,86 @@
+.ga-cust-account-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 22px;
+  border-radius: 14px;
+  background: var(--ga-surface-raised, #fff);
+  border: 1px solid var(--ga-border-subtle, #e8e8ec);
+}
+
+.ga-cust-account-header__back {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  text-decoration: none;
+}
+
+.ga-cust-account-header__back:hover {
+  color: var(--ga-primary-dark);
+}
+
+.ga-cust-account-header__identity {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.ga-cust-account-header__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ga-primary-dark);
+  background: color-mix(in srgb, var(--ga-primary) 12%, white);
+}
+
+.ga-cust-account-header__title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.ga-cust-account-header__owner {
+  margin: 4px 0 10px;
+  color: var(--ga-text-secondary);
+  font-size: 0.95rem;
+}
+
+.ga-cust-account-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 0.875rem;
+  color: var(--ga-text-secondary);
+}
+
+.ga-cust-account-header__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-cust-account-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .ga-cust-account-header {
+    flex-direction: column;
+  }
+
+  .ga-cust-account-header__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

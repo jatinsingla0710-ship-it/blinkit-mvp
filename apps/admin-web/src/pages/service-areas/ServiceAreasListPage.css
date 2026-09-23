@@ -1,0 +1,17 @@
+.ga-sa-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1200px;
+}
+
+.ga-sa-list__error {
+  margin: 0;
+  color: var(--ga-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-sa-list__pins {
+  font-variant-numeric: tabular-nums;
+  max-width: 22rem;
+}

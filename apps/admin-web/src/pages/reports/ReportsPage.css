@@ -1,0 +1,21 @@
+.ga-rp-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1440px;
+}
+
+.ga-rp-page__main .ga-card__body {
+  padding-top: 0;
+}
+
+.ga-rp-page__panel {
+  padding-top: 16px;
+}
+
+.ga-rp-page__export-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+  line-height: 1.45;
+}

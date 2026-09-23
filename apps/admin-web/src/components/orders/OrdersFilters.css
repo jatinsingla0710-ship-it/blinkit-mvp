@@ -1,0 +1,15 @@
+.ga-orders-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface);
+}
+
+.ga-orders-filters .ga-filter-bar {
+  flex: 1 1 480px;
+  min-width: 0;
+}

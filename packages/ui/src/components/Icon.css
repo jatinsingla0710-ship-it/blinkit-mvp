@@ -1,0 +1,29 @@
+.ga-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: currentColor;
+  line-height: 0;
+}
+
+.ga-icon--sm {
+  width: var(--ga-icon-sm);
+  height: var(--ga-icon-sm);
+}
+
+.ga-icon--md {
+  width: var(--ga-icon-md);
+  height: var(--ga-icon-md);
+}
+
+.ga-icon--lg {
+  width: var(--ga-icon-lg);
+  height: var(--ga-icon-lg);
+}
+
+.ga-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

@@ -1,0 +1,57 @@
+.ga-ord-assign {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-3);
+  padding: var(--ga-space-3);
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface);
+}
+
+.ga-ord-assign__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.ga-ord-assign__sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+  line-height: 1.4;
+}
+
+.ga-ord-assign__current {
+  margin: 0;
+  font-size: 13px;
+}
+
+.ga-ord-assign__current--empty {
+  color: var(--ga-text-muted);
+}
+
+.ga-ord-assign__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ga-space-2);
+  align-items: end;
+}
+
+.ga-ord-assign__empty,
+.ga-ord-assign__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ga-danger);
+}
+
+.ga-ord-assign__ok {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ga-success);
+}
+
+@media (max-width: 640px) {
+  .ga-ord-assign__form {
+    grid-template-columns: 1fr;
+  }
+}

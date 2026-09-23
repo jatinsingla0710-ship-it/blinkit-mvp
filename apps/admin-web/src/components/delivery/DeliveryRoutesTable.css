@@ -1,0 +1,25 @@
+.ga-dl-link {
+  text-decoration: none;
+}
+
+.ga-dl-link:hover {
+  color: var(--ga-primary-dark);
+  text-decoration: underline;
+}
+
+.ga-dl-table__meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}
+
+.ga-dl-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-text-muted);
+}

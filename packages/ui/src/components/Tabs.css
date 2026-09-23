@@ -1,0 +1,39 @@
+.ga-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ga-space-2);
+  border-bottom: 1px solid var(--ga-border);
+}
+
+.ga-tabs__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ga-tabs__tab {
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  font-size: var(--ga-text-md);
+  font-weight: 600;
+  color: var(--ga-text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.ga-tabs__tab:hover {
+  color: var(--ga-text);
+}
+
+.ga-tabs__tab--active {
+  color: var(--ga-primary-dark);
+  border-bottom-color: var(--ga-primary);
+}
+
+.ga-tabs__trailing {
+  flex-shrink: 0;
+  padding-bottom: 4px;
+}

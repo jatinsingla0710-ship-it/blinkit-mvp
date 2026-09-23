@@ -1,0 +1,29 @@
+.ga-selling-info__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.ga-selling-info__grid dt {
+  font-size: 0.75rem;
+  color: var(--ga-text-muted, #6b7280);
+  margin-bottom: 0.25rem;
+}
+
+.ga-selling-info__grid dd {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.ga-selling-info__hint {
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ga-text-secondary, #4b5563);
+}
+
+.ga-selling-info__empty {
+  margin: 0;
+  color: var(--ga-text-muted, #6b7280);
+}

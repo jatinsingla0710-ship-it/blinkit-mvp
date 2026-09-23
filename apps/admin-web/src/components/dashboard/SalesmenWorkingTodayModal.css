@@ -1,0 +1,15 @@
+.ga-salesmen-working-modal {
+  min-width: min(720px, 100%);
+}
+
+.ga-salesmen-working-modal__note {
+  margin: 0 0 var(--ga-space-3);
+  color: var(--ga-text-secondary);
+  font-size: 13px;
+}
+
+.ga-salesmen-working-modal__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 14px;
+}

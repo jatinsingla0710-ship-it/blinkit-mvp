@@ -1,0 +1,44 @@
+.ga-commission-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+  max-width: 1440px;
+}
+
+.ga-commission-list__empty {
+  margin: 0;
+  color: var(--ga-text-muted);
+}
+
+.ga-commission-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ga-commission-edit p {
+  margin: 0;
+}
+
+.ga-commission-edit__confirm {
+  padding: 0.75rem;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm, 6px);
+  background: var(--ga-surface-muted, transparent);
+}
+
+.ga-commission-edit__history-title {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+}
+
+.ga-commission-edit__history {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ga-text-muted);
+  font-size: 0.875rem;
+}
+
+.ga-commission-edit__error {
+  color: var(--ga-color-danger, #b42318);
+}

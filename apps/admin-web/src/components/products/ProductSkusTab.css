@@ -1,0 +1,114 @@
+.ga-sku-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-2);
+}
+
+.ga-sku-tab__toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ga-sku-tab__error {
+  margin: 0;
+  color: var(--ga-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-sku-tab__price-link {
+  font-weight: 600;
+  color: var(--ga-primary-dark);
+  text-decoration: none;
+}
+
+.ga-sku-tab__price-link:hover {
+  text-decoration: underline;
+}
+
+.ga-sku-tab__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ga-sku-tab__sub {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--ga-text-muted, #666);
+}
+
+.ga-sku-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.ga-sku-form--simple {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.ga-sku-form__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--ga-border, #e5e5e5);
+  border-radius: 10px;
+  background: var(--ga-surface, #fff);
+}
+
+.ga-sku-form__section-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ga-text-secondary, #444);
+}
+
+.ga-sku-form__section-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ga-text-muted, #666);
+  line-height: 1.4;
+}
+
+.ga-sku-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ga-sku-form__live {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-text-secondary, #555);
+}
+
+.ga-sku-form__calc {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  background: var(--ga-surface-muted, #f6f6f6);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ga-text-secondary, #444);
+}
+
+.ga-sku-form__calc p {
+  margin: 0;
+}
+
+.ga-sku-form__calc-arrow {
+  margin: 0.25rem 0 !important;
+  color: var(--ga-text-muted, #888);
+}
+
+@media (max-width: 640px) {
+  .ga-sku-form,
+  .ga-sku-form__row {
+    grid-template-columns: 1fr;
+  }
+}
