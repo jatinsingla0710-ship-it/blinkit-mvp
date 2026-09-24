@@ -1,5 +1,5 @@
 /* GroAurum Admin shell worker. Scope is this origin only. */
-const SHELL_CACHE = 'groaurum-admin-shell-v1';
+const SHELL_CACHE = 'groaurum-admin-shell-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

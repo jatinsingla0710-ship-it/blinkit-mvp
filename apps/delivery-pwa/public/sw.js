@@ -1,5 +1,5 @@
 /* GroAurum Delivery shell worker. Scope is this origin only. */
-const SHELL_CACHE = 'groaurum-delivery-shell-v1';
+const SHELL_CACHE = 'groaurum-delivery-shell-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
