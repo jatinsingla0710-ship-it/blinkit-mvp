@@ -17,7 +17,8 @@ import {
 } from '@groaurum/ui';
 import type { SalesmanRetailer } from '@groaurum/api-client';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
-import { getCustomerAppUrl } from '@/data/customer-app-config';
+import { resolveCustomerAppUrl } from '@/data/customer-app-config';
+import { missingServiceAreaMessage } from '@/data/order-submit';
 import {
   formatCoordinates,
   isValidCoordinatePair,
@@ -45,7 +46,9 @@ export function CustomerDetailPage() {
   const api = useSalesmanApi();
   const queryClient = useQueryClient();
   const mockMode = isSalesDataMockMode();
+  const customerAppUrl = resolveCustomerAppUrl();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [trackingWarning, setTrackingWarning] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -61,31 +64,43 @@ export function CustomerDetailPage() {
     setLocationError(null);
   }, [shopId, data?.deliveryLat, data?.deliveryLng]);
 
-  const appLinkMutation = useMutation({
-    mutationFn: async () => {
-      if (!data?.primaryContactMobile) {
-        throw new Error('No mobile number on file for this retailer');
-      }
-      await api.recordAppLinkSent(shopId);
-      const message = buildCustomerAppWhatsappMessage({
-        customerName: data.primaryContactName ?? data.tradeName,
-        appUrl: getCustomerAppUrl(),
-      });
-      window.open(
-        buildWhatsappShareUrl(data.primaryContactMobile, message),
-        '_blank',
-        'noopener,noreferrer',
-      );
-    },
+  const recordAppLinkMutation = useMutation({
+    mutationFn: () => api.recordAppLinkSent(shopId),
     onSuccess: () => {
-      setActionError(null);
       void queryClient.invalidateQueries({ queryKey: ['sales', 'retailer', shopId] });
       void queryClient.invalidateQueries({ queryKey: ['sales', 'retailers'] });
     },
     onError: (err) => {
-      setActionError(err instanceof Error ? err.message : 'Could not send app link');
+      setTrackingWarning(
+        `WhatsApp was opened, but the app-link send could not be recorded${
+          err instanceof Error && err.message ? `: ${err.message}` : '.'
+        }`,
+      );
     },
   });
+
+  function onSendAppLink() {
+    setActionError(null);
+    setTrackingWarning(null);
+    if (!data?.primaryContactMobile) {
+      setActionError('No mobile number on file for this retailer');
+      return;
+    }
+    if (!customerAppUrl.ok) {
+      setActionError(customerAppUrl.message);
+      return;
+    }
+    const message = buildCustomerAppWhatsappMessage({
+      customerName: data.primaryContactName ?? data.tradeName,
+      appUrl: customerAppUrl.url,
+    });
+    window.open(
+      buildWhatsappShareUrl(data.primaryContactMobile, message),
+      '_blank',
+      'noopener,noreferrer',
+    );
+    recordAppLinkMutation.mutate();
+  }
 
   const locationMutation = useMutation({
     mutationFn: async (coords: { lat: number; lng: number }) =>
@@ -218,21 +233,35 @@ export function CustomerDetailPage() {
           The customer can log in with their registered mobile number and OTP.
           The app link helps them find the app — it is not required for login.
         </p>
+        {!data.serviceAreaId ? (
+          <p className="ga-sales-warning" role="status">
+            {missingServiceAreaMessage(data)}
+          </p>
+        ) : null}
+        {data.activationStatus !== 'activated' && !customerAppUrl.ok ? (
+          <p className="ga-sales-warning" role="status">
+            {customerAppUrl.message}
+          </p>
+        ) : null}
         <div className="ga-sales-actions">
           {data.activationStatus !== 'activated' ? (
             <Button
               variant="secondary"
-              disabled={appLinkMutation.isPending || !data.primaryContactMobile}
-              onClick={() => appLinkMutation.mutate()}
+              disabled={!data.primaryContactMobile || !customerAppUrl.ok}
+              onClick={onSendAppLink}
             >
-              {appLinkMutation.isPending
-                ? 'Recording…'
-                : 'Send Customer App Link via WhatsApp'}
+              Send Customer App Link via WhatsApp
             </Button>
           ) : null}
-          <Link to={`/orders/new?shopId=${data.id}`}>
-            <Button variant="primary">Create order</Button>
-          </Link>
+          {data.serviceAreaId ? (
+            <Link to={`/orders/new?shopId=${data.id}`}>
+              <Button variant="primary">Create order</Button>
+            </Link>
+          ) : (
+            <Button variant="primary" disabled>
+              Create order
+            </Button>
+          )}
         </div>
         {mockMode ? (
           <p className="ga-sales-muted" style={{ marginTop: 12 }}>
@@ -240,6 +269,9 @@ export function CustomerDetailPage() {
           </p>
         ) : null}
         {actionError ? <p className="ga-sales-error">{actionError}</p> : null}
+        {trackingWarning ? (
+          <p className="ga-sales-warning">{trackingWarning}</p>
+        ) : null}
       </Card>
     </div>
   );

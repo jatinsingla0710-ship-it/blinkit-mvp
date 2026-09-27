@@ -12,6 +12,7 @@ import {
   TextField,
 } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
+import { resolveVisitNotesForUpdate } from '@/data/visit-notes';
 
 function visitTone(status: SalesVisitStatus): BadgeTone {
   switch (status) {
@@ -44,14 +45,16 @@ export function VisitsPage() {
     mutationFn: ({
       visitId,
       status,
+      storedNotes,
     }: {
       visitId: string;
       status: SalesVisitStatus;
+      storedNotes: string | null;
     }) =>
       api.updateVisitStatus(
         visitId,
         status,
-        notesByVisit[visitId]?.trim() || null,
+        resolveVisitNotesForUpdate(notesByVisit[visitId], storedNotes),
       ),
     onSuccess: () => {
       setError(null);
@@ -131,6 +134,7 @@ export function VisitsPage() {
                     updateMutation.mutate({
                       visitId: visit.id,
                       status: 'VISITED',
+                      storedNotes: visit.notes,
                     })
                   }
                 >
@@ -145,6 +149,7 @@ export function VisitsPage() {
                     updateMutation.mutate({
                       visitId: visit.id,
                       status: 'MISSED',
+                      storedNotes: visit.notes,
                     })
                   }
                 >

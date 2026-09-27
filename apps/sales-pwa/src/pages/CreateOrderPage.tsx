@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeOrderQuantity } from '@groaurum/shared-types';
@@ -11,6 +11,11 @@ import {
   TextField,
 } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
+import {
+  confirmPlacedOrder,
+  evaluateOrderSubmitGate,
+  type PlacedOrderOutcome,
+} from '@/data/order-submit';
 
 function formatInr(amount: number): string {
   return new Intl.NumberFormat('en-IN', {
@@ -18,6 +23,54 @@ function formatInr(amount: number): string {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
+
+export function PlacedOrderResult({
+  outcome,
+  shopId,
+}: {
+  outcome: PlacedOrderOutcome;
+  shopId: string;
+}) {
+  const confirmed = outcome.kind === 'confirmation_sent';
+  return (
+    <div className="ga-sales-stack">
+      <PageHeader
+        title={confirmed ? 'Order placed' : 'Order created — confirmation not sent'}
+        subtitle={`Order ${outcome.orderId}`}
+      />
+      <Card>
+        {confirmed ? (
+          <p className="ga-sales-success">{outcome.message}</p>
+        ) : (
+          <div className="ga-sales-stack" role="alert">
+            <p className="ga-sales-warning">
+              The order was saved, but the customer confirmation could not be
+              sent: {outcome.message}
+            </p>
+            <p className="ga-sales-muted">
+              Do not place this order again. Ask your admin to resend the
+              customer confirmation for order {outcome.orderId}.
+            </p>
+          </div>
+        )}
+        <div className="ga-sales-actions" style={{ marginTop: 12 }}>
+          <Link to="/">
+            <Button variant="primary">Back to dashboard</Button>
+          </Link>
+          {shopId ? (
+            <Link to={`/customers/${shopId}`}>
+              <Button variant="secondary">View retailer</Button>
+            </Link>
+          ) : null}
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 export function CreateOrderPage() {
@@ -29,8 +82,7 @@ export function CreateOrderPage() {
   const [qtyBySku, setQtyBySku] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<string | null>(null);
-  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<PlacedOrderOutcome | null>(null);
 
   const retailersQuery = useQuery({
     queryKey: ['sales', 'retailers'],
@@ -42,19 +94,20 @@ export function CreateOrderPage() {
     queryFn: () => api.listOrderableSkus(),
   });
 
-  const selectedShop = useMemo(
-    () => retailersQuery.data?.find((r) => r.id === shopId) ?? null,
-    [retailersQuery.data, shopId],
-  );
+  const gate = evaluateOrderSubmitGate({
+    shopId,
+    retailers: retailersQuery.data,
+    retailersLoading: retailersQuery.isLoading,
+    retailersError: retailersQuery.isError,
+    catalogueReady: Boolean(skusQuery.data && skusQuery.data.length > 0),
+  });
 
   const placeMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedShop) {
-        throw new Error('Select a retailer first');
+      if (!gate.canSubmit) {
+        throw new Error(gate.reason);
       }
-      if (!selectedShop.serviceAreaId) {
-        throw new Error('Retailer has no service area — cannot place order');
-      }
+      const { shop, serviceAreaId } = gate;
 
       const skus = skusQuery.data ?? [];
       const lines: {
@@ -93,52 +146,40 @@ export function CreateOrderPage() {
       }
 
       const orderId = await api.placeAssistedOrder({
-        shopId: selectedShop.id,
-        serviceAreaId: selectedShop.serviceAreaId,
+        shopId: shop.id,
+        serviceAreaId,
         lines,
         notes: notes.trim() || undefined,
       });
-      const placeholder = await api.sendConfirmationPlaceholder(orderId);
-      return { orderId, placeholder };
+
+      return confirmPlacedOrder(orderId, (id) =>
+        api.sendConfirmationPlaceholder(id),
+      );
     },
-    onSuccess: ({ orderId, placeholder }) => {
-      setPlacedOrderId(orderId);
-      setConfirmation(placeholder.message);
+    onSuccess: (result) => {
+      setOutcome(result);
       setError(null);
       void queryClient.invalidateQueries({ queryKey: ['sales', 'dashboard'] });
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Order failed');
-      setConfirmation(null);
+      setError(errorMessage(err, 'Order failed'));
+      setOutcome(null);
     },
   });
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!gate.canSubmit || placeMutation.isPending) return;
     placeMutation.mutate();
   }
 
-  if (placedOrderId && confirmation) {
-    return (
-      <div className="ga-sales-stack">
-        <PageHeader title="Order placed" subtitle={`Order ${placedOrderId}`} />
-        <Card>
-          <p className="ga-sales-success">{confirmation}</p>
-          <div className="ga-sales-actions" style={{ marginTop: 12 }}>
-            <Link to="/">
-              <Button variant="primary">Back to dashboard</Button>
-            </Link>
-            {shopId ? (
-              <Link to={`/customers/${shopId}`}>
-                <Button variant="secondary">View retailer</Button>
-              </Link>
-            ) : null}
-          </div>
-        </Card>
-      </div>
-    );
+  if (outcome) {
+    return <PlacedOrderResult outcome={outcome} shopId={shopId} />;
   }
+
+  const blockedReason =
+    !gate.canSubmit && !retailersQuery.isError ? gate.reason : null;
 
   return (
     <div className="ga-sales-stack">
@@ -154,10 +195,32 @@ export function CreateOrderPage() {
 
       <Card>
         <form className="ga-sales-form" onSubmit={onSubmit}>
+          {retailersQuery.isError ? (
+            <div className="ga-sales-stack" role="alert">
+              <p className="ga-sales-error">
+                Could not load your retailers:{' '}
+                {errorMessage(retailersQuery.error, 'unknown error')}
+              </p>
+              <div className="ga-sales-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={retailersQuery.isFetching}
+                  onClick={() => {
+                    void retailersQuery.refetch();
+                  }}
+                >
+                  {retailersQuery.isFetching ? 'Retrying…' : 'Retry retailers'}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <SelectField
             label="Retailer"
             name="shopId"
             value={shopId}
+            disabled={!retailersQuery.data}
             onChange={(value) => {
               const next = new URLSearchParams(searchParams);
               if (value) next.set('shopId', value);
@@ -166,7 +229,9 @@ export function CreateOrderPage() {
             }}
             grow
           >
-            <option value="">Select retailer</option>
+            <option value="">
+              {retailersQuery.isLoading ? 'Loading retailers…' : 'Select retailer'}
+            </option>
             {(retailersQuery.data ?? []).map((shop) => (
               <option key={shop.id} value={shop.id}>
                 {shop.tradeName}
@@ -176,6 +241,27 @@ export function CreateOrderPage() {
 
           {skusQuery.isLoading ? (
             <EmptyState title="Loading SKUs" detail="Fetching catalogue…" />
+          ) : null}
+
+          {skusQuery.isError ? (
+            <div className="ga-sales-stack" role="alert">
+              <p className="ga-sales-error">
+                Could not load products:{' '}
+                {errorMessage(skusQuery.error, 'unknown error')}
+              </p>
+              <div className="ga-sales-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={skusQuery.isFetching}
+                  onClick={() => {
+                    void skusQuery.refetch();
+                  }}
+                >
+                  {skusQuery.isFetching ? 'Retrying…' : 'Retry products'}
+                </Button>
+              </div>
+            </div>
           ) : null}
 
           {skusQuery.data && skusQuery.data.length === 0 ? (
@@ -225,12 +311,22 @@ export function CreateOrderPage() {
             grow
           />
 
-          {error ? <p className="ga-sales-error">{error}</p> : null}
+          {blockedReason ? (
+            <p className="ga-sales-warning" role="status">
+              {blockedReason}
+            </p>
+          ) : null}
+
+          {error ? (
+            <p className="ga-sales-error" role="alert">
+              {error}
+            </p>
+          ) : null}
 
           <Button
             type="submit"
             variant="primary"
-            disabled={placeMutation.isPending || !shopId}
+            disabled={placeMutation.isPending || !gate.canSubmit}
           >
             {placeMutation.isPending ? 'Placing…' : 'Place assisted order'}
           </Button>

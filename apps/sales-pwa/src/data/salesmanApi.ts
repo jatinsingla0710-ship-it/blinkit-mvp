@@ -313,7 +313,7 @@ function createMockSalesmanService(): SalesmanApi {
     ): Promise<void> {
       mockVisits = mockVisits.map((v) =>
         v.id === visitId
-          ? { ...v, status, notes: notes ?? v.notes }
+          ? { ...v, status, notes: notes === undefined ? v.notes : notes }
           : v,
       );
     },

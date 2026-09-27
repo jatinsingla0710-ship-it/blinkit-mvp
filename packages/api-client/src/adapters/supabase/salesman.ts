@@ -283,22 +283,24 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       const shops = await listAssignedShopsRaw();
       const shopIds = shops.map((s) => s.id as string);
 
-      const { data: authLinks } = shopIds.length
-        ? await client
-            .from('shop_auth_links')
-            .select('shop_id')
-            .in('shop_id', shopIds)
-        : { data: [] as { shop_id: string }[] };
-      const authLinkSet = new Set(
-        (authLinks ?? []).map((row) => row.shop_id as string),
-      );
+      let authLinks: { shop_id: string }[] = [];
+      if (shopIds.length) {
+        const { data, error } = await client
+          .from('shop_auth_links')
+          .select('shop_id')
+          .in('shop_id', shopIds);
+        if (error) throw error;
+        authLinks = data ?? [];
+      }
+      const authLinkSet = new Set(authLinks.map((row) => row.shop_id as string));
 
-      const { count: visitCount } = await client
+      const { count: visitCount, error: visitError } = await client
         .from('sales_visits')
         .select('id', { count: 'exact', head: true })
         .eq('salesman_profile_id', profileId)
         .gte('planned_at', startOfTodayIso())
         .lte('planned_at', endOfTodayIso());
+      if (visitError) throw visitError;
 
       const pendingActivations = shops.filter((s) => {
         const sid = s.id as string;
@@ -308,12 +310,12 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       let ordersCollected = 0;
       let revenue = 0;
       if (shopIds.length) {
-        const { data: orders } = await client
+        const { data: orders, error: ordersError } = await client
           .from('orders')
           .select('id, total, created_by_profile_id, created_at')
           .eq('created_by_profile_id', profileId)
-          .gte('created_at', startOfMonthIso())
-          .is('deleted_at', null);
+          .gte('created_at', startOfMonthIso());
+        if (ordersError) throw ordersError;
         const rows = orders ?? [];
         ordersCollected = rows.length;
         revenue = rows.reduce((sum, o) => sum + Number(o.total ?? 0), 0);
@@ -342,7 +344,7 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
         ),
       ];
 
-      const [{ data: contacts }, { data: areas }, { data: invitations }, { data: authLinks }, { data: orders }] =
+      const [contactsRes, areasRes, invitationsRes, authLinksRes, ordersRes] =
         await Promise.all([
           client
             .from('shop_contacts')
@@ -350,7 +352,10 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
             .in('shop_id', shopIds),
           areaIds.length
             ? client.from('service_areas').select('id, name').in('id', areaIds)
-            : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+            : Promise.resolve({
+                data: [] as { id: string; name: string }[],
+                error: null,
+              }),
           client
             .from('shop_invitations')
             .select('shop_id, token, status')
@@ -364,9 +369,22 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
             .from('orders')
             .select('shop_id, created_at')
             .in('shop_id', shopIds)
-            .is('deleted_at', null)
             .order('created_at', { ascending: false }),
         ]);
+      for (const res of [
+        contactsRes,
+        areasRes,
+        invitationsRes,
+        authLinksRes,
+        ordersRes,
+      ]) {
+        if (res.error) throw res.error;
+      }
+      const contacts = contactsRes.data;
+      const areas = areasRes.data;
+      const invitations = invitationsRes.data;
+      const authLinks = authLinksRes.data;
+      const orders = ordersRes.data;
 
       const areaMap = new Map((areas ?? []).map((a) => [a.id, a.name]));
       const contactMap = new Map<string, { name: string; mobile: string }>();
@@ -504,7 +522,6 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
         .from('orders')
         .select('id, shop_id, total, status, created_at')
         .eq('created_by_profile_id', profileId)
-        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -512,10 +529,11 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       if (!orders.length) return [];
 
       const shopIds = [...new Set(orders.map((o) => o.shop_id as string))];
-      const { data: shops } = await client
+      const { data: shops, error: shopsError } = await client
         .from('shops')
         .select('id, trade_name')
         .in('id', shopIds);
+      if (shopsError) throw shopsError;
       const nameMap = new Map((shops ?? []).map((s) => [s.id, s.trade_name]));
 
       return orders.map((o) => ({
@@ -604,10 +622,11 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       if (!visits.length) return [];
 
       const shopIds = [...new Set(visits.map((v) => v.shop_id as string))];
-      const { data: shops } = await client
+      const { data: shops, error: shopsError } = await client
         .from('shops')
         .select('id, trade_name, service_area_id, delivery_city')
         .in('id', shopIds);
+      if (shopsError) throw shopsError;
       const shopMap = new Map(
         (shops ?? []).map((s) => [
           s.id,
@@ -645,10 +664,11 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       if (!visits.length) return [];
 
       const shopIds = [...new Set(visits.map((v) => v.shop_id as string))];
-      const { data: shops } = await client
+      const { data: shops, error: shopsError } = await client
         .from('shops')
         .select('id, trade_name, delivery_city')
         .in('id', shopIds);
+      if (shopsError) throw shopsError;
       const shopMap = new Map(
         (shops ?? []).map((s) => [
           s.id,
@@ -671,6 +691,9 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       });
     },
 
+    /**
+     * `notes` undefined leaves the stored notes untouched; `null` clears them.
+     */
     async updateVisitStatus(
       visitId: string,
       status: SalesVisitStatus,
@@ -678,12 +701,12 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
     ): Promise<void> {
       const patch: {
         status: SalesVisitStatus;
-        notes: string | null;
+        notes?: string | null;
         visited_at?: string;
-      } = {
-        status,
-        notes: notes ?? null,
-      };
+      } = { status };
+      if (notes !== undefined) {
+        patch.notes = notes;
+      }
       if (status === 'VISITED') {
         patch.visited_at = new Date().toISOString();
       }
@@ -696,12 +719,12 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
 
     async getPerformance(profileId: string): Promise<SalesmanPerformance> {
       const shops = await listAssignedShopsRaw();
-      const { data: orders } = await client
+      const { data: orders, error: ordersError } = await client
         .from('orders')
         .select('id, total, shop_id, created_at')
         .eq('created_by_profile_id', profileId)
-        .gte('created_at', startOfMonthIso())
-        .is('deleted_at', null);
+        .gte('created_at', startOfMonthIso());
+      if (ordersError) throw ordersError;
 
       const orderRows = orders ?? [];
       const revenue = orderRows.reduce((sum, o) => sum + Number(o.total ?? 0), 0);
@@ -800,7 +823,10 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
       const skuIds = skus.map((s) => s.id);
-      const [{ data: prices }, { data: balances }] = await Promise.all([
+      const [
+        { data: prices, error: pricesError },
+        { data: balances, error: balancesError },
+      ] = await Promise.all([
         client
           .from('sku_prices')
           .select('*')
@@ -811,6 +837,8 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
           .select('sku_id, available_quantity')
           .in('sku_id', skuIds),
       ]);
+      if (pricesError) throw pricesError;
+      if (balancesError) throw balancesError;
 
       const priceBySku = new Map<string, number>();
       for (const sku of skus) {

@@ -5,6 +5,7 @@ import type { SalesmanAttendanceStatus } from '@groaurum/api-client';
 import type { BadgeTone } from '@groaurum/ui';
 import { Badge, Button, Card, EmptyState, PageHeader } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
+import { deriveAttendanceControls } from '@/data/attendance-controls';
 import { useState } from 'react';
 
 function attendanceTone(status: SalesmanAttendanceStatus): BadgeTone {
@@ -56,14 +57,12 @@ export function DashboardPage() {
     enabled: Boolean(profileId),
   });
 
-  const {
-    data: attendance,
-    isLoading: attendanceLoading,
-  } = useQuery({
+  const attendanceQuery = useQuery({
     queryKey: ['sales', 'attendance', 'today', profileId],
     queryFn: () => api.getTodayAttendance(profileId),
     enabled: Boolean(profileId),
   });
+  const attendance = attendanceQuery.data;
 
   const invalidateAttendance = () =>
     queryClient.invalidateQueries({
@@ -94,18 +93,13 @@ export function DashboardPage() {
     },
   });
 
-  const hasStarted = Boolean(attendance?.dayStartedAt);
-  const nonWorking =
-    attendance != null &&
-    (attendance.status === 'WEEKLY_OFF' ||
-      attendance.status === 'HOLIDAY' ||
-      attendance.status === 'PAID_LEAVE' ||
-      attendance.status === 'UNPAID_LEAVE');
-  const canStartDay = !hasStarted && !nonWorking;
-  const canEndDay =
-    attendance?.status === 'PRESENT' &&
-    hasStarted &&
-    !attendance.dayEndedAt;
+  const { view: attendanceView, canStartDay, canEndDay } =
+    deriveAttendanceControls({
+      enabled: Boolean(profileId),
+      isLoading: attendanceQuery.isLoading,
+      isError: attendanceQuery.isError,
+      attendance,
+    });
   const dayBusy = startDayMutation.isPending || endDayMutation.isPending;
 
   return (
@@ -116,11 +110,41 @@ export function DashboardPage() {
       />
 
       <Card title="Today">
-        {attendanceLoading ? (
+        {attendanceView === 'unavailable' ? (
+          <p className="ga-sales-muted">
+            Attendance is unavailable until your profile loads.
+          </p>
+        ) : null}
+
+        {attendanceView === 'loading' ? (
           <p className="ga-sales-muted">Loading attendance…</p>
         ) : null}
 
-        {!attendanceLoading && attendance ? (
+        {attendanceView === 'error' ? (
+          <div className="ga-sales-stack" role="alert">
+            <p className="ga-sales-error">
+              Could not load today&apos;s attendance
+              {attendanceQuery.error instanceof Error
+                ? `: ${attendanceQuery.error.message}`
+                : '.'}{' '}
+              Start Day and End Day are paused until it loads.
+            </p>
+            <div className="ga-sales-actions">
+              <Button
+                variant="secondary"
+                type="button"
+                disabled={attendanceQuery.isFetching}
+                onClick={() => {
+                  void attendanceQuery.refetch();
+                }}
+              >
+                {attendanceQuery.isFetching ? 'Retrying…' : 'Retry'}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {attendanceView === 'recorded' && attendance ? (
           <div className="ga-sales-attendance">
             <Badge tone={attendanceTone(attendance.status)}>
               {attendanceStatusLabel(attendance.status)}
@@ -143,7 +167,7 @@ export function DashboardPage() {
           </div>
         ) : null}
 
-        {!attendanceLoading && !attendance ? (
+        {attendanceView === 'not_started' ? (
           <p className="ga-sales-muted">Day not started yet</p>
         ) : null}
 

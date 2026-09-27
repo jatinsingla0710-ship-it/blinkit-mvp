@@ -244,6 +244,15 @@
   font-size: var(--ga-text-sm);
 }
 
+.ga-sales-warning {
+  margin: 0;
+  padding: var(--ga-space-2) var(--ga-space-3);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-warning-soft);
+  color: var(--ga-warning);
+  font-size: var(--ga-text-sm);
+}
+
 .ga-sales-sku-row {
   display: grid;
   grid-template-columns: 1fr auto;
