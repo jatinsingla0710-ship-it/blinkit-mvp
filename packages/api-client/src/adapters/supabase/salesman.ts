@@ -1,7 +1,6 @@
 import type { Category, Product, Sku } from '@groaurum/shared-types';
 import { selectEffectiveSkuPrice } from '../../catalogue/effective-price';
 import type { GroAurumSupabaseClient } from '../../supabase/client';
-import { createSupabaseCatalogueService } from './catalogue';
 import { mapCategory, mapProduct, mapSku } from './mappers';
 
 export type SalesVisitStatus = 'PLANNED' | 'VISITED' | 'PENDING' | 'MISSED';
@@ -44,6 +43,8 @@ export type SalesmanRetailer = {
 
 export type SalesmanOrderSummary = {
   id: string;
+  /** Short display reference; orders have no separate number column. */
+  orderNumber: string;
   shopId: string;
   shopName: string;
   total: number;
@@ -51,6 +52,66 @@ export type SalesmanOrderSummary = {
   status: string;
   createdAt: string;
   dateLabel: string;
+  dateTimeLabel: string;
+};
+
+export type SalesmanOrderLine = {
+  id: string;
+  skuId: string;
+  productName: string;
+  skuName: string;
+  skuCode: string;
+  specification: string | null;
+  sellingUnit: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+};
+
+export type SalesmanOrderDetail = SalesmanOrderSummary & {
+  source: string;
+  subtotal: number;
+  adjustments: number;
+  updatedAt: string;
+  lines: SalesmanOrderLine[];
+};
+
+export type OrderPreviewLineInput = {
+  skuId: string;
+  quantity: number;
+};
+
+export type OrderPreviewErrorCode =
+  | 'DUPLICATE_SKU'
+  | 'INVALID_QUANTITY'
+  | 'NOT_ORDERABLE'
+  | 'BELOW_MOQ'
+  | 'INVALID_STEP'
+  | 'NO_PRICE'
+  | 'PRICE_SPLIT'
+  | 'NO_INVENTORY'
+  | 'INSUFFICIENT_STOCK';
+
+export type OrderPreviewLine = {
+  skuId: string;
+  quantity: number;
+  unitPrice: number | null;
+  lineTotal: number | null;
+  availableQuantity: number | null;
+  ok: boolean;
+  errorCode: OrderPreviewErrorCode | null;
+  message: string | null;
+};
+
+/** Server-priced cart from preview_assisted_order_lines (read-only). */
+export type SalesmanOrderPreview = {
+  lines: OrderPreviewLine[];
+  itemCount: number;
+  subtotal: number;
+  total: number;
+  currency: string;
+  allValid: boolean;
+  pricedAt: string;
 };
 
 export type SalesmanVisit = {
@@ -62,6 +123,9 @@ export type SalesmanVisit = {
   plannedAtLabel: string;
   status: SalesVisitStatus;
   notes: string | null;
+  /** Set when the visit row has visited_at. Omitted by list methods that do not select it. */
+  visitedAt?: string | null;
+  visitedAtLabel?: string | null;
 };
 
 export type SalesmanPerformance = {
@@ -134,6 +198,39 @@ function formatInr(amount: number): string {
   }).format(amount);
 }
 
+export function formatOrderNumber(orderId: string): string {
+  return orderId.slice(0, 8).toUpperCase();
+}
+
+function numOrNull(value: unknown): number | null {
+  if (value == null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function mapPreview(data: unknown): SalesmanOrderPreview {
+  const row = (data ?? {}) as Record<string, unknown>;
+  const lines = Array.isArray(row.lines) ? (row.lines as Record<string, unknown>[]) : [];
+  return {
+    lines: lines.map((l) => ({
+      skuId: String(l.skuId),
+      quantity: Number(l.quantity),
+      unitPrice: numOrNull(l.unitPrice),
+      lineTotal: numOrNull(l.lineTotal),
+      availableQuantity: numOrNull(l.availableQuantity),
+      ok: l.ok === true,
+      errorCode: (l.errorCode as OrderPreviewErrorCode | null) ?? null,
+      message: (l.message as string | null) ?? null,
+    })),
+    itemCount: Number(row.itemCount ?? 0),
+    subtotal: Number(row.subtotal ?? 0),
+    total: Number(row.total ?? 0),
+    currency: String(row.currency ?? 'INR'),
+    allValid: row.allValid === true,
+    pricedAt: String(row.pricedAt ?? new Date().toISOString()),
+  };
+}
+
 function formatDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString('en-IN', {
@@ -156,6 +253,61 @@ function formatDateTime(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+/** Private bucket. Path is `{profileId}/{shopId}/shop`. Not product-media. */
+export const SALESMAN_MEDIA_BUCKET = 'salesman-media';
+
+const SHOP_PHOTO_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+export function shopPhotoObjectPath(profileId: string, shopId: string): string {
+  return `${profileId}/${shopId}/shop`;
+}
+
+export type ShopPhotoUpload = {
+  bytes: ArrayBuffer;
+  contentType: string;
+};
+
+function toOrderSummary(
+  o: {
+    id: unknown;
+    shop_id: unknown;
+    total: unknown;
+    status: unknown;
+    created_at: unknown;
+  },
+  shopName: string,
+): SalesmanOrderSummary {
+  const id = String(o.id);
+  const createdAt = String(o.created_at);
+  const total = Number(o.total ?? 0);
+  return {
+    id,
+    orderNumber: formatOrderNumber(id),
+    shopId: String(o.shop_id),
+    shopName,
+    total,
+    totalLabel: formatInr(total),
+    status: String(o.status),
+    createdAt,
+    dateLabel: formatDate(createdAt),
+    dateTimeLabel: formatDateTime(createdAt),
+  };
+}
+
+function isStorageNotFound(error: { message?: string; statusCode?: string | number }): boolean {
+  const message = String(error.message ?? '').toLowerCase();
+  const status = String(error.statusCode ?? '');
+  return status === '404' || message.includes('not found');
+}
+
+async function requireAuthUserId(client: GroAurumSupabaseClient): Promise<string> {
+  const { data, error } = await client.auth.getUser();
+  if (error) throw error;
+  const id = data.user?.id;
+  if (!id) throw new Error('Not signed in');
+  return id;
 }
 
 function deriveSalesAppAccess(input: {
@@ -266,8 +418,6 @@ function mapDayActionResult(
 }
 
 export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
-  const catalogue = createSupabaseCatalogueService(client);
-
   async function listAssignedShopsRaw() {
     const { data, error } = await client
       .from('shops')
@@ -536,16 +686,103 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       if (shopsError) throw shopsError;
       const nameMap = new Map((shops ?? []).map((s) => [s.id, s.trade_name]));
 
-      return orders.map((o) => ({
-        id: o.id as string,
-        shopId: o.shop_id as string,
-        shopName: nameMap.get(o.shop_id as string) ?? '—',
-        total: Number(o.total ?? 0),
-        totalLabel: formatInr(Number(o.total ?? 0)),
-        status: String(o.status),
-        createdAt: String(o.created_at),
-        dateLabel: formatDate(String(o.created_at)),
-      }));
+      return orders.map((o) =>
+        toOrderSummary(o, nameMap.get(o.shop_id as string) ?? '—'),
+      );
+    },
+
+    /** Orders for one assigned shop. RLS still scopes rows; errors are thrown. */
+    async listShopOrders(shopId: string): Promise<SalesmanOrderSummary[]> {
+      const { data, error } = await client
+        .from('orders')
+        .select('id, shop_id, total, status, created_at')
+        .eq('shop_id', shopId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const orders = data ?? [];
+      if (!orders.length) return [];
+
+      const { data: shop, error: shopError } = await client
+        .from('shops')
+        .select('id, trade_name')
+        .eq('id', shopId)
+        .maybeSingle();
+      if (shopError) throw shopError;
+      const shopName = shop?.trade_name ? String(shop.trade_name) : '—';
+      return orders.map((o) => toOrderSummary(o, shopName));
+    },
+
+    /** Null when the order does not exist or RLS hides it from this salesman. */
+    async getOrder(orderId: string): Promise<SalesmanOrderDetail | null> {
+      const { data: order, error } = await client
+        .from('orders')
+        .select(
+          'id, shop_id, total, subtotal, adjustments, status, source, created_at, updated_at',
+        )
+        .eq('id', orderId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!order) return null;
+
+      const [linesRes, shopRes] = await Promise.all([
+        client
+          .from('order_lines')
+          .select(
+            'id, sku_id, product_name_snapshot, sku_name_snapshot, sku_code_snapshot, specification_snapshot, selling_unit_snapshot, quantity, agreed_unit_price, line_total, created_at',
+          )
+          .eq('order_id', orderId)
+          .order('created_at', { ascending: true }),
+        client
+          .from('shops')
+          .select('id, trade_name')
+          .eq('id', order.shop_id as string)
+          .maybeSingle(),
+      ]);
+      if (linesRes.error) throw linesRes.error;
+      if (shopRes.error) throw shopRes.error;
+
+      const createdAt = String(order.created_at);
+      const total = Number(order.total ?? 0);
+      return {
+        id: String(order.id),
+        orderNumber: formatOrderNumber(String(order.id)),
+        shopId: String(order.shop_id),
+        shopName: (shopRes.data?.trade_name as string | undefined) ?? '—',
+        total,
+        totalLabel: formatInr(total),
+        subtotal: Number(order.subtotal ?? 0),
+        adjustments: Number(order.adjustments ?? 0),
+        status: String(order.status),
+        source: String(order.source),
+        createdAt,
+        updatedAt: String(order.updated_at),
+        dateLabel: formatDate(createdAt),
+        dateTimeLabel: formatDateTime(createdAt),
+        lines: (linesRes.data ?? []).map((l) => ({
+          id: String(l.id),
+          skuId: String(l.sku_id),
+          productName: String(l.product_name_snapshot),
+          skuName: String(l.sku_name_snapshot),
+          skuCode: String(l.sku_code_snapshot),
+          specification: (l.specification_snapshot as string | null) ?? null,
+          sellingUnit: String(l.selling_unit_snapshot),
+          quantity: Number(l.quantity),
+          unitPrice: Number(l.agreed_unit_price),
+          lineTotal: Number(l.line_total),
+        })),
+      };
+    },
+
+    /** Read-only server pricing for a cart; never creates an order. */
+    async previewOrderLines(
+      lines: OrderPreviewLineInput[],
+    ): Promise<SalesmanOrderPreview> {
+      const { data, error } = await client.rpc('preview_assisted_order_lines', {
+        p_lines: lines.map((l) => ({ skuId: l.skuId, quantity: l.quantity })),
+      });
+      if (error) throw error;
+      return mapPreview(data);
     },
 
     async placeAssistedOrder(input: {
@@ -691,6 +928,42 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       });
     },
 
+    /** Visits for one shop. Reads sales_visits; does not write notes or status. */
+    async listShopVisits(shopId: string): Promise<SalesmanVisit[]> {
+      const { data, error } = await client
+        .from('sales_visits')
+        .select('id, shop_id, planned_at, status, notes, visited_at')
+        .eq('shop_id', shopId)
+        .order('planned_at', { ascending: false })
+        .limit(40);
+      if (error) throw error;
+      const visits = data ?? [];
+      if (!visits.length) return [];
+
+      const { data: shop, error: shopError } = await client
+        .from('shops')
+        .select('id, trade_name, delivery_city')
+        .eq('id', shopId)
+        .maybeSingle();
+      if (shopError) throw shopError;
+
+      return visits.map((v) => {
+        const visitedAt = (v.visited_at as string | null) ?? null;
+        return {
+          id: v.id as string,
+          shopId: v.shop_id as string,
+          shopName: shop?.trade_name ? String(shop.trade_name) : '—',
+          areaLabel: shop?.delivery_city ? String(shop.delivery_city) : '—',
+          plannedAt: String(v.planned_at),
+          plannedAtLabel: formatDateTime(String(v.planned_at)),
+          status: String(v.status) as SalesVisitStatus,
+          notes: (v.notes as string | null) ?? null,
+          visitedAt,
+          visitedAtLabel: visitedAt ? formatDateTime(visitedAt) : null,
+        };
+      });
+    },
+
     /**
      * `notes` undefined leaves the stored notes untouched; `null` clears them.
      */
@@ -813,25 +1086,57 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       );
     },
 
+    /** Two round trips total: catalogue rows, then prices + stock for all SKUs at once. */
     async listOrderableSkus(): Promise<CatalogueSkuRow[]> {
-      const [categories, products, skus] = await Promise.all([
-        catalogue.getCategories({ activeOnly: true }),
-        catalogue.getProducts({ activeOnly: true }),
-        catalogue.searchSkus({ activeOnly: true }),
+      const [categoriesRes, productsRes, skusRes] = await Promise.all([
+        client
+          .from('categories')
+          .select('*')
+          .eq('is_active', true)
+          .is('deleted_at', null),
+        client
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .order('name', { ascending: true }),
+        client
+          .from('skus')
+          .select('*')
+          .eq('is_active', true)
+          .is('deleted_at', null)
+          .order('name', { ascending: true }),
       ]);
-      const productMap = new Map(products.map((p) => [p.id, p]));
-      const categoryMap = new Map(categories.map((c) => [c.id, c]));
+      if (categoriesRes.error) throw categoriesRes.error;
+      if (productsRes.error) throw productsRes.error;
+      if (skusRes.error) throw skusRes.error;
+
+      const categoryMap = new Map(
+        (categoriesRes.data ?? []).map((row) => {
+          const c = mapCategory(row);
+          return [c.id, c] as const;
+        }),
+      );
+      const productMap = new Map<string, Product>();
+      for (const row of productsRes.data ?? []) {
+        if (!categoryMap.has(row.category_id)) continue;
+        const p = mapProduct(row);
+        productMap.set(p.id, p);
+      }
+      const skus = (skusRes.data ?? [])
+        .filter((row) => productMap.has(row.product_id))
+        .map(mapSku)
+        .filter((s): s is Sku => s != null);
+      if (!skus.length) return [];
 
       const skuIds = skus.map((s) => s.id);
       const [
         { data: prices, error: pricesError },
         { data: balances, error: balancesError },
       ] = await Promise.all([
-        client
-          .from('sku_prices')
-          .select('*')
-          .in('sku_id', skuIds)
-          .is('effective_to', null),
+        // Window filtering happens in selectEffectiveSkuPrice, mirroring
+        // resolve_sku_base_trade_price (a future effective_to is still current).
+        client.from('sku_prices').select('*').in('sku_id', skuIds),
         client
           .from('inventory_balances')
           .select('sku_id, available_quantity')
@@ -882,6 +1187,63 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
           };
         })
         .filter((row): row is CatalogueSkuRow => row != null);
+    },
+
+    /**
+     * Signed URL for this salesman's shop photo, or null when no object exists.
+     * Other storage failures throw — they are not "no photo".
+     */
+    async getShopPhotoUrl(shopId: string): Promise<string | null> {
+      const profileId = await requireAuthUserId(client);
+      const folder = `${profileId}/${shopId}`;
+      const { data: listed, error: listError } = await client.storage
+        .from(SALESMAN_MEDIA_BUCKET)
+        .list(folder, { limit: 10 });
+      if (listError) {
+        if (isStorageNotFound(listError)) return null;
+        throw listError;
+      }
+      const file = (listed ?? []).find((item) => item.name === 'shop');
+      if (!file) return null;
+      const path = shopPhotoObjectPath(profileId, shopId);
+      const { data, error } = await client.storage
+        .from(SALESMAN_MEDIA_BUCKET)
+        .createSignedUrl(path, 60 * 60);
+      if (error) {
+        if (isStorageNotFound(error)) return null;
+        throw error;
+      }
+      return data?.signedUrl ?? null;
+    },
+
+    /**
+     * Uploads only under `{auth.uid}/{shopId}/shop` after the shop row is visible
+     * to this salesman. Upsert replaces the previous photo.
+     */
+    async uploadShopPhoto(
+      shopId: string,
+      file: ShopPhotoUpload,
+    ): Promise<{ path: string }> {
+      if (!SHOP_PHOTO_CONTENT_TYPES.has(file.contentType)) {
+        throw new Error('Use a JPEG, PNG, or WebP photo.');
+      }
+      const profileId = await requireAuthUserId(client);
+      const { data: shop, error: shopError } = await client
+        .from('shops')
+        .select('id')
+        .eq('id', shopId)
+        .maybeSingle();
+      if (shopError) throw shopError;
+      if (!shop) {
+        throw new Error('This shop is not assigned to you.');
+      }
+      const path = shopPhotoObjectPath(profileId, shopId);
+      const { error } = await client.storage.from(SALESMAN_MEDIA_BUCKET).upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+      if (error) throw error;
+      return { path };
     },
 
     // Expose raw mappers for typing convenience in app layer

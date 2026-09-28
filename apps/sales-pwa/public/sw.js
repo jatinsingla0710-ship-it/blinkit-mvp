@@ -1,5 +1,5 @@
 /* GroAurum Sales shell worker. Scope is this origin only. */
-const SHELL_CACHE = 'groaurum-sales-shell-v2';
+const SHELL_CACHE = 'groaurum-sales-shell-v3';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -54,6 +54,20 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (!isAppShellAsset(url.pathname)) return;
+
+  // Hashed build files never change, so the cached copy is always correct.
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.open(SHELL_CACHE).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        const response = await fetch(request);
+        if (response.ok) cache.put(request, response.clone());
+        return response;
+      }),
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(request)

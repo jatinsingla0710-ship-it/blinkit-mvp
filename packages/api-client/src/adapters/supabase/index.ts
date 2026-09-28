@@ -111,6 +111,14 @@ export {
   type CreateRetailerInput,
   type AssistedOrderLineInput,
   type CatalogueSkuRow,
+  type SalesmanOrderSummary,
+  type SalesmanOrderDetail,
+  type SalesmanOrderLine,
+  type SalesmanOrderPreview,
+  type OrderPreviewLine,
+  type OrderPreviewLineInput,
+  type OrderPreviewErrorCode,
+  formatOrderNumber,
 } from './salesman';
 export {
   createSupabaseDeliveryService,

@@ -3,10 +3,36 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@groaurum/auth/react';
 import type { SalesmanAttendanceStatus } from '@groaurum/api-client';
 import type { BadgeTone } from '@groaurum/ui';
-import { Badge, Button, Card, EmptyState, PageHeader } from '@groaurum/ui';
+import { Badge, Button, Card } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
 import { deriveAttendanceControls } from '@/data/attendance-controls';
+import { ErrorState } from '@/components/ErrorState';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { LoadingState, Skeleton } from '@/components/Skeleton';
+import { useToast } from '@/components/Toast';
+import {
+  ChevronRightIcon,
+  CustomersIcon,
+  OrdersIcon,
+  RouteIcon,
+} from '@/components/icons';
+import { errorMessage } from '@/lib/errors';
 import { useState } from 'react';
+
+function greeting(date = new Date()): string {
+  const hour = date.getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function todayLabel(date = new Date()): string {
+  return date.toLocaleDateString('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
 
 function attendanceTone(status: SalesmanAttendanceStatus): BadgeTone {
   switch (status) {
@@ -48,14 +74,16 @@ export function DashboardPage() {
   const user = useCurrentUser();
   const api = useSalesmanApi();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const profileId = user?.id ?? '';
   const [dayError, setDayError] = useState<string | null>(null);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const dashboardQuery = useQuery({
     queryKey: ['sales', 'dashboard', profileId],
     queryFn: () => api.getDashboard(profileId),
     enabled: Boolean(profileId),
   });
+  const data = dashboardQuery.data;
 
   const attendanceQuery = useQuery({
     queryKey: ['sales', 'attendance', 'today', profileId],
@@ -71,8 +99,9 @@ export function DashboardPage() {
 
   const startDayMutation = useMutation({
     mutationFn: () => api.startDay(),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setDayError(null);
+      toast.success(result.alreadyStarted ? 'Your day was already started' : 'Day started');
       void invalidateAttendance();
     },
     onError: (err: unknown) => {
@@ -84,8 +113,9 @@ export function DashboardPage() {
 
   const endDayMutation = useMutation({
     mutationFn: () => api.endDay(),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setDayError(null);
+      toast.success(result.alreadyEnded ? 'Your day was already ended' : 'Day ended');
       void invalidateAttendance();
     },
     onError: (err: unknown) => {
@@ -102,14 +132,16 @@ export function DashboardPage() {
     });
   const dayBusy = startDayMutation.isPending || endDayMutation.isPending;
 
+  const firstName = user?.displayName?.trim().split(/\s+/)[0];
+
   return (
     <div className="ga-sales-stack">
-      <PageHeader
-        title="Dashboard"
-        subtitle={user?.displayName ? `Hi, ${user.displayName}` : 'Today’s focus'}
+      <ScreenHeader
+        title={firstName ? `${greeting()}, ${firstName}` : greeting()}
+        subtitle={todayLabel()}
       />
 
-      <Card title="Today">
+      <Card title="Attendance">
         {attendanceView === 'unavailable' ? (
           <p className="ga-sales-muted">
             Attendance is unavailable until your profile loads.
@@ -117,31 +149,24 @@ export function DashboardPage() {
         ) : null}
 
         {attendanceView === 'loading' ? (
-          <p className="ga-sales-muted">Loading attendance…</p>
+          <div className="ga-sales-attendance" role="status" aria-busy="true">
+            <Skeleton width={96} height={24} />
+            <p className="ga-sales-muted">Loading attendance…</p>
+          </div>
         ) : null}
 
         {attendanceView === 'error' ? (
-          <div className="ga-sales-stack" role="alert">
-            <p className="ga-sales-error">
-              Could not load today&apos;s attendance
-              {attendanceQuery.error instanceof Error
-                ? `: ${attendanceQuery.error.message}`
-                : '.'}{' '}
-              Start Day and End Day are paused until it loads.
-            </p>
-            <div className="ga-sales-actions">
-              <Button
-                variant="secondary"
-                type="button"
-                disabled={attendanceQuery.isFetching}
-                onClick={() => {
-                  void attendanceQuery.refetch();
-                }}
-              >
-                {attendanceQuery.isFetching ? 'Retrying…' : 'Retry'}
-              </Button>
-            </div>
-          </div>
+          <ErrorState
+            message={`Could not load today's attendance${
+              attendanceQuery.error instanceof Error
+                ? `: ${attendanceQuery.error.message}.`
+                : '.'
+            } Start Day and End Day are paused until it loads.`}
+            onRetry={() => {
+              void attendanceQuery.refetch();
+            }}
+            retrying={attendanceQuery.isFetching}
+          />
         ) : null}
 
         {attendanceView === 'recorded' && attendance ? (
@@ -173,7 +198,7 @@ export function DashboardPage() {
 
         {dayError ? <p className="ga-sales-error">{dayError}</p> : null}
 
-        <div className="ga-sales-actions ga-sales-today-actions">
+        <div className="ga-sales-day-actions">
           <Button
             variant="primary"
             type="button"
@@ -185,21 +210,8 @@ export function DashboardPage() {
           >
             {startDayMutation.isPending ? 'Starting…' : 'Start Day'}
           </Button>
-
-          <Link to="/visits">
-            <Button variant="secondary">Today&apos;s Visits</Button>
-          </Link>
-
-          <Link to="/customers">
-            <Button variant="secondary">Assigned shops</Button>
-          </Link>
-
-          <Link to="/orders/new">
-            <Button variant="secondary">Orders</Button>
-          </Link>
-
           <Button
-            variant="ghost"
+            variant="secondary"
             type="button"
             disabled={!canEndDay || dayBusy}
             onClick={() => {
@@ -212,56 +224,81 @@ export function DashboardPage() {
         </div>
       </Card>
 
-      {isLoading ? (
-        <Card>
-          <EmptyState title="Loading KPIs" detail="Fetching your field summary…" />
-        </Card>
-      ) : null}
+      <Link to="/visits" className="ga-sales-route-card">
+        <span className="ga-sales-route-card__icon">
+          <RouteIcon size={26} />
+        </span>
+        <span className="ga-sales-route-card__text">
+          <span className="ga-sales-route-card__title">Today&apos;s Route / Visits</span>
+          <span className="ga-sales-route-card__meta">
+            {data
+              ? `${data.todaysVisits} ${data.todaysVisits === 1 ? 'shop' : 'shops'} planned today`
+              : dashboardQuery.isLoading
+                ? 'Loading today’s route…'
+                : 'Open your visit list'}
+          </span>
+        </span>
+        <ChevronRightIcon size={22} />
+      </Link>
 
-      {isError ? (
-        <p className="ga-sales-error">
-          {error instanceof Error ? error.message : 'Failed to load dashboard'}
-        </p>
-      ) : null}
+      <section className="ga-sales-quick-grid" aria-label="Quick actions">
+        <Link to="/orders/new" className="ga-sales-quick-action">
+          <OrdersIcon size={26} />
+          <span>New order</span>
+        </Link>
+        <Link to="/customers/new" className="ga-sales-quick-action">
+          <CustomersIcon size={26} />
+          <span>Add customer</span>
+        </Link>
+      </section>
 
-      {data ? (
-        <div className="ga-sales-kpi-grid">
-          <div className="ga-sales-kpi">
-            <p className="ga-sales-kpi__label">Assigned retailers</p>
-            <p className="ga-sales-kpi__value">{data.assignedRetailers}</p>
-          </div>
-          <div className="ga-sales-kpi">
-            <p className="ga-sales-kpi__label">Today&apos;s visits</p>
-            <p className="ga-sales-kpi__value">{data.todaysVisits}</p>
-          </div>
-          <div className="ga-sales-kpi">
-            <p className="ga-sales-kpi__label">Pending activations</p>
-            <p className="ga-sales-kpi__value">{data.pendingActivations}</p>
-          </div>
-          <div className="ga-sales-kpi">
-            <p className="ga-sales-kpi__label">Orders collected</p>
-            <p className="ga-sales-kpi__value">{data.ordersCollected}</p>
-          </div>
-          <div className="ga-sales-kpi" style={{ gridColumn: '1 / -1' }}>
-            <p className="ga-sales-kpi__label">Revenue this month</p>
-            <p className="ga-sales-kpi__value">{data.revenueThisMonthLabel}</p>
-          </div>
-        </div>
-      ) : null}
+      <section className="ga-sales-stack" aria-labelledby="home-month-heading">
+        <h2 id="home-month-heading" className="ga-sales-section-title">
+          This month
+        </h2>
 
-      <Card title="Quick actions">
-        <div className="ga-sales-actions">
-          <Link to="/customers/new">
-            <Button variant="primary">New retailer</Button>
-          </Link>
-          <Link to="/orders/new">
-            <Button variant="secondary">Create order</Button>
-          </Link>
-          <Link to="/visits">
-            <Button variant="ghost">Today&apos;s visits</Button>
-          </Link>
-        </div>
-      </Card>
+        {dashboardQuery.isLoading ? (
+          <LoadingState label="Loading your field summary…" variant="kpis" rows={4} />
+        ) : null}
+
+        {dashboardQuery.isError ? (
+          <ErrorState
+            message={errorMessage(dashboardQuery.error, 'Could not load your summary.')}
+            onRetry={() => {
+              void dashboardQuery.refetch();
+            }}
+            retrying={dashboardQuery.isFetching}
+            stale={Boolean(data)}
+          />
+        ) : null}
+
+        {data ? (
+          <div className="ga-sales-kpi-grid">
+            <div className="ga-sales-kpi" style={{ gridColumn: '1 / -1' }}>
+              <p className="ga-sales-kpi__label">Revenue this month</p>
+              <p className="ga-sales-kpi__value">{data.revenueThisMonthLabel}</p>
+            </div>
+            <div className="ga-sales-kpi">
+              <p className="ga-sales-kpi__label">Orders collected</p>
+              <p className="ga-sales-kpi__value">{data.ordersCollected}</p>
+            </div>
+            <div className="ga-sales-kpi">
+              <p className="ga-sales-kpi__label">Assigned retailers</p>
+              <p className="ga-sales-kpi__value">{data.assignedRetailers}</p>
+            </div>
+            <div className="ga-sales-kpi" style={{ gridColumn: '1 / -1' }}>
+              <p className="ga-sales-kpi__label">Pending activations</p>
+              <p
+                className={`ga-sales-kpi__value${
+                  data.pendingActivations > 0 ? ' ga-sales-kpi__value--pending' : ''
+                }`}
+              >
+                {data.pendingActivations}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }

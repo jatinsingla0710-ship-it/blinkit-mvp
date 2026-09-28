@@ -71,6 +71,14 @@ export {
   type SalesmanService,
   type SalesmanVisit,
   type SalesVisitStatus,
+  type SalesmanOrderSummary,
+  type SalesmanOrderDetail,
+  type SalesmanOrderLine,
+  type SalesmanOrderPreview,
+  type OrderPreviewLine,
+  type OrderPreviewLineInput,
+  type OrderPreviewErrorCode,
+  formatOrderNumber,
 } from './adapters/supabase';
 
 export { createAppLogger, type AppLogger, type LogLevel } from './monitoring/logger';

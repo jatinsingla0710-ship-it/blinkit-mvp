@@ -15,6 +15,7 @@
   "dependencies": {
     "@groaurum/api-client": "workspace:*",
     "@groaurum/auth": "workspace:*",
+    "@groaurum/catalogue-display": "workspace:*",
     "@groaurum/data": "workspace:*",
     "@groaurum/shared-types": "workspace:*",
     "@groaurum/ui": "workspace:*",

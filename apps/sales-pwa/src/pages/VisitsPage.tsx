@@ -2,40 +2,35 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@groaurum/auth/react';
 import type { SalesVisitStatus } from '@groaurum/api-client';
-import type { BadgeTone } from '@groaurum/ui';
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  PageHeader,
-  TextField,
-} from '@groaurum/ui';
+import { Badge, Button, TextField } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
 import { resolveVisitNotesForUpdate } from '@/data/visit-notes';
-
-function visitTone(status: SalesVisitStatus): BadgeTone {
-  switch (status) {
-    case 'VISITED':
-      return 'success';
-    case 'MISSED':
-      return 'danger';
-    case 'PENDING':
-      return 'warning';
-    default:
-      return 'neutral';
-  }
-}
+import { ButtonLink } from '@/components/ButtonLink';
+import { EmptyStateCard } from '@/components/EmptyStateCard';
+import { ErrorState } from '@/components/ErrorState';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { LoadingState } from '@/components/Skeleton';
+import { useToast } from '@/components/Toast';
+import { errorMessage } from '@/lib/errors';
+import { visitStatusLabel, visitTone } from '@/lib/tones';
 
 export function VisitsPage() {
   const user = useCurrentUser();
   const api = useSalesmanApi();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const profileId = user?.id ?? '';
   const [notesByVisit, setNotesByVisit] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const { data, isLoading, isError, error: loadError } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error: loadError,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ['sales', 'visits', 'today', profileId],
     queryFn: () => api.listTodaysVisits(profileId),
     enabled: Boolean(profileId),
@@ -56,8 +51,9 @@ export function VisitsPage() {
         status,
         resolveVisitNotesForUpdate(notesByVisit[visitId], storedNotes),
       ),
-    onSuccess: () => {
+    onSuccess: (_result, { status }) => {
       setError(null);
+      toast.success(status === 'VISITED' ? 'Visit marked visited' : 'Visit marked missed');
       void queryClient.invalidateQueries({
         queryKey: ['sales', 'visits', 'today', profileId],
       });
@@ -70,31 +66,44 @@ export function VisitsPage() {
 
   return (
     <div className="ga-sales-stack">
-      <PageHeader title="Visits" subtitle="Today’s route" />
+      <ScreenHeader
+        title="Today’s Route"
+        subtitle={
+          data && data.length > 0
+            ? `${data.filter((v) => v.status === 'VISITED').length} of ${data.length} visited`
+            : 'Visits planned for today'
+        }
+        backTo="/"
+        backLabel="Home"
+      />
 
-      {isLoading ? (
-        <Card>
-          <EmptyState title="Loading visits" detail="Fetching today’s route…" />
-        </Card>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading today’s route…" rows={3} /> : null}
 
       {isError ? (
-        <p className="ga-sales-error">
-          {loadError instanceof Error
-            ? loadError.message
-            : 'Failed to load visits'}
+        <ErrorState
+          message={errorMessage(loadError, 'Could not load today’s visits.')}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+          stale={Boolean(data)}
+        />
+      ) : null}
+
+      {error ? (
+        <p className="ga-sales-error" role="alert">
+          {error}
         </p>
       ) : null}
 
-      {error ? <p className="ga-sales-error">{error}</p> : null}
-
       {data && data.length === 0 ? (
-        <Card>
-          <EmptyState
-            title="No visits today"
-            detail="Your route for today is empty."
-          />
-        </Card>
+        <EmptyStateCard
+          title="No visits planned today"
+          detail="Your admin plans your route. You can still open a customer and place an order."
+          action={
+            <ButtonLink to="/customers" variant="secondary" block>
+              Go to customers
+            </ButtonLink>
+          }
+        />
       ) : null}
 
       {data && data.length > 0 ? (
@@ -108,7 +117,9 @@ export function VisitsPage() {
                     {visit.areaLabel} · {visit.plannedAtLabel}
                   </p>
                 </div>
-                <Badge tone={visitTone(visit.status)}>{visit.status}</Badge>
+                <Badge tone={visitTone(visit.status)}>
+                  {visitStatusLabel(visit.status)}
+                </Badge>
               </div>
 
               <TextField
@@ -124,7 +135,7 @@ export function VisitsPage() {
                 grow
               />
 
-              <div className="ga-sales-actions">
+              <div className="ga-sales-day-actions">
                 <Button
                   variant="primary"
                   disabled={

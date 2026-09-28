@@ -10,6 +10,20 @@ export function findButton(html: string, label: string): string | null {
   return null;
 }
 
+/** `href` of the first link whose text or aria-label is exactly `name`. */
+export function linkHref(html: string, name: string): string | null {
+  const pattern = /<a\b([^>]*)>([\s\S]*?)<\/a>/g;
+  for (const match of html.matchAll(pattern)) {
+    const attrs = match[1];
+    const text = match[2].replace(/<[^>]+>/g, '').trim();
+    const aria = /aria-label="([^"]*)"/.exec(attrs)?.[1];
+    if (text === name || aria === name) {
+      return /href="([^"]*)"/.exec(attrs)?.[1] ?? null;
+    }
+  }
+  return null;
+}
+
 export function isButtonDisabled(html: string, label: string): boolean {
   const tag = findButton(html, label);
   if (!tag) throw new Error(`Button "${label}" not rendered`);

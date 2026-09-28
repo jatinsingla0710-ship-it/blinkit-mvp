@@ -1,14 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Button,
-  Card,
-  PageHeader,
-  SelectField,
-  TextField,
-} from '@groaurum/ui';
+import { Button, Card, SelectField, TextField } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
+import { ButtonLink } from '@/components/ButtonLink';
+import { ErrorState } from '@/components/ErrorState';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { useToast } from '@/components/Toast';
+import { newCustomerError, shopPhotoFileError } from '@/data/customer-form';
+import { errorMessage } from '@/lib/errors';
 import {
   formatCoordinates,
   isValidCoordinatePair,
@@ -16,16 +15,48 @@ import {
 } from '@/data/geolocation';
 import { isSalesDataMockMode } from '@/data/salesmanApi';
 
+export function CustomerCreatedConfirmation({
+  shopId,
+  tradeName,
+  photoWarning,
+}: {
+  shopId: string;
+  tradeName: string;
+  photoWarning: string | null;
+}) {
+  return (
+    <Card title="Retailer added">
+      <p className="ga-sales-muted">
+        {tradeName} is on your list. Open the shop or start an order now.
+      </p>
+      {photoWarning ? (
+        <p className="ga-sales-warning" role="status">
+          {photoWarning}
+        </p>
+      ) : null}
+      <div className="ga-sales-actions">
+        <ButtonLink to={`/customers/${shopId}`} variant="secondary">
+          Open customer
+        </ButtonLink>
+        <ButtonLink to={`/orders/new?shopId=${shopId}`} variant="primary">
+          Create order
+        </ButtonLink>
+      </div>
+    </Card>
+  );
+}
+
 export function CreateCustomerPage() {
   const api = useSalesmanApi();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const mockMode = isSalesDataMockMode();
 
-  const { data: areas = [] } = useQuery({
+  const areasQuery = useQuery({
     queryKey: ['sales', 'service-areas'],
     queryFn: () => api.listServiceAreas(),
   });
+  const areas = areasQuery.data ?? [];
 
   const [tradeName, setTradeName] = useState('');
   const [legalName, setLegalName] = useState('');
@@ -41,7 +72,13 @@ export function CreateCustomerPage() {
   const [locating, setLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<{
+    shopId: string;
+    tradeName: string;
+    photoWarning: string | null;
+  } | null>(null);
 
   const hasLocation = isValidCoordinatePair(deliveryLat, deliveryLng);
 
@@ -60,10 +97,27 @@ export function CreateCustomerPage() {
         deliveryLat: hasLocation ? deliveryLat : null,
         deliveryLng: hasLocation ? deliveryLng : null,
       }),
-    onSuccess: (shopId) => {
+    onSuccess: async (shopId) => {
+      const name = tradeName.trim();
+      let photoWarning: string | null = null;
+      if (photoFile) {
+        try {
+          const bytes = await photoFile.arrayBuffer();
+          await api.uploadShopPhoto(shopId, {
+            bytes,
+            contentType: photoFile.type,
+          });
+        } catch (err) {
+          photoWarning =
+            err instanceof Error
+              ? `The retailer was saved, but the photo could not be uploaded. ${err.message}`
+              : 'The retailer was saved, but the photo could not be uploaded. Add it from the customer page.';
+        }
+      }
+      toast.success(`${name} added`);
       void queryClient.invalidateQueries({ queryKey: ['sales', 'retailers'] });
       void queryClient.invalidateQueries({ queryKey: ['sales', 'dashboard'] });
-      navigate(`/customers/${shopId}`, { replace: true });
+      setCreated({ shopId, tradeName: name, photoWarning });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : 'Could not create retailer');
@@ -91,26 +145,53 @@ export function CreateCustomerPage() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
+    const problem = newCustomerError({
+      tradeName,
+      contactName,
+      mobile,
+      serviceAreaId,
+      addressLine,
+      city,
+      state,
+      pinCode,
+    });
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if (photoFile) {
+      const photoProblem = shopPhotoFileError(photoFile);
+      if (photoProblem) {
+        setError(photoProblem);
+        return;
+      }
+    }
     setError(null);
     createMutation.mutate();
   }
 
   return (
     <div className="ga-sales-stack">
-      <PageHeader
+      <ScreenHeader
         title="New retailer"
         subtitle={
           mockMode
             ? 'Demo create — not saved to Supabase'
-            : 'Create retailer profile. Orders work immediately; send the Customer App link when ready.'
+            : 'Orders work immediately; send the Customer App link when ready.'
         }
-        meta={
-          <Link to="/customers">
-            <Button variant="ghost">Cancel</Button>
-          </Link>
-        }
+        backTo="/customers"
+        backLabel="Customers"
       />
 
+      {created ? (
+        <CustomerCreatedConfirmation
+          shopId={created.shopId}
+          tradeName={created.tradeName}
+          photoWarning={created.photoWarning}
+        />
+      ) : null}
+
+      {created ? null : (
       <Card>
         <form className="ga-sales-form" onSubmit={onSubmit}>
           <TextField
@@ -139,6 +220,8 @@ export function CreateCustomerPage() {
           <TextField
             label="Mobile"
             name="mobile"
+            type="tel"
+            inputMode="tel"
             value={mobile}
             onChange={(e) => setMobile(e.target.value)}
             required
@@ -176,20 +259,65 @@ export function CreateCustomerPage() {
             required
             grow
           />
+          {areasQuery.isError ? (
+            <ErrorState
+              message={errorMessage(
+                areasQuery.error,
+                'Could not load service areas.',
+              )}
+              onRetry={() => void areasQuery.refetch()}
+              retrying={areasQuery.isFetching}
+              retryLabel="Retry areas"
+            />
+          ) : null}
           <SelectField
             label="Service area"
             name="serviceAreaId"
             value={serviceAreaId}
             onChange={setServiceAreaId}
+            disabled={areasQuery.isLoading}
             grow
           >
-            <option value="">Select area (optional)</option>
+            <option value="">
+              {areasQuery.isLoading ? 'Loading areas…' : 'Select a service area'}
+            </option>
             {areas.map((area) => (
               <option key={area.id} value={area.id}>
                 {area.name}
               </option>
             ))}
           </SelectField>
+
+          <div className="ga-sales-location">
+            <p className="ga-sales-location__label">Shop photo</p>
+            <p className="ga-sales-muted">Optional. JPEG, PNG, or WebP, up to 5 MB.</p>
+            <label className="ga-btn ga-btn--secondary ga-sales-file-label">
+              {photoFile ? 'Replace photo' : 'Add photo'}
+              <input
+                className="ga-sales-file-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={createMutation.isPending}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  event.target.value = '';
+                  if (!file) return;
+                  const photoProblem = shopPhotoFileError(file);
+                  if (photoProblem) {
+                    setError(photoProblem);
+                    return;
+                  }
+                  setError(null);
+                  setPhotoFile(file);
+                }}
+              />
+            </label>
+            {photoFile ? (
+              <p className="ga-sales-muted">{photoFile.name}</p>
+            ) : (
+              <p className="ga-sales-muted">No photo selected.</p>
+            )}
+          </div>
 
           <div className="ga-sales-location">
             <p className="ga-sales-location__label">Shop GPS location</p>
@@ -224,22 +352,28 @@ export function CreateCustomerPage() {
           </div>
 
           <p className="ga-sales-muted">
-            Customer created successfully message: you can create orders
-            immediately. Send the Customer App link from the retailer page when
-            the customer is ready to use the app.
+            After saving you can create orders immediately. Send the Customer
+            App link from the retailer page when the customer is ready to use
+            the app.
           </p>
 
-          {error ? <p className="ga-sales-error">{error}</p> : null}
+          {error ? (
+            <p className="ga-sales-error" role="alert">
+              {error}
+            </p>
+          ) : null}
 
           <Button
             type="submit"
             variant="primary"
+            className="ga-sales-btn-block"
             disabled={createMutation.isPending}
           >
             {createMutation.isPending ? 'Saving…' : 'Create retailer'}
           </Button>
         </form>
       </Card>
+      )}
     </div>
   );
 }

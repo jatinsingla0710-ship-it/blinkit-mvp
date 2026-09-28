@@ -1,16 +1,23 @@
 import type {
   CatalogueSkuRow,
   CreateRetailerInput,
+  OrderPreviewErrorCode,
+  OrderPreviewLineInput,
   SalesmanAttendance,
   SalesmanDashboard,
   SalesmanDayActionResult,
+  SalesmanOrderDetail,
+  SalesmanOrderLine,
+  SalesmanOrderPreview,
+  SalesmanOrderSummary,
   SalesmanPerformance,
   SalesmanRetailer,
   SalesmanService,
   SalesmanVisit,
   SalesVisitStatus,
 } from '@groaurum/api-client';
-import { createSupabaseSalesmanService } from '@groaurum/api-client';
+import { createSupabaseSalesmanService, formatOrderNumber } from '@groaurum/api-client';
+import { isValidOrderQuantity } from '@/data/order-quantity';
 import { getSalesSupabaseClient } from '@/lib/salesSupabaseClient';
 import { resolveOperationalDataAdapter } from '@/lib/operationalEnv';
 
@@ -134,6 +141,97 @@ let mockVisits: SalesmanVisit[] = [
 
 /** In-memory presence for mock Start Day / End Day. */
 let mockAttendance: SalesmanAttendance | null = null;
+
+function mockOrder(input: {
+  id: string;
+  shopId: string;
+  shopName: string;
+  status: string;
+  createdAt: string;
+  lines: SalesmanOrderLine[];
+}): SalesmanOrderDetail {
+  const total = input.lines.reduce((sum, l) => sum + l.lineTotal, 0);
+  const created = new Date(input.createdAt);
+  return {
+    id: input.id,
+    orderNumber: formatOrderNumber(input.id.replace(/^mock-order-/, '')),
+    shopId: input.shopId,
+    shopName: input.shopName,
+    total,
+    totalLabel: `₹${new Intl.NumberFormat('en-IN').format(total)}`,
+    subtotal: total,
+    adjustments: 0,
+    status: input.status,
+    source: 'SALESMAN_ASSISTED',
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+    dateLabel: created.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+    dateTimeLabel: created.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    lines: input.lines,
+  };
+}
+
+function mockLine(
+  id: string,
+  quantity: number,
+  unitPrice: number,
+  name = 'Basmati Rice 1kg',
+): SalesmanOrderLine {
+  return {
+    id,
+    skuId: 'mock-sku-1',
+    productName: 'Basmati Rice',
+    skuName: name,
+    skuCode: 'RICE-1',
+    specification: null,
+    sellingUnit: 'PACK',
+    quantity,
+    unitPrice,
+    lineTotal: quantity * unitPrice,
+  };
+}
+
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
+const mockOrders: SalesmanOrderDetail[] = [
+  mockOrder({
+    id: 'mock-order-a17f3c20',
+    shopId: 'mock-shop-1',
+    shopName: 'Sharma Kirana',
+    status: 'AWAITING_CUSTOMER_CONFIRMATION',
+    createdAt: daysAgo(0),
+    lines: [mockLine('l1', 50, 166)],
+  }),
+  mockOrder({
+    id: 'mock-order-b28e4d31',
+    shopId: 'mock-shop-2',
+    shopName: 'Gupta Stores',
+    status: 'OUT_FOR_DELIVERY',
+    createdAt: daysAgo(2),
+    lines: [mockLine('l2', 20, 166)],
+  }),
+  mockOrder({
+    id: 'mock-order-c39f5e42',
+    shopId: 'mock-shop-1',
+    shopName: 'Sharma Kirana',
+    status: 'DELIVERED',
+    createdAt: daysAgo(6),
+    lines: [mockLine('l3', 100, 166)],
+  }),
+  mockOrder({
+    id: 'mock-order-d4a06f53',
+    shopId: 'mock-shop-3',
+    shopName: 'Verma Wholesale',
+    status: 'CANCELLED',
+    createdAt: daysAgo(9),
+    lines: [mockLine('l4', 10, 166)],
+  }),
+];
 
 function createMockSalesmanService(): SalesmanApi {
   const retailers = [...MOCK_RETAILERS];
@@ -281,12 +379,96 @@ function createMockSalesmanService(): SalesmanApi {
       }
     },
 
-    async listOrders() {
-      return [];
+    async listOrders(): Promise<SalesmanOrderSummary[]> {
+      return mockOrders.map(({ lines: _lines, ...summary }) => summary);
     },
 
-    async placeAssistedOrder(): Promise<string> {
-      return `mock-order-${Date.now()}`;
+    async getOrder(orderId: string): Promise<SalesmanOrderDetail | null> {
+      return mockOrders.find((o) => o.id === orderId) ?? null;
+    },
+
+    async previewOrderLines(
+      lines: OrderPreviewLineInput[],
+    ): Promise<SalesmanOrderPreview> {
+      const catalogue = await this.listOrderableSkus();
+      const seen = new Set<string>();
+      const out = lines.map((line) => {
+        const row = catalogue.find((r) => r.sku.id === line.skuId);
+        const fail = (errorCode: OrderPreviewErrorCode, message: string) => ({
+          ...line,
+          unitPrice: null,
+          lineTotal: null,
+          availableQuantity: row?.availableQuantity ?? null,
+          ok: false,
+          errorCode,
+          message,
+        });
+        if (seen.has(line.skuId)) return fail('DUPLICATE_SKU', 'Already in the order');
+        seen.add(line.skuId);
+        if (!row) return fail('NOT_ORDERABLE', 'No longer available');
+        if (!isValidOrderQuantity(row.sku, line.quantity)) {
+          return fail('INVALID_STEP', `Quantity must be in steps of ${row.sku.quantityStep}`);
+        }
+        if (line.quantity > row.availableQuantity) {
+          return fail('INSUFFICIENT_STOCK', `Only ${row.availableQuantity} available`);
+        }
+        const lineTotal = Math.round(line.quantity * row.unitPrice * 100) / 100;
+        return {
+          ...line,
+          unitPrice: row.unitPrice,
+          lineTotal,
+          availableQuantity: row.availableQuantity,
+          ok: true,
+          errorCode: null,
+          message: null,
+        };
+      });
+      const total = out.reduce((sum, l) => sum + (l.lineTotal ?? 0), 0);
+      return {
+        lines: out,
+        itemCount: out.filter((l) => l.lineTotal != null).length,
+        subtotal: total,
+        total,
+        currency: 'INR',
+        allValid: out.every((l) => l.ok),
+        pricedAt: new Date().toISOString(),
+      };
+    },
+
+    async placeAssistedOrder(input): Promise<string> {
+      const preview = await this.previewOrderLines(input.lines);
+      if (!preview.allValid) {
+        throw new Error(preview.lines.find((l) => !l.ok)?.message ?? 'Order rejected');
+      }
+      const catalogue = await this.listOrderableSkus();
+      const shop = retailers.find((r) => r.id === input.shopId);
+      const id = `mock-order-${Date.now().toString(16)}`;
+      const now = new Date().toISOString();
+      mockOrders.unshift(
+        mockOrder({
+          id,
+          shopId: input.shopId,
+          shopName: shop?.tradeName ?? '—',
+          status: 'AWAITING_CUSTOMER_CONFIRMATION',
+          createdAt: now,
+          lines: preview.lines.map((l, i) => {
+            const row = catalogue.find((r) => r.sku.id === l.skuId)!;
+            return {
+              id: `${id}-line-${i}`,
+              skuId: l.skuId,
+              productName: row.product.name,
+              skuName: row.sku.name,
+              skuCode: row.sku.skuCode,
+              specification: null,
+              sellingUnit: String(row.sku.sellingUnit),
+              quantity: l.quantity,
+              unitPrice: l.unitPrice ?? 0,
+              lineTotal: l.lineTotal ?? 0,
+            };
+          }),
+        }),
+      );
+      return id;
     },
 
     async sendConfirmationPlaceholder(orderId: string) {
@@ -304,6 +486,22 @@ function createMockSalesmanService(): SalesmanApi {
 
     async listAllVisits(profileId: string): Promise<SalesmanVisit[]> {
       return this.listTodaysVisits(profileId);
+    },
+
+    async listShopOrders(shopId: string): Promise<SalesmanOrderSummary[]> {
+      return (await this.listOrders('mock')).filter((order) => order.shopId === shopId);
+    },
+
+    async listShopVisits(shopId: string): Promise<SalesmanVisit[]> {
+      return (await this.listAllVisits('mock')).filter((visit) => visit.shopId === shopId);
+    },
+
+    async getShopPhotoUrl(_shopId: string): Promise<string | null> {
+      return null;
+    },
+
+    async uploadShopPhoto(shopId: string): Promise<{ path: string }> {
+      return { path: `mock/${shopId}/shop` };
     },
 
     async updateVisitStatus(
@@ -336,79 +534,101 @@ function createMockSalesmanService(): SalesmanApi {
     },
 
     async listOrderableSkus(): Promise<CatalogueSkuRow[]> {
+      const now = new Date().toISOString();
+      const category = {
+        id: 'mock-cat-1',
+        name: 'Staples',
+        displayOrder: 1,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const row = (input: {
+        n: number;
+        code: string;
+        product: string;
+        name: string;
+        netQuantity: number;
+        netQuantityUnit: string;
+        packsPerCarton?: number;
+        outerType?: string;
+        moq: number;
+        step: number;
+        price: number;
+        stock: number;
+      }): CatalogueSkuRow => ({
+        sku: {
+          id: `mock-sku-${input.n}`,
+          productId: `mock-product-${input.n}`,
+          skuCode: input.code,
+          name: input.name,
+          productType: 'PACKED',
+          sellingUnit: 'PACK',
+          netQuantity: input.netQuantity,
+          netQuantityUnit: input.netQuantityUnit,
+          packsPerCarton: input.packsPerCarton,
+          outerType: input.outerType,
+          moq: input.moq,
+          quantityStep: input.step,
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        product: {
+          id: `mock-product-${input.n}`,
+          categoryId: category.id,
+          name: input.product,
+          productType: 'PACKED',
+          imageUrls: [],
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+        category,
+        unitPrice: input.price,
+        availableQuantity: input.stock,
+      });
       return [
-        {
-          sku: {
-            id: 'mock-sku-1',
-            productId: 'mock-product-1',
-            skuCode: 'RICE-25',
-            name: 'Basmati Rice 25kg',
-            productType: 'PACKED',
-            sellingUnit: 'CARTON',
-            packsPerCarton: 1,
-            moq: 2,
-            quantityStep: 2,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          product: {
-            id: 'mock-product-1',
-            categoryId: 'mock-cat-1',
-            name: 'Basmati Rice',
-            productType: 'PACKED',
-            imageUrls: [],
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          category: {
-            id: 'mock-cat-1',
-            name: 'Staples',
-            displayOrder: 1,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          unitPrice: 1850,
-          availableQuantity: 40,
-        },
-        {
-          sku: {
-            id: 'mock-sku-2',
-            productId: 'mock-product-2',
-            skuCode: 'OIL-15',
-            name: 'Sunflower Oil 15L',
-            productType: 'PACKED',
-            sellingUnit: 'CARTON',
-            packsPerCarton: 1,
-            moq: 1,
-            quantityStep: 1,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          product: {
-            id: 'mock-product-2',
-            categoryId: 'mock-cat-1',
-            name: 'Sunflower Oil',
-            productType: 'PACKED',
-            imageUrls: [],
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          category: {
-            id: 'mock-cat-1',
-            name: 'Staples',
-            displayOrder: 1,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          unitPrice: 2100,
-          availableQuantity: 18,
-        },
+        row({
+          n: 1,
+          code: 'RICE-1',
+          product: 'Basmati Rice',
+          name: 'Basmati Rice 1kg',
+          netQuantity: 1,
+          netQuantityUnit: 'kg',
+          packsPerCarton: 10,
+          outerType: 'bag',
+          moq: 5,
+          step: 5,
+          price: 166,
+          stock: 480,
+        }),
+        row({
+          n: 2,
+          code: 'OIL-1L',
+          product: 'Sunflower Oil',
+          name: 'Sunflower Oil 1L',
+          netQuantity: 1,
+          netQuantityUnit: 'bottle',
+          packsPerCarton: 12,
+          outerType: 'carton',
+          moq: 1,
+          step: 1,
+          price: 210,
+          stock: 36,
+        }),
+        row({
+          n: 3,
+          code: 'DAL-1',
+          product: 'Toor Dal',
+          name: 'Toor Dal 1kg',
+          netQuantity: 1,
+          netQuantityUnit: 'kg',
+          moq: 1,
+          step: 1,
+          price: 142,
+          stock: 0,
+        }),
       ];
     },
   };

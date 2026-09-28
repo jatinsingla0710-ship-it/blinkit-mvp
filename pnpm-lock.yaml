@@ -245,6 +245,9 @@ importers:
       '@groaurum/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@groaurum/catalogue-display':
+        specifier: workspace:*
+        version: link:../../packages/catalogue-display
       '@groaurum/data':
         specifier: workspace:*
         version: link:../../packages/data

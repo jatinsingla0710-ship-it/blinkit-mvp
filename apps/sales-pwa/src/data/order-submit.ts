@@ -1,4 +1,11 @@
-import type { SalesmanRetailer } from '@groaurum/api-client';
+import type {
+  AssistedOrderLineInput,
+  OrderPreviewLineInput,
+  SalesmanOrderPreview,
+  SalesmanRetailer,
+} from '@groaurum/api-client';
+import { errorMessage } from '@/lib/errors';
+import { diffPreviews, hasPreviewChanges, previewMatchesCart } from '@/data/order-preview';
 
 export type OrderSubmitGate =
   | { canSubmit: true; shop: SalesmanRetailer; serviceAreaId: string }
@@ -72,6 +79,104 @@ export function interpretPlacedOrder(
   };
 }
 
+/**
+ * Synchronous guard against double taps: React state updates are async, so a
+ * second tap can arrive before `disabled` renders. place_assisted_order has no
+ * idempotency key, so a duplicate call would create a duplicate order.
+ */
+export function createSubmitLock() {
+  let held = false;
+  return {
+    tryAcquire(): boolean {
+      if (held) return false;
+      held = true;
+      return true;
+    },
+    release(): void {
+      held = false;
+    },
+    get held(): boolean {
+      return held;
+    },
+  };
+}
+
+export class SubmitTimeoutError extends Error {
+  constructor() {
+    super('The server did not answer in time.');
+    this.name = 'SubmitTimeoutError';
+  }
+}
+
+/** The underlying request is not cancelled: a timeout means "outcome unknown". */
+export function withSubmitTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const id = setTimeout(() => reject(new SubmitTimeoutError()), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(id);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(id);
+        reject(err);
+      },
+    );
+  });
+}
+
+export type SubmitFailure =
+  /** Server answered and rejected the order: nothing was created. */
+  | { kind: 'rejected'; message: string }
+  /** No reliable answer: the order may or may not exist. Never auto-retry. */
+  | { kind: 'uncertain'; message: string };
+
+const UNCERTAIN_PATTERN =
+  /failed to fetch|networkerror|network request failed|load failed|timed? ?out|timeout|aborted|connection|ECONNRESET|socket/i;
+
+export function classifySubmitError(err: unknown): SubmitFailure {
+  if (err instanceof SubmitTimeoutError) {
+    return { kind: 'uncertain', message: err.message };
+  }
+  const e = (err ?? {}) as { name?: string; message?: string; code?: string; status?: number };
+  const message = typeof e.message === 'string' ? e.message : '';
+  const status = typeof e.status === 'number' ? e.status : undefined;
+  if (
+    e.name === 'AbortError' ||
+    e.name === 'TypeError' ||
+    status === 0 ||
+    status === 408 ||
+    (status !== undefined && status >= 500) ||
+    UNCERTAIN_PATTERN.test(message)
+  ) {
+    return { kind: 'uncertain', message: message || 'Network problem.' };
+  }
+  return { kind: 'rejected', message: message || 'The order was not accepted.' };
+}
+
+/** Plain-language text for place_assisted_order rejections (nothing was created). */
+export function friendlyOrderError(message: string): string {
+  if (/Insufficient stock|No inventory/i.test(message)) {
+    return 'Not enough stock for one of the items. Edit the items and try again.';
+  }
+  if (/below MOQ|steps of/i.test(message)) {
+    return `A quantity is not allowed (${message}). Edit the items and try again.`;
+  }
+  if (/order_lines_line_total_matches/i.test(message)) {
+    return 'One quantity cannot be priced per pack exactly. Try a different quantity, for example full bags only.';
+  }
+  if (/not assigned to this salesman/i.test(message)) {
+    return 'This retailer is no longer assigned to you.';
+  }
+  if (/Service area does not match|service area/i.test(message)) {
+    return 'The retailer’s service area changed. Reload the retailer and try again.';
+  }
+  if (/not orderable/i.test(message)) {
+    return 'One of the products is no longer available. Edit the items and try again.';
+  }
+  return message;
+}
+
 /** A thrown confirmation step is still a saved order, never a failed placement. */
 export async function confirmPlacedOrder(
   orderId: string,
@@ -87,4 +192,96 @@ export async function confirmPlacedOrder(
     };
   }
   return interpretPlacedOrder(orderId, confirmation);
+}
+
+export type SubmitOrderApi = {
+  previewOrderLines: (lines: OrderPreviewLineInput[]) => Promise<SalesmanOrderPreview>;
+  placeAssistedOrder: (input: {
+    shopId: string;
+    serviceAreaId: string;
+    lines: AssistedOrderLineInput[];
+    notes?: string;
+  }) => Promise<string>;
+  sendConfirmationPlaceholder: (orderId: string) => Promise<ConfirmationResult>;
+};
+
+export type SubmitReviewedResult =
+  | { kind: 'placed'; outcome: PlacedOrderOutcome }
+  /** Server prices, stock or validity differ from what was reviewed; nothing submitted. */
+  | { kind: 'prices_changed'; fresh: SalesmanOrderPreview }
+  | { kind: 'failed'; failure: SubmitFailure };
+
+export const PREVIEW_CHECK_TIMEOUT_MS = 20_000;
+export const PLACE_TIMEOUT_MS = 30_000;
+
+/**
+ * Re-price, compare with what the salesman reviewed, then place exactly once.
+ * place_assisted_order still re-prices server-side; this check only stops a
+ * silent change between review and submit.
+ */
+export async function submitReviewedOrder(input: {
+  api: SubmitOrderApi;
+  shopId: string;
+  serviceAreaId: string;
+  lines: readonly OrderPreviewLineInput[];
+  reviewed: SalesmanOrderPreview;
+  notes: string;
+  timeouts?: { previewMs: number; placeMs: number };
+}): Promise<SubmitReviewedResult> {
+  const timeouts = input.timeouts ?? {
+    previewMs: PREVIEW_CHECK_TIMEOUT_MS,
+    placeMs: PLACE_TIMEOUT_MS,
+  };
+  const lines = input.lines.map((l) => ({ skuId: l.skuId, quantity: l.quantity }));
+
+  let fresh: SalesmanOrderPreview;
+  try {
+    fresh = await withSubmitTimeout(input.api.previewOrderLines(lines), timeouts.previewMs);
+  } catch (err) {
+    return {
+      kind: 'failed',
+      failure: {
+        kind: 'rejected',
+        message: `Could not re-check prices, so nothing was submitted (${errorMessage(err, 'network error')}). Try again.`,
+      },
+    };
+  }
+  if (
+    !previewMatchesCart(fresh, lines) ||
+    !fresh.allValid ||
+    hasPreviewChanges(diffPreviews(input.reviewed, fresh))
+  ) {
+    return { kind: 'prices_changed', fresh };
+  }
+
+  let orderId: string;
+  try {
+    orderId = await withSubmitTimeout(
+      input.api.placeAssistedOrder({
+        shopId: input.shopId,
+        serviceAreaId: input.serviceAreaId,
+        lines: fresh.lines.map((l) => ({
+          skuId: l.skuId,
+          quantity: l.quantity,
+          agreedUnitPrice: l.unitPrice ?? 0,
+        })),
+        notes: input.notes.trim() || undefined,
+      }),
+      timeouts.placeMs,
+    );
+  } catch (err) {
+    const failure = classifySubmitError(err);
+    return {
+      kind: 'failed',
+      failure:
+        failure.kind === 'rejected'
+          ? { ...failure, message: friendlyOrderError(failure.message) }
+          : failure,
+    };
+  }
+
+  const outcome = await confirmPlacedOrder(orderId, (id) =>
+    input.api.sendConfirmationPlaceholder(id),
+  );
+  return { kind: 'placed', outcome };
 }

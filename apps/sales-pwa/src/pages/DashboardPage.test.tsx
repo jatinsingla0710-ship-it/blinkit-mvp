@@ -29,12 +29,15 @@ vi.mock('@/data/SalesDataProviders', () => ({
   useSalesmanApi: () => ({}),
 }));
 
+import { ToastProvider } from '@/components/Toast';
 import { DashboardPage } from './DashboardPage';
 
 function render(): string {
   return renderToStaticMarkup(
     <MemoryRouter>
-      <DashboardPage />
+      <ToastProvider>
+        <DashboardPage />
+      </ToastProvider>
     </MemoryRouter>,
   );
 }
@@ -68,6 +71,45 @@ describe('DashboardPage attendance — error (G)', () => {
     expect(isButtonDisabled(html, 'Start Day')).toBe(true);
     expect(isButtonDisabled(html, 'End Day')).toBe(true);
     expect(html).not.toContain('Day not started yet');
+  });
+});
+
+describe('Home — visits and quick actions', () => {
+  it('opens Today’s Route / Visits from Home', () => {
+    mocks.queries.attendance = { data: null };
+    mocks.queries.dashboard = {
+      data: {
+        assignedRetailers: 12,
+        todaysVisits: 5,
+        pendingActivations: 2,
+        ordersCollected: 7,
+        revenueThisMonth: 42000,
+        revenueThisMonthLabel: '₹42,000',
+      },
+    };
+    const html = render();
+    expect(html).toContain('Today&#x27;s Route / Visits');
+    expect(html).toContain('5 shops planned today');
+    expect(/href="\/visits"/.test(html)).toBe(true);
+    expect(/href="\/orders\/new"/.test(html)).toBe(true);
+    expect(/href="\/customers\/new"/.test(html)).toBe(true);
+    expect(html).toContain('₹42,000');
+  });
+
+  it('shows a KPI skeleton while the summary loads', () => {
+    mocks.queries.attendance = { data: null };
+    mocks.queries.dashboard = { isLoading: true };
+    const html = render();
+    expect(html).toContain('Loading your field summary…');
+    expect(html).toContain('aria-busy="true"');
+  });
+
+  it('shows the summary error with Retry', () => {
+    mocks.queries.attendance = { data: null };
+    mocks.queries.dashboard = { isError: true, error: new Error('permission denied') };
+    const html = render();
+    expect(html).toContain('permission denied');
+    expect(html.match(/>Retry<\/button>/g)?.length).toBe(1);
   });
 });
 

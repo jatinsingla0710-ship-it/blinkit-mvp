@@ -1,68 +1,93 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import type { BadgeTone } from '@groaurum/ui';
-import { Badge, Button, Card, EmptyState, PageHeader } from '@groaurum/ui';
-import type { SalesmanRetailer } from '@groaurum/api-client';
+import { Badge, TextField } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
-
-function activationTone(
-  status: SalesmanRetailer['activationStatus'],
-): BadgeTone {
-  switch (status) {
-    case 'activated':
-      return 'success';
-    case 'app_link_sent':
-      return 'info';
-    case 'access_disabled':
-      return 'danger';
-    default:
-      return 'neutral';
-  }
-}
+import { filterRetailers } from '@/data/customer-search';
+import { ButtonLink } from '@/components/ButtonLink';
+import { EmptyStateCard } from '@/components/EmptyStateCard';
+import { ErrorState } from '@/components/ErrorState';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { LoadingState } from '@/components/Skeleton';
+import { PlusIcon } from '@/components/icons';
+import { errorMessage } from '@/lib/errors';
+import { activationTone } from '@/lib/tones';
 
 export function CustomersPage() {
   const api = useSalesmanApi();
-  const { data, isLoading, isError, error } = useQuery({
+  const [search, setSearch] = useState('');
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['sales', 'retailers'],
     queryFn: () => api.listRetailers(),
   });
+  const visible = useMemo(
+    () => (data ? filterRetailers(data, search) : []),
+    [data, search],
+  );
 
   return (
     <div className="ga-sales-stack">
-      <PageHeader
+      <ScreenHeader
         title="Customers"
-        subtitle="Assigned retailers"
-        meta={
-          <Link to="/customers/new">
-            <Button variant="primary">Create retailer</Button>
-          </Link>
+        subtitle={
+          data
+            ? search.trim()
+              ? `${visible.length} of ${data.length} assigned retailers`
+              : `${data.length} assigned retailers`
+            : 'Assigned retailers'
+        }
+        actions={
+          <ButtonLink to="/customers/new" variant="primary">
+            <PlusIcon size={20} />
+            Add
+          </ButtonLink>
         }
       />
 
-      {isLoading ? (
-        <Card>
-          <EmptyState title="Loading retailers" detail="Fetching your beat…" />
-        </Card>
-      ) : null}
+      {isLoading ? <LoadingState label="Loading your retailers…" rows={4} /> : null}
 
       {isError ? (
-        <p className="ga-sales-error">
-          {error instanceof Error ? error.message : 'Failed to load retailers'}
-        </p>
+        <ErrorState
+          message={errorMessage(error, 'Could not load your retailers.')}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
+          stale={Boolean(data)}
+        />
       ) : null}
 
       {data && data.length === 0 ? (
-        <Card>
-          <EmptyState
-            title="No retailers yet"
-            detail="Create a retailer to start building your beat."
-          />
-        </Card>
+        <EmptyStateCard
+          title="No retailers yet"
+          detail="Add your first retailer to start building your beat and taking orders."
+          action={
+            <ButtonLink to="/customers/new" variant="primary" block>
+              Add customer
+            </ButtonLink>
+          }
+        />
       ) : null}
 
       {data && data.length > 0 ? (
+        <TextField
+          label="Search customers"
+          name="customerSearch"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Shop, contact, mobile, or area"
+          grow
+        />
+      ) : null}
+
+      {data && data.length > 0 && visible.length === 0 ? (
+        <EmptyStateCard
+          title="No matching retailers"
+          detail="Try a shop name, contact name, mobile number, or area. Your assigned list did load."
+        />
+      ) : null}
+
+      {visible.length > 0 ? (
         <div className="ga-sales-list">
-          {data.map((shop) => (
+          {visible.map((shop) => (
             <Link
               key={shop.id}
               to={`/customers/${shop.id}`}
@@ -73,6 +98,9 @@ export function CustomersPage() {
                   <p className="ga-sales-list-item__title">{shop.tradeName}</p>
                   <p className="ga-sales-list-item__meta">
                     {shop.areaLabel} · {shop.city}
+                  </p>
+                  <p className="ga-sales-list-item__meta">
+                    {shop.primaryContactMobile ?? 'No mobile'}
                   </p>
                 </div>
                 <Badge tone={activationTone(shop.activationStatus)}>

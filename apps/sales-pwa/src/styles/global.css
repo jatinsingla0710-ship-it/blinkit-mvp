@@ -1,5 +1,23 @@
 /* Sales PWA shell overrides. Tokens + base reset come from @groaurum/ui. */
 
+/*
+ * Field (outdoor, one-handed) type scale for this app only; admin keeps the
+ * dense shared scale. No text below 14px; prominent numbers 24px.
+ */
+:root {
+  --ga-text-xs: 14px;
+  --ga-text-sm: 14px;
+  --ga-text-md: 15px;
+  --ga-text-base: 15px;
+  --ga-text-lg: 17px;
+  --ga-text-xl: 24px;
+  --ga-text-2xl: 28px;
+  /* Darker amber keeps 14px pending/warning text readable in sunlight. */
+  --ga-warning: #8d5b0f;
+  --ga-sales-touch: 48px;
+  --ga-sales-nav-height: 64px;
+}
+
 html,
 body,
 #root {
@@ -11,4 +29,56 @@ body {
   background: var(--ga-bg);
   color: var(--ga-text);
   font-family: var(--ga-font);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* `body` prefix outranks the shared single-class rules regardless of CSS order. */
+body .ga-btn {
+  min-height: var(--ga-sales-touch);
+  padding: 0 20px;
+  border-radius: var(--ga-radius-md);
+  font-size: var(--ga-text-md);
+  touch-action: manipulation;
+}
+
+/* 16px inputs stop iOS Safari zooming the page on focus. */
+body .ga-field__control {
+  min-height: var(--ga-sales-touch);
+  font-size: 16px;
+  border-radius: var(--ga-radius-md);
+}
+
+body .ga-field__label,
+body .ga-field-grid dt {
+  letter-spacing: 0.02em;
+}
+
+body .ga-badge {
+  min-height: 26px;
+  padding: 0 10px;
+}
+
+body .ga-card__title {
+  font-size: var(--ga-text-sm);
+}
+
+body .ga-empty__title {
+  font-size: var(--ga-text-lg);
+}
+
+:focus-visible {
+  outline: 3px solid var(--ga-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

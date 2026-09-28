@@ -1,88 +1,87 @@
-import { useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { normalizeOrderQuantity } from '@groaurum/shared-types';
-import {
-  Button,
-  Card,
-  EmptyState,
-  PageHeader,
-  SelectField,
-  TextField,
-} from '@groaurum/ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCurrentUser } from '@groaurum/auth/react';
+import type {
+  OrderPreviewLine,
+  SalesmanOrderDetail,
+  SalesmanOrderPreview,
+} from '@groaurum/api-client';
+import { Button, Card, EmptyState } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
 import {
-  confirmPlacedOrder,
+  clearOrderDraft,
+  loadOrderDraft,
+  saveOrderDraft,
+  setDraftLine,
+  type OrderDraftLine,
+} from '@/data/order-draft';
+import { useOrderPreview } from '@/data/order-preview';
+import {
+  createSubmitLock,
   evaluateOrderSubmitGate,
+  submitReviewedOrder,
   type PlacedOrderOutcome,
+  type SubmitFailure,
 } from '@/data/order-submit';
+import { ErrorState } from '@/components/ErrorState';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { LoadingState } from '@/components/Skeleton';
+import { useToast } from '@/components/Toast';
+import { errorMessage } from '@/lib/errors';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
+import { CartSummaryBar, cartSummaryStatus } from './create-order/CartSummaryBar';
+import { CatalogueList } from './create-order/CatalogueList';
+import { OrderConfirmation } from './create-order/OrderConfirmation';
+import { OrderReview } from './create-order/OrderReview';
+import { ShopPicker } from './create-order/ShopPicker';
 
-function formatInr(amount: number): string {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
+type Step = 'build' | 'review' | 'done';
 
-function errorMessage(err: unknown, fallback: string): string {
-  return err instanceof Error && err.message ? err.message : fallback;
-}
-
-export function PlacedOrderResult({
-  outcome,
-  shopId,
-}: {
-  outcome: PlacedOrderOutcome;
-  shopId: string;
-}) {
-  const confirmed = outcome.kind === 'confirmation_sent';
-  return (
-    <div className="ga-sales-stack">
-      <PageHeader
-        title={confirmed ? 'Order placed' : 'Order created — confirmation not sent'}
-        subtitle={`Order ${outcome.orderId}`}
-      />
-      <Card>
-        {confirmed ? (
-          <p className="ga-sales-success">{outcome.message}</p>
-        ) : (
-          <div className="ga-sales-stack" role="alert">
-            <p className="ga-sales-warning">
-              The order was saved, but the customer confirmation could not be
-              sent: {outcome.message}
-            </p>
-            <p className="ga-sales-muted">
-              Do not place this order again. Ask your admin to resend the
-              customer confirmation for order {outcome.orderId}.
-            </p>
-          </div>
-        )}
-        <div className="ga-sales-actions" style={{ marginTop: 12 }}>
-          <Link to="/">
-            <Button variant="primary">Back to dashboard</Button>
-          </Link>
-          {shopId ? (
-            <Link to={`/customers/${shopId}`}>
-              <Button variant="secondary">View retailer</Button>
-            </Link>
-          ) : null}
-        </div>
-      </Card>
-    </div>
-  );
+function backTarget(shopId: string, step: Step): { to: string; label: string } {
+  if (step === 'build' && shopId) return { to: `/customers/${shopId}`, label: 'Customer' };
+  return { to: '/orders', label: 'Orders' };
 }
 
 export function CreateOrderPage() {
   const api = useSalesmanApi();
+  const user = useCurrentUser();
+  const profileId = user?.id ?? '';
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const online = useOnlineStatus();
   const [searchParams, setSearchParams] = useSearchParams();
   const shopId = searchParams.get('shopId') ?? '';
 
-  const [qtyBySku, setQtyBySku] = useState<Record<string, string>>({});
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [initialDraft] = useState(() => loadOrderDraft(profileId));
+  const [lines, setLines] = useState<OrderDraftLine[]>(initialDraft?.lines ?? []);
+  const [notes, setNotes] = useState(initialDraft?.notes ?? '');
+  const [draftShopId, setDraftShopId] = useState(initialDraft?.shopId ?? '');
+  const [step, setStep] = useState<Step>('build');
+  const [reviewed, setReviewed] = useState<SalesmanOrderPreview | null>(null);
+  const [pricesChanged, setPricesChanged] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [failure, setFailure] = useState<SubmitFailure | null>(null);
   const [outcome, setOutcome] = useState<PlacedOrderOutcome | null>(null);
+  const [placedOrder, setPlacedOrder] = useState<SalesmanOrderDetail | null | undefined>(
+    undefined,
+  );
+  const lockRef = useRef(createSubmitLock());
+
+  // Restore the draft's retailer when opening New order without one.
+  useEffect(() => {
+    if (!shopId && initialDraft?.shopId) {
+      const next = new URLSearchParams(searchParams);
+      next.set('shopId', initialDraft.shopId);
+      setSearchParams(next, { replace: true });
+    }
+    // Mount only: later shop changes are the salesman's choice.
+  }, []);
+
+  useEffect(() => {
+    if (step === 'done') return;
+    saveOrderDraft(profileId, { shopId, lines, notes });
+  }, [profileId, shopId, lines, notes, step]);
 
   const retailersQuery = useQuery({
     queryKey: ['sales', 'retailers'],
@@ -92,7 +91,24 @@ export function CreateOrderPage() {
   const skusQuery = useQuery({
     queryKey: ['sales', 'orderable-skus'],
     queryFn: () => api.listOrderableSkus(),
+    staleTime: 5 * 60_000,
   });
+
+  const rowsBySku = useMemo(
+    () => new Map((skusQuery.data ?? []).map((row) => [row.sku.id, row])),
+    [skusQuery.data],
+  );
+
+  // Drop draft items that are no longer orderable once the catalogue is known.
+  useEffect(() => {
+    if (!skusQuery.data) return;
+    const kept = lines.filter((l) => rowsBySku.has(l.skuId));
+    if (kept.length !== lines.length) {
+      setLines(kept);
+      toast.warning('Some saved items are no longer available and were removed.');
+    }
+    // Re-check only when the catalogue changes, not on every cart edit.
+  }, [skusQuery.data]);
 
   const gate = evaluateOrderSubmitGate({
     shopId,
@@ -101,237 +117,270 @@ export function CreateOrderPage() {
     retailersError: retailersQuery.isError,
     catalogueReady: Boolean(skusQuery.data && skusQuery.data.length > 0),
   });
+  const shop = retailersQuery.data?.find((r) => r.id === shopId) ?? null;
 
-  const placeMutation = useMutation({
-    mutationFn: async () => {
-      if (!gate.canSubmit) {
-        throw new Error(gate.reason);
-      }
-      const { shop, serviceAreaId } = gate;
+  const preview = useOrderPreview(api, lines, online);
+  const previewBySku = useMemo(
+    () =>
+      new Map<string, OrderPreviewLine>(
+        (preview.current?.lines ?? []).map((l) => [l.skuId, l]),
+      ),
+    [preview.current],
+  );
+  const summary = cartSummaryStatus({ itemCount: lines.length, online, preview });
 
-      const skus = skusQuery.data ?? [];
-      const lines: {
-        skuId: string;
-        quantity: number;
-        agreedUnitPrice: number;
-      }[] = [];
+  function selectShop(nextShopId: string) {
+    const next = new URLSearchParams(searchParams);
+    if (nextShopId) next.set('shopId', nextShopId);
+    else next.delete('shopId');
+    setSearchParams(next, { replace: true });
+    setDraftShopId(nextShopId);
+  }
 
-      for (const row of skus) {
-        const raw = qtyBySku[row.sku.id]?.trim();
-        if (!raw) continue;
-        const qty = Number(raw);
-        if (!Number.isFinite(qty) || qty <= 0) {
-          throw new Error(`Invalid quantity for ${row.sku.name}`);
-        }
-        const normalized = normalizeOrderQuantity(row.sku, qty);
-        if (normalized !== qty) {
-          throw new Error(
-            `${row.sku.name}: quantity must be ≥ MOQ ${row.sku.moq} in steps of ${row.sku.quantityStep} (try ${normalized})`,
-          );
-        }
-        if (qty > row.availableQuantity) {
-          throw new Error(
-            `${row.sku.name}: only ${row.availableQuantity} available`,
-          );
-        }
-        lines.push({
-          skuId: row.sku.id,
-          quantity: qty,
-          agreedUnitPrice: row.unitPrice,
-        });
-      }
+  function changeLine(skuId: string, quantity: number) {
+    setLines((prev) => setDraftLine(prev, skuId, quantity));
+  }
 
-      if (lines.length === 0) {
-        throw new Error('Add at least one SKU quantity');
-      }
+  function discardDraft() {
+    setLines([]);
+    setNotes('');
+    setDraftShopId(shopId);
+    clearOrderDraft(profileId);
+  }
 
-      const orderId = await api.placeAssistedOrder({
-        shopId: shop.id,
-        serviceAreaId,
+  function goToReview() {
+    if (!gate.canSubmit || !online || !preview.current?.allValid) return;
+    setReviewed(preview.current);
+    setPricesChanged(false);
+    setFailure((f) => (f?.kind === 'uncertain' ? f : null));
+    setStep('review');
+    window.scrollTo(0, 0);
+  }
+
+  async function submit() {
+    if (!reviewed || !gate.canSubmit || !online) return;
+    if (!lockRef.current.tryAcquire()) return;
+    setSubmitting(true);
+    setFailure(null);
+    setPricesChanged(false);
+    let placed = false;
+    try {
+      const result = await submitReviewedOrder({
+        api,
+        shopId: gate.shop.id,
+        serviceAreaId: gate.serviceAreaId,
         lines,
-        notes: notes.trim() || undefined,
+        reviewed,
+        notes,
       });
+      if (result.kind === 'prices_changed') {
+        setReviewed(result.fresh);
+        setPricesChanged(true);
+        return;
+      }
+      if (result.kind === 'failed') {
+        setFailure(result.failure);
+        return;
+      }
 
-      return confirmPlacedOrder(orderId, (id) =>
-        api.sendConfirmationPlaceholder(id),
-      );
-    },
-    onSuccess: (result) => {
-      setOutcome(result);
-      setError(null);
+      // The order exists from here on: never release the lock or allow a resubmit.
+      placed = true;
+      clearOrderDraft(profileId);
+      const outcome = result.outcome;
+      const orderId = outcome.orderId;
+      setOutcome(outcome);
+      setStep('done');
+      window.scrollTo(0, 0);
+      if (outcome.kind === 'confirmation_sent') toast.success('Order placed');
+      else toast.warning('Order saved, but the approval request was not sent');
+      void queryClient.invalidateQueries({ queryKey: ['sales', 'orders'] });
       void queryClient.invalidateQueries({ queryKey: ['sales', 'dashboard'] });
-    },
-    onError: (err) => {
-      setError(errorMessage(err, 'Order failed'));
-      setOutcome(null);
-    },
-  });
-
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    if (!gate.canSubmit || placeMutation.isPending) return;
-    placeMutation.mutate();
+      try {
+        setPlacedOrder(await api.getOrder(orderId));
+      } catch {
+        setPlacedOrder(null);
+      }
+    } finally {
+      setSubmitting(false);
+      if (!placed) lockRef.current.release();
+    }
   }
 
-  if (outcome) {
-    return <PlacedOrderResult outcome={outcome} shopId={shopId} />;
+  function startAnotherOrder() {
+    lockRef.current = createSubmitLock();
+    setLines([]);
+    setNotes('');
+    setReviewed(null);
+    setOutcome(null);
+    setPlacedOrder(undefined);
+    setFailure(null);
+    setStep('build');
+    selectShop('');
   }
 
-  const blockedReason =
-    !gate.canSubmit && !retailersQuery.isError ? gate.reason : null;
+  if (step === 'done' && outcome) {
+    return (
+      <OrderConfirmation
+        outcome={outcome}
+        shopName={shop?.tradeName ?? '—'}
+        reviewedTotal={reviewed?.total ?? 0}
+        order={placedOrder}
+        onNewOrder={startAnotherOrder}
+      />
+    );
+  }
+
+  const back = backTarget(shopId, step);
+
+  if (step === 'review' && reviewed && shop) {
+    return (
+      <div className="ga-sales-stack">
+        <ScreenHeader title="Review order" subtitle={shop.tradeName} backTo={back.to} backLabel={back.label} />
+        <OrderReview
+          shop={shop}
+          reviewed={reviewed}
+          rowsBySku={rowsBySku}
+          notes={notes}
+          onNotesChange={setNotes}
+          submitting={submitting}
+          online={online}
+          failure={failure}
+          pricesChanged={pricesChanged}
+          onSubmit={() => {
+            void submit();
+          }}
+          onEdit={() => {
+            setStep('build');
+            setPricesChanged(false);
+          }}
+        />
+      </div>
+    );
+  }
+
+  const blockedReason = !gate.canSubmit && !retailersQuery.isError ? gate.reason : null;
+  const draftFromOtherShop =
+    lines.length > 0 && draftShopId && shopId && draftShopId !== shopId
+      ? retailersQuery.data?.find((r) => r.id === draftShopId)?.tradeName
+      : null;
 
   return (
-    <div className="ga-sales-stack">
-      <PageHeader
-        title="Create order"
-        subtitle="Assisted order with MOQ / step validation"
-        meta={
-          <Link to={shopId ? `/customers/${shopId}` : '/customers'}>
-            <Button variant="ghost">Cancel</Button>
-          </Link>
-        }
+    <div className="ga-sales-stack ga-sales-order-build">
+      <ScreenHeader
+        title="New order"
+        subtitle={shop ? shop.tradeName : 'Choose the retailer first'}
+        backTo={back.to}
+        backLabel={back.label}
       />
 
-      <Card>
-        <form className="ga-sales-form" onSubmit={onSubmit}>
-          {retailersQuery.isError ? (
-            <div className="ga-sales-stack" role="alert">
-              <p className="ga-sales-error">
-                Could not load your retailers:{' '}
-                {errorMessage(retailersQuery.error, 'unknown error')}
-              </p>
-              <div className="ga-sales-actions">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={retailersQuery.isFetching}
-                  onClick={() => {
-                    void retailersQuery.refetch();
-                  }}
-                >
-                  {retailersQuery.isFetching ? 'Retrying…' : 'Retry retailers'}
-                </Button>
-              </div>
+      {retailersQuery.isError ? (
+        <ErrorState
+          message={`Could not load your retailers: ${errorMessage(retailersQuery.error, 'unknown error')}`}
+          onRetry={() => {
+            void retailersQuery.refetch();
+          }}
+          retrying={retailersQuery.isFetching}
+          retryLabel="Retry retailers"
+        />
+      ) : null}
+
+      {retailersQuery.isLoading ? <LoadingState label="Loading retailers…" rows={3} /> : null}
+
+      {retailersQuery.data && !shopId ? (
+        <ShopPicker retailers={retailersQuery.data} onSelect={selectShop} />
+      ) : null}
+
+      {retailersQuery.data && shopId ? (
+        <Card>
+          <div className="ga-sales-list-item__row">
+            <div>
+              <p className="ga-sales-muted">Ordering for</p>
+              <p className="ga-sales-list-item__title">{shop?.tradeName ?? 'Unknown retailer'}</p>
+              {shop ? <p className="ga-sales-list-item__meta">{shop.areaLabel}</p> : null}
             </div>
-          ) : null}
+            <Button type="button" variant="secondary" onClick={() => selectShop('')}>
+              Change retailer
+            </Button>
+          </div>
+        </Card>
+      ) : null}
 
-          <SelectField
-            label="Retailer"
-            name="shopId"
-            value={shopId}
-            disabled={!retailersQuery.data}
-            onChange={(value) => {
-              const next = new URLSearchParams(searchParams);
-              if (value) next.set('shopId', value);
-              else next.delete('shopId');
-              setSearchParams(next, { replace: true });
-            }}
-            grow
-          >
-            <option value="">
-              {retailersQuery.isLoading ? 'Loading retailers…' : 'Select retailer'}
-            </option>
-            {(retailersQuery.data ?? []).map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.tradeName}
-              </option>
-            ))}
-          </SelectField>
+      {blockedReason && shopId ? (
+        <p className="ga-sales-warning" role="status">
+          {blockedReason}
+        </p>
+      ) : null}
 
-          {skusQuery.isLoading ? (
-            <EmptyState title="Loading SKUs" detail="Fetching catalogue…" />
-          ) : null}
+      {draftFromOtherShop ? (
+        <p className="ga-sales-warning" role="status">
+          These items were saved in a draft for {draftFromOtherShop}. Check them before ordering
+          for {shop?.tradeName ?? 'this retailer'}.
+        </p>
+      ) : null}
+
+      {shop ? (
+        <>
+          {skusQuery.isLoading ? <LoadingState label="Loading products…" rows={4} /> : null}
 
           {skusQuery.isError ? (
-            <div className="ga-sales-stack" role="alert">
-              <p className="ga-sales-error">
-                Could not load products:{' '}
-                {errorMessage(skusQuery.error, 'unknown error')}
-              </p>
-              <div className="ga-sales-actions">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={skusQuery.isFetching}
-                  onClick={() => {
-                    void skusQuery.refetch();
-                  }}
-                >
-                  {skusQuery.isFetching ? 'Retrying…' : 'Retry products'}
-                </Button>
-              </div>
-            </div>
+            <ErrorState
+              message={`Could not load products: ${errorMessage(skusQuery.error, 'unknown error')}`}
+              onRetry={() => {
+                void skusQuery.refetch();
+              }}
+              retrying={skusQuery.isFetching}
+              retryLabel="Retry products"
+              stale={Boolean(skusQuery.data)}
+            />
           ) : null}
 
           {skusQuery.data && skusQuery.data.length === 0 ? (
             <EmptyState
-              title="No orderable SKUs"
-              detail="No priced active SKUs are available."
+              title="No products to order yet"
+              detail="No active products have a price set. Ask your admin to publish prices, then open this screen again."
             />
           ) : null}
 
           {skusQuery.data && skusQuery.data.length > 0 ? (
-            <div>
-              {skusQuery.data.map((row) => (
-                <div key={row.sku.id} className="ga-sales-sku-row">
-                  <div>
-                    <p className="ga-sales-list-item__title">{row.sku.name}</p>
-                    <p className="ga-sales-list-item__meta">
-                      {formatInr(row.unitPrice)} · MOQ {row.sku.moq} · step{' '}
-                      {row.sku.quantityStep} · stock {row.availableQuantity}
-                    </p>
-                  </div>
-                  <div className="ga-sales-sku-row__qty">
-                    <TextField
-                      label="Qty"
-                      name={`qty-${row.sku.id}`}
-                      type="number"
-                      min={0}
-                      step={row.sku.quantityStep}
-                      value={qtyBySku[row.sku.id] ?? ''}
-                      onChange={(e) =>
-                        setQtyBySku((prev) => ({
-                          ...prev,
-                          [row.sku.id]: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
+            <CatalogueList
+              rows={skusQuery.data}
+              lines={lines}
+              previewBySku={previewBySku}
+              disabled={submitting}
+              onChange={changeLine}
+              onAdjusted={(message) => toast.warning(message)}
+            />
+          ) : null}
+        </>
+      ) : null}
+
+      {shopId ? (
+        <CartSummaryBar
+          itemCount={lines.length}
+          status={summary}
+          onRetry={preview.retry}
+          retrying={preview.retrying}
+          note={lines.length > 0 ? 'Draft — not submitted. Saved on this phone.' : null}
+          action={
+            <div className="ga-sales-summary__actions">
+              {lines.length > 0 ? (
+                <Button type="button" variant="ghost" onClick={discardDraft}>
+                  Clear
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="primary"
+                className="ga-sales-summary__cta"
+                disabled={!gate.canSubmit || summary.kind !== 'ready'}
+                onClick={goToReview}
+              >
+                Review order
+              </Button>
             </div>
-          ) : null}
-
-          <TextField
-            label="Notes"
-            name="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            grow
-          />
-
-          {blockedReason ? (
-            <p className="ga-sales-warning" role="status">
-              {blockedReason}
-            </p>
-          ) : null}
-
-          {error ? (
-            <p className="ga-sales-error" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={placeMutation.isPending || !gate.canSubmit}
-          >
-            {placeMutation.isPending ? 'Placing…' : 'Place assisted order'}
-          </Button>
-        </form>
-      </Card>
+          }
+        />
+      ) : null}
     </div>
   );
 }

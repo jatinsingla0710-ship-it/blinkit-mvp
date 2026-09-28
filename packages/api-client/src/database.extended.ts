@@ -372,6 +372,12 @@ type Sprint7Functions = {
     };
     Returns: string;
   };
+  preview_assisted_order_lines: {
+    Args: {
+      p_lines: Json;
+    };
+    Returns: Json;
+  };
   salesman_start_day: {
     Args: { p_work_date?: string | null };
     Returns: Json;
