@@ -36,7 +36,6 @@ export function SalesmanCustomersTab({
             <th>Status</th>
             <th>Last Order</th>
             <th>Last Visit</th>
-            <th>Activation Status</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -57,15 +56,6 @@ export function SalesmanCustomersTab({
               </td>
               <td>{row.lastOrderLabel}</td>
               <td>{row.lastVisitLabel}</td>
-              <td>
-                <Badge
-                  tone={
-                    row.activationStatus === 'activated' ? 'success' : 'warning'
-                  }
-                >
-                  {row.activationLabel}
-                </Badge>
-              </td>
               <td>
                 <div className="ga-sm-cust-actions">
                   <Link to={`/customers/${row.id}`} className="ga-sm-cust-link">

@@ -23,11 +23,11 @@ import {
 const EMPTY_COPY: Record<OrderStatusGroup, { title: string; detail: string }> = {
   pending: {
     title: 'No orders waiting for approval',
-    detail: 'Orders you place stay here until the retailer approves them.',
+    detail: 'Orders you place stay here until the customer approves them.',
   },
   approved: {
     title: 'No approved orders in progress',
-    detail: 'Orders move here once the retailer approves them, until delivery.',
+    detail: 'Orders move here once the customer approves them, until delivery.',
   },
   delivered: {
     title: 'No delivered orders yet',

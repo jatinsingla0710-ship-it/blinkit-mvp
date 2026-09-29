@@ -221,9 +221,13 @@ export function SalesmanProvisionModal({ open, onClose, onSuccess }: Props) {
         setSuccessNote(
           'Salesman already provisioned for this mobile/email. Employment/salary updated. Opening existing profile.',
         );
+      } else if (result.createdAuthUser && result.invitationEmailSent) {
+        setSuccessNote(
+          'Account created and a 6-digit code was emailed. They can also sign in with the temporary password.',
+        );
       } else if (result.createdAuthUser) {
         setSuccessNote(
-          'Auth user + SALESMAN profile created with work & salary terms. Share the temporary password out-of-band so they can sign in to the Sales PWA.',
+          'Account created. The email code could not be sent, so share the temporary password. They can request a code from the Sales app once email delivery is working.',
         );
       } else {
         setSuccessNote(
@@ -297,7 +301,8 @@ export function SalesmanProvisionModal({ open, onClose, onSuccess }: Props) {
             <p className="ga-sm-provision__hint" role="status">
               Creates a Supabase Auth user and matching{' '}
               <code>profiles</code> row with the <code>SALESMAN</code> role.
-              No OTP/SMS — share the temporary password securely yourself.
+              A 6-digit email code is sent for sign-in. Keep the temporary
+              password as a fallback until email codes are confirmed.
             </p>
             <TextField
               label="Display name"

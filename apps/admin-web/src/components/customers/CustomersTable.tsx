@@ -1,9 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { CustomerListRow } from '@/data/customers-types';
-import {
-  CustomerStatusBadge,
-  DigitalAccessBadge,
-} from '@/components/customers/CustomerStatusBadges';
+import { CustomerStatusBadge } from '@/components/customers/CustomerStatusBadges';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import '@groaurum/ui/styles/data-table.css';
@@ -30,7 +27,6 @@ export function CustomersTable({ rows }: Props) {
                 <th>Mobile</th>
                 <th>Area</th>
                 <th>Business Status</th>
-                <th>Customer App Access</th>
                 <th>Last Order</th>
                 <th>Action</th>
               </tr>
@@ -51,12 +47,6 @@ export function CustomersTable({ rows }: Props) {
                   <td>{row.areaLabel}</td>
                   <td>
                     <CustomerStatusBadge status={row.status} />
-                  </td>
-                  <td>
-                    <DigitalAccessBadge
-                      status={row.digitalAccess}
-                      label={row.digitalAccessLabel}
-                    />
                   </td>
                   <td>{row.lastOrderLabel}</td>
                   <td>

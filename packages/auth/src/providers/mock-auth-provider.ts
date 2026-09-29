@@ -8,7 +8,11 @@ import type {
   AuthUser,
   SignInCredentials,
 } from '../types';
+import { assertLoginEmail, assertSixDigitCode } from '../email-code';
 import { createAuthError } from '../errors';
+
+/** Fixed code for mock auth only. Production email codes come from the mail provider. */
+export const MOCK_EMAIL_CODE = '123456';
 
 const MOCK_USERS: Record<AppRole, Omit<AuthUser, 'primaryRole' | 'roles'>> = {
   super_admin: {
@@ -143,6 +147,8 @@ export function createMockAuthProvider(
     }
   });
 
+  const pendingCodes = new Map<string, string>();
+
   const provider: AuthProvider = {
     kind: 'mock',
     getState: () => state,
@@ -157,8 +163,27 @@ export function createMockAuthProvider(
     async signIn(credentials: SignInCredentials) {
       const role = credentials.mockRole ?? initialRole;
       const session = buildSession(role, config.appEnv);
+      if (credentials.email) {
+        session.user.email = credentials.email.trim().toLowerCase();
+      }
       setState({ status: 'authenticated', session, error: null });
       return session;
+    },
+    async requestEmailCode(email: string) {
+      const normalized = assertLoginEmail(email);
+      pendingCodes.set(normalized, MOCK_EMAIL_CODE);
+    },
+    async verifyEmailCode(email: string, code: string) {
+      const normalized = assertLoginEmail(email);
+      const token = assertSixDigitCode(code);
+      if (pendingCodes.get(normalized) !== token) {
+        throw createAuthError(
+          'unauthorized',
+          'That code is not valid. Request a new code and try again.',
+        );
+      }
+      pendingCodes.delete(normalized);
+      return this.signIn({ email: normalized, mockRole: initialRole });
     },
     async signOut() {
       setState({ status: 'unauthenticated', session: null, error: null });

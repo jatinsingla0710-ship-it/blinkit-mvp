@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "GroAurum Salesman PWA — mobile-first field sales app.",
+  "description": "Salesaurum field-sales PWA for salesmen.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

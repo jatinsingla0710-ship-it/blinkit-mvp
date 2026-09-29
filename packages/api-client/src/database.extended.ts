@@ -137,7 +137,7 @@ type ReportsSnapshot = {
   Relationships: [];
 };
 
-type SalesVisitStatus = 'PLANNED' | 'VISITED' | 'PENDING' | 'MISSED';
+type SalesVisitStatus = 'PLANNED' | 'VISITED' | 'PENDING' | 'MISSED' | 'SHOP_CLOSED';
 
 type SalesVisits = {
   Row: {
@@ -148,6 +148,15 @@ type SalesVisits = {
     status: SalesVisitStatus;
     notes: string | null;
     visited_at: string | null;
+    check_in_lat: number | null;
+    check_in_lng: number | null;
+    check_in_at: string | null;
+    check_in_distance_m: number | null;
+    completion_lat: number | null;
+    completion_lng: number | null;
+    completion_distance_m: number | null;
+    completed_at: string | null;
+    photo_path: string | null;
     created_at: string;
     updated_at: string;
   };
@@ -379,12 +388,160 @@ type Sprint7Functions = {
     Returns: Json;
   };
   salesman_start_day: {
-    Args: { p_work_date?: string | null };
+    Args: {
+      p_work_date?: string | null;
+      p_lat?: number | null;
+      p_lng?: number | null;
+    };
     Returns: Json;
   };
   salesman_end_day: {
-    Args: { p_work_date?: string | null };
+    Args: {
+      p_work_date?: string | null;
+      p_lat?: number | null;
+      p_lng?: number | null;
+    };
     Returns: Json;
+  };
+  salesman_check_in_visit: {
+    Args: {
+      p_visit_id: string;
+      p_lat: number;
+      p_lng: number;
+    };
+    Returns: Json;
+  };
+  salesman_complete_visit: {
+    Args: {
+      p_visit_id: string;
+      p_status: string;
+      p_lat: number;
+      p_lng: number;
+      p_update_notes?: boolean;
+      p_notes?: string | null;
+      p_photo_path?: string | null;
+    };
+    Returns: Json;
+  };
+  salesman_update_own_profile: {
+    Args: {
+      p_display_name: string;
+      p_preferred_language: string;
+      p_update_avatar?: boolean;
+      p_avatar_path?: string | null;
+      p_complete_setup?: boolean;
+    };
+    Returns: Json;
+  };
+  salesman_month_target: {
+    Args: { p_month?: string | null };
+    Returns: Json;
+  };
+  salesman_earnings_month: {
+    Args: { p_month?: string | null };
+    Returns: Json;
+  };
+  admin_get_salesman_target: {
+    Args: { p_profile_id: string; p_month?: string | null };
+    Returns: Json;
+  };
+  admin_set_salesman_target: {
+    Args: {
+      p_profile_id: string;
+      p_month: string;
+      p_target_amount: number;
+    };
+    Returns: Json;
+  };
+  salesman_create_expense: {
+    Args: {
+      p_category: string;
+      p_amount: number;
+      p_expense_date: string;
+      p_note?: string | null;
+    };
+    Returns: Json;
+  };
+  salesman_update_pending_expense: {
+    Args: {
+      p_expense_id: string;
+      p_category: string;
+      p_amount: number;
+      p_expense_date: string;
+      p_note?: string | null;
+    };
+    Returns: Json;
+  };
+  salesman_set_expense_receipt: {
+    Args: { p_expense_id: string; p_receipt_path: string };
+    Returns: Json;
+  };
+  admin_review_salesman_expense: {
+    Args: {
+      p_expense_id: string;
+      p_status: string;
+      p_review_note?: string | null;
+    };
+    Returns: Json;
+  };
+  salesman_create_return_request: {
+    Args: {
+      p_order_id: string;
+      p_sku_id: string;
+      p_quantity: number;
+      p_reason: string;
+      p_note?: string | null;
+    };
+    Returns: Json;
+  };
+  salesman_set_return_photo: {
+    Args: { p_request_id: string; p_photo_path: string };
+    Returns: Json;
+  };
+  admin_review_return_request: {
+    Args: {
+      p_request_id: string;
+      p_status: string;
+      p_review_note?: string | null;
+    };
+    Returns: Json;
+  };
+  salesman_send_message: {
+    Args: { p_body: string };
+    Returns: Json;
+  };
+  admin_send_salesman_message: {
+    Args: { p_salesman_id: string; p_body: string };
+    Returns: Json;
+  };
+  salesman_create_voice_note: {
+    Args: {
+      p_shop_id: string;
+      p_visit_id?: string | null;
+      p_duration_seconds: number;
+    };
+    Returns: Json;
+  };
+  salesman_set_voice_note_path: {
+    Args: { p_note_id: string; p_audio_path: string };
+    Returns: Json;
+  };
+  salesman_save_push_subscription: {
+    Args: { p_endpoint: string; p_p256dh: string; p_auth_key: string };
+    Returns: undefined;
+  };
+  salesman_mark_notice_read: {
+    Args: { p_notice_id: string };
+    Returns: undefined;
+  };
+  geo_distance_metres: {
+    Args: {
+      p_lat1: number;
+      p_lng1: number;
+      p_lat2: number;
+      p_lng2: number;
+    };
+    Returns: number;
   };
 };
 
@@ -1385,7 +1542,24 @@ type SoftDeletedTables = {
       DeliveryRoutesH5Patch['Update'];
     Relationships: GeneratedDatabase['public']['Tables']['delivery_routes']['Relationships'];
   };
-  profiles: WithSoftDelete<GeneratedDatabase['public']['Tables']['profiles']>;
+  profiles: {
+    Row: WithSoftDelete<GeneratedDatabase['public']['Tables']['profiles']>['Row'] & {
+      avatar_path: string | null;
+      preferred_language: string;
+      profile_setup_completed_at: string | null;
+    };
+    Insert: WithSoftDelete<GeneratedDatabase['public']['Tables']['profiles']>['Insert'] & {
+      avatar_path?: string | null;
+      preferred_language?: string;
+      profile_setup_completed_at?: string | null;
+    };
+    Update: WithSoftDelete<GeneratedDatabase['public']['Tables']['profiles']>['Update'] & {
+      avatar_path?: string | null;
+      preferred_language?: string;
+      profile_setup_completed_at?: string | null;
+    };
+    Relationships: GeneratedDatabase['public']['Tables']['profiles']['Relationships'];
+  };
   service_areas: WithSoftDelete<
     GeneratedDatabase['public']['Tables']['service_areas']
   >;
@@ -1480,6 +1654,195 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
             effective_to: string | null;
             created_by_profile_id: string | null;
             created_at: string;
+          }>;
+          Relationships: [];
+        };
+        salesman_expenses: {
+          Row: {
+            id: string;
+            salesman_profile_id: string;
+            category: 'TRAVEL' | 'FOOD' | 'PHONE' | 'OTHER';
+            amount: number;
+            expense_date: string;
+            note: string | null;
+            receipt_path: string | null;
+            status: 'PENDING' | 'APPROVED' | 'REJECTED';
+            review_note: string | null;
+            reviewed_by_profile_id: string | null;
+            reviewed_at: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            salesman_profile_id: string;
+            category: 'TRAVEL' | 'FOOD' | 'PHONE' | 'OTHER';
+            amount: number;
+            expense_date: string;
+            note?: string | null;
+            receipt_path?: string | null;
+            status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+            review_note?: string | null;
+            reviewed_by_profile_id?: string | null;
+            reviewed_at?: string | null;
+          };
+          Update: Partial<{
+            category: 'TRAVEL' | 'FOOD' | 'PHONE' | 'OTHER';
+            amount: number;
+            expense_date: string;
+            note: string | null;
+            receipt_path: string | null;
+            status: 'PENDING' | 'APPROVED' | 'REJECTED';
+            review_note: string | null;
+            reviewed_by_profile_id: string | null;
+            reviewed_at: string | null;
+          }>;
+          Relationships: [];
+        };
+        salesman_return_requests: {
+          Row: {
+            id: string;
+            salesman_profile_id: string;
+            shop_id: string;
+            shop_name: string;
+            order_id: string;
+            sku_id: string;
+            product_name: string;
+            sku_name: string;
+            sku_code: string;
+            quantity: number;
+            reason: string;
+            note: string | null;
+            photo_path: string | null;
+            status: 'PENDING' | 'APPROVED' | 'REJECTED';
+            review_note: string | null;
+            reviewed_by_profile_id: string | null;
+            reviewed_at: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            salesman_profile_id: string;
+            shop_id: string;
+            shop_name: string;
+            order_id: string;
+            sku_id: string;
+            product_name: string;
+            sku_name: string;
+            sku_code: string;
+            quantity: number;
+            reason: string;
+            note?: string | null;
+          };
+          Update: Partial<{
+            quantity: number;
+            reason: string;
+            note: string | null;
+            photo_path: string | null;
+            status: 'PENDING' | 'APPROVED' | 'REJECTED';
+            review_note: string | null;
+          }>;
+          Relationships: [];
+        };
+        salesman_messages: {
+          Row: {
+            id: string;
+            salesman_profile_id: string;
+            sender_profile_id: string;
+            body: string;
+            created_at: string;
+          };
+          Insert: {
+            salesman_profile_id: string;
+            sender_profile_id: string;
+            body: string;
+          };
+          Update: Partial<{ body: string }>;
+          Relationships: [];
+        };
+        salesman_voice_notes: {
+          Row: {
+            id: string;
+            salesman_profile_id: string;
+            shop_id: string;
+            visit_id: string | null;
+            audio_path: string | null;
+            duration_seconds: number;
+            created_at: string;
+          };
+          Insert: {
+            salesman_profile_id: string;
+            shop_id: string;
+            visit_id?: string | null;
+            duration_seconds: number;
+          };
+          Update: Partial<{ audio_path: string | null }>;
+          Relationships: [];
+        };
+        salesman_notices: {
+          Row: {
+            id: string;
+            recipient_profile_id: string;
+            title: string;
+            body: string;
+            href: string | null;
+            read_at: string | null;
+            created_at: string;
+          };
+          Insert: {
+            recipient_profile_id: string;
+            title: string;
+            body: string;
+            href?: string | null;
+          };
+          Update: Partial<{ read_at: string | null }>;
+          Relationships: [];
+        };
+        salesman_push_subscriptions: {
+          Row: {
+            id: string;
+            salesman_profile_id: string;
+            endpoint: string;
+            p256dh: string;
+            auth_key: string;
+            created_at: string;
+          };
+          Insert: {
+            salesman_profile_id: string;
+            endpoint: string;
+            p256dh: string;
+            auth_key: string;
+          };
+          Update: Partial<{ p256dh: string; auth_key: string }>;
+          Relationships: [];
+        };
+        salesman_targets: {
+          Row: {
+            id: string;
+            salesman_profile_id: string;
+            target_month: string;
+            target_amount: number;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            salesman_profile_id: string;
+            target_month: string;
+            target_amount: number;
+            created_by_profile_id?: string | null;
+            created_at?: string;
+            updated_at?: string;
+          };
+          Update: Partial<{
+            id: string;
+            salesman_profile_id: string;
+            target_month: string;
+            target_amount: number;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
           }>;
           Relationships: [];
         };

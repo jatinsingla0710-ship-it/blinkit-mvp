@@ -21,6 +21,11 @@ describe('bottom navigation tabs', () => {
     ['/customers/shop-1', 'customers'],
     ['/profile', 'profile'],
     ['/profile/earnings', 'profile'],
+    ['/profile/expenses', 'profile'],
+    ['/profile/expenses/new', 'profile'],
+    ['/profile/returns', 'profile'],
+    ['/orders/abc/return', 'orders'],
+    ['/customers/shop-1/return', 'customers'],
     ['/performance', 'profile'],
   ] as const)('%s highlights %s', (path, tab) => {
     expect(navTabForPath(path)).toBe(tab);

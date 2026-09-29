@@ -42,12 +42,12 @@ export function OrderConfirmation({
         <div className="ga-sales-stack">
           {sent ? (
             <p className="ga-sales-success" role="status">
-              Order #{orderNumber} is saved and the retailer has been sent an approval request.
+              Order #{orderNumber} is saved and the customer has been sent an approval request.
             </p>
           ) : (
             <div className="ga-sales-warning ga-sales-stack" role="alert">
               <p>
-                Order #{orderNumber} was created, but the approval request to the retailer
+                Order #{orderNumber} was created, but the approval request to the customer
                 could not be sent{outcome.message ? `: ${outcome.message}` : '.'}
               </p>
               <p>
@@ -59,7 +59,7 @@ export function OrderConfirmation({
 
           <dl className="ga-sales-facts">
             <div>
-              <dt>Retailer</dt>
+              <dt>Customer</dt>
               <dd>{order?.shopName ?? shopName}</dd>
             </div>
             <div>
@@ -88,7 +88,7 @@ export function OrderConfirmation({
             <div>
               <p className="ga-sales-location__label">What happens next</p>
               <p className="ga-sales-muted">
-                The retailer needs to approve this order. After approval, stock is reserved and
+                The customer needs to approve this order. After approval, stock is reserved and
                 the order moves to dispatch. You can follow it in Orders → Pending.
               </p>
             </div>

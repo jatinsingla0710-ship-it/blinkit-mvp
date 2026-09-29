@@ -17,7 +17,9 @@ import {
   RouteIcon,
 } from '@/components/icons';
 import { errorMessage } from '@/lib/errors';
+import { formatRupees, targetBarWidth } from '@/lib/money';
 import { useState } from 'react';
+import { readCurrentPosition } from '@/data/geolocation';
 
 function greeting(date = new Date()): string {
   const hour = date.getHours();
@@ -32,6 +34,16 @@ function todayLabel(date = new Date()): string {
     day: 'numeric',
     month: 'long',
   });
+}
+
+function targetSchemaMissing(error: unknown): boolean {
+  const message =
+    typeof error === 'object' && error && 'message' in error
+      ? String((error as { message?: unknown }).message ?? '')
+      : error instanceof Error
+        ? error.message
+        : '';
+  return /schema cache|could not find the function|PGRST202|42883/i.test(message);
 }
 
 function attendanceTone(status: SalesmanAttendanceStatus): BadgeTone {
@@ -92,16 +104,30 @@ export function DashboardPage() {
   });
   const attendance = attendanceQuery.data;
 
+  const targetQuery = useQuery({
+    queryKey: ['sales', 'target', profileId],
+    queryFn: () => api.getMonthTarget(),
+    enabled: Boolean(profileId),
+  });
+  const target = targetQuery.data;
+  const targetMissing =
+    targetQuery.isError && targetSchemaMissing(targetQuery.error);
+
   const invalidateAttendance = () =>
     queryClient.invalidateQueries({
       queryKey: ['sales', 'attendance', 'today', profileId],
     });
 
+  const [locating, setLocating] = useState<'start' | 'end' | null>(null);
+
   const startDayMutation = useMutation({
-    mutationFn: () => api.startDay(),
-    onSuccess: (result) => {
+    mutationFn: (location: { lat: number; lng: number } | null) =>
+      api.startDay(undefined, location),
+    onSuccess: (result, location) => {
       setDayError(null);
-      toast.success(result.alreadyStarted ? 'Your day was already started' : 'Day started');
+      if (result.alreadyStarted) toast.success('Your day was already started');
+      else if (location) toast.success('Day started');
+      else toast.success('Day started without a location');
       void invalidateAttendance();
     },
     onError: (err: unknown) => {
@@ -112,10 +138,13 @@ export function DashboardPage() {
   });
 
   const endDayMutation = useMutation({
-    mutationFn: () => api.endDay(),
-    onSuccess: (result) => {
+    mutationFn: (location: { lat: number; lng: number } | null) =>
+      api.endDay(undefined, location),
+    onSuccess: (result, location) => {
       setDayError(null);
-      toast.success(result.alreadyEnded ? 'Your day was already ended' : 'Day ended');
+      if (result.alreadyEnded) toast.success('Your day was already ended');
+      else if (location) toast.success('Day ended');
+      else toast.success('Day ended without a location');
       void invalidateAttendance();
     },
     onError: (err: unknown) => {
@@ -130,7 +159,43 @@ export function DashboardPage() {
       isError: attendanceQuery.isError,
       attendance,
     });
-  const dayBusy = startDayMutation.isPending || endDayMutation.isPending;
+  const dayBusy = startDayMutation.isPending || endDayMutation.isPending || locating !== null;
+
+  async function onStartDay() {
+    if (dayBusy) return;
+    setDayError(null);
+    setLocating('start');
+    let location: { lat: number; lng: number } | null = null;
+    try {
+      location = await readCurrentPosition();
+    } catch (err) {
+      setDayError(
+        err instanceof Error
+          ? `${err.message} The day will still start without a location.`
+          : 'Location was not captured. The day will still start without a location.',
+      );
+    }
+    startDayMutation.mutate(location);
+    setLocating(null);
+  }
+
+  async function onEndDay() {
+    if (dayBusy) return;
+    setDayError(null);
+    setLocating('end');
+    let location: { lat: number; lng: number } | null = null;
+    try {
+      location = await readCurrentPosition();
+    } catch (err) {
+      setDayError(
+        err instanceof Error
+          ? `${err.message} The day will still end without a location.`
+          : 'Location was not captured. The day will still end without a location.',
+      );
+    }
+    endDayMutation.mutate(location);
+    setLocating(null);
+  }
 
   const firstName = user?.displayName?.trim().split(/\s+/)[0];
 
@@ -203,33 +268,62 @@ export function DashboardPage() {
             variant="primary"
             type="button"
             disabled={!canStartDay || dayBusy}
-            onClick={() => {
-              setDayError(null);
-              startDayMutation.mutate();
-            }}
+            onClick={() => void onStartDay()}
           >
-            {startDayMutation.isPending ? 'Starting…' : 'Start Day'}
+            {locating === 'start' || startDayMutation.isPending ? 'Starting…' : 'Start Day'}
           </Button>
           <Button
             variant="secondary"
             type="button"
             disabled={!canEndDay || dayBusy}
-            onClick={() => {
-              setDayError(null);
-              endDayMutation.mutate();
-            }}
+            onClick={() => void onEndDay()}
           >
-            {endDayMutation.isPending ? 'Ending…' : 'End Day'}
+            {locating === 'end' || endDayMutation.isPending ? 'Ending…' : 'End Day'}
           </Button>
         </div>
       </Card>
+
+      {target ? (
+        <section className="ga-sales-target" aria-label="Monthly target">
+          <p className="ga-sales-kpi__label">This month&apos;s target</p>
+          <p className="ga-sales-target__value">
+            {formatRupees(target.achievedAmount)} achieved of {formatRupees(target.targetAmount)}
+          </p>
+          <div
+            className="ga-sales-target__bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={targetBarWidth(target.progressPercent)}
+            aria-label="Target progress"
+          >
+            <span
+              className="ga-sales-target__fill"
+              style={{ width: `${targetBarWidth(target.progressPercent)}%` }}
+            />
+          </div>
+          <p className="ga-sales-target__remaining">
+            {formatRupees(target.remainingAmount)} remaining
+          </p>
+        </section>
+      ) : null}
+
+      {targetQuery.isError && !targetMissing ? (
+        <ErrorState
+          message={errorMessage(targetQuery.error, 'Could not load your target.')}
+          onRetry={() => {
+            void targetQuery.refetch();
+          }}
+          retrying={targetQuery.isFetching}
+        />
+      ) : null}
 
       <Link to="/visits" className="ga-sales-route-card">
         <span className="ga-sales-route-card__icon">
           <RouteIcon size={26} />
         </span>
         <span className="ga-sales-route-card__text">
-          <span className="ga-sales-route-card__title">Today&apos;s Route / Visits</span>
+          <span className="ga-sales-route-card__title">Today&apos;s route</span>
           <span className="ga-sales-route-card__meta">
             {data
               ? `${data.todaysVisits} ${data.todaysVisits === 1 ? 'shop' : 'shops'} planned today`
@@ -283,18 +377,8 @@ export function DashboardPage() {
               <p className="ga-sales-kpi__value">{data.ordersCollected}</p>
             </div>
             <div className="ga-sales-kpi">
-              <p className="ga-sales-kpi__label">Assigned retailers</p>
+              <p className="ga-sales-kpi__label">Customers</p>
               <p className="ga-sales-kpi__value">{data.assignedRetailers}</p>
-            </div>
-            <div className="ga-sales-kpi" style={{ gridColumn: '1 / -1' }}>
-              <p className="ga-sales-kpi__label">Pending activations</p>
-              <p
-                className={`ga-sales-kpi__value${
-                  data.pendingActivations > 0 ? ' ga-sales-kpi__value--pending' : ''
-                }`}
-              >
-                {data.pendingActivations}
-              </p>
             </div>
           </div>
         ) : null}

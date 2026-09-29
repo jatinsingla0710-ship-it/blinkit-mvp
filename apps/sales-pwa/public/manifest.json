@@ -1,7 +1,7 @@
 {
-  "name": "GroAurum Sales",
-  "short_name": "GroAurum Sales",
-  "description": "Field sales PWA for GroAurum wholesale operations",
+  "name": "Salesaurum",
+  "short_name": "Salesaurum",
+  "description": "Salesaurum field sales for shop visits and orders",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

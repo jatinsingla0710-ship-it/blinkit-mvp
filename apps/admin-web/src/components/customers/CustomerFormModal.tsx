@@ -23,12 +23,7 @@ import {
   useSalesmenSnapshotQuery,
   useServiceAreasListQuery,
 } from '@/data/hooks';
-import { useCreateCustomerMutation, useRecordCustomerAppLinkSentMutation } from '@/data/mutations';
-import {
-  buildCustomerAppWhatsappMessage,
-  buildWhatsappShareUrl,
-} from '@groaurum/shared-types';
-import { getCustomerAppUrl } from '@/data/customer-app-config';
+import { useCreateCustomerMutation } from '@/data/mutations';
 import './CustomerFormModal.css';
 
 type Props = {
@@ -77,7 +72,6 @@ export function CustomerFormModal({
   locationHints,
 }: Props) {
   const createCustomer = useCreateCustomerMutation();
-  const recordAppLink = useRecordCustomerAppLinkSentMutation();
   const { state: areasState } = useServiceAreasListQuery();
   const { state: salesmenState } = useSalesmenSnapshotQuery();
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -85,8 +79,6 @@ export function CustomerFormModal({
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
-  const [createdOwnerName, setCreatedOwnerName] = useState('');
-  const [createdMobile, setCreatedMobile] = useState('');
   const [mobileWarning, setMobileWarning] = useState<string | null>(null);
   const submittingRef = useRef(false);
 
@@ -105,8 +97,6 @@ export function CustomerFormModal({
     setLocationMessage(null);
     setLocating(false);
     setCreatedId(null);
-    setCreatedOwnerName('');
-    setCreatedMobile('');
     setMobileWarning(null);
     submittingRef.current = false;
     const hintedArea = serviceAreas.find(
@@ -217,28 +207,12 @@ export function CustomerFormModal({
       onSuccess: (row) => {
         submittingRef.current = false;
         setCreatedId(row.id);
-        setCreatedOwnerName(form.ownerName.trim());
-        setCreatedMobile(form.ownerMobile.trim());
       },
       onError: (err) => {
         submittingRef.current = false;
         setError(formatMutationError(err, 'Create failed'));
       },
     });
-  };
-
-  const sendWhatsappAppLink = async () => {
-    if (!createdId || !createdMobile) return;
-    await recordAppLink.mutateAsync(createdId);
-    const message = buildCustomerAppWhatsappMessage({
-      customerName: createdOwnerName || form.tradeName,
-      appUrl: getCustomerAppUrl(),
-    });
-    window.open(
-      buildWhatsappShareUrl(createdMobile, message),
-      '_blank',
-      'noopener,noreferrer',
-    );
   };
 
   const close = () => {
@@ -288,25 +262,8 @@ export function CustomerFormModal({
       {createdId ? (
         <div className="ga-cust-form__success-block">
           <p className="ga-cust-form__success">
-            Customer created successfully. You can create orders immediately.
+            Customer created successfully. Visits and orders can start now.
           </p>
-          <p className="ga-cust-form__hint">
-            Send the Customer App link when the customer is ready to use the app.
-            They can also find the app independently and log in with their mobile
-            number.
-          </p>
-          {createdMobile ? (
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={recordAppLink.isPending}
-              onClick={() => void sendWhatsappAppLink()}
-            >
-              {recordAppLink.isPending
-                ? 'Recording…'
-                : 'Send Customer App Link via WhatsApp'}
-            </Button>
-          ) : null}
         </div>
       ) : (
         <div className="ga-cust-form">
@@ -457,8 +414,7 @@ export function CustomerFormModal({
             ))}
           </SelectField>
           <p className="ga-cust-form__hint">
-            Customer App login is optional. Orders and delivery work without app
-            activation. Share the app link later from the customer page.
+            The shop is usable as soon as it is saved. No customer login is required.
           </p>
           <div className="ga-cust-form__location">
             <div className="ga-cust-form__location-head">

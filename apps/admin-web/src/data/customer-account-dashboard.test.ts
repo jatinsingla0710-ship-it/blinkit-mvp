@@ -136,9 +136,9 @@ describe('customer account dashboard', () => {
 
     const events = buildCustomerTimeline(customer);
     expect(events.some((event) => event.title === 'Customer created')).toBe(true);
-    expect(events.some((event) => event.title === 'App link sent')).toBe(true);
+    expect(events.some((event) => event.title === 'App link sent')).toBe(false);
     expect(events.some((event) => event.title === 'Customer App activated')).toBe(
-      true,
+      false,
     );
   });
 });

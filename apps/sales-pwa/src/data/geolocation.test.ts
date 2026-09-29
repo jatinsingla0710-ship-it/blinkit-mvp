@@ -78,4 +78,24 @@ describe('sales geolocation helpers', () => {
 
     await expect(readCurrentPosition()).rejects.toThrow(/permission was denied/i);
   });
+
+  it('surfaces a timeout without returning coordinates', async () => {
+    const getCurrentPosition = (
+      _success: PositionCallback,
+      error?: PositionErrorCallback | null,
+    ) => {
+      error?.({
+        code: 3,
+        message: 'Timeout',
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
+    };
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { geolocation: { getCurrentPosition } },
+      configurable: true,
+    });
+    await expect(readCurrentPosition()).rejects.toThrow(/timed out/i);
+  });
 });

@@ -17,7 +17,7 @@ export function CustomerActivityTab({ rows, deferred = false }: Props) {
         detail={
           deferred
             ? CUSTOMER_ACTIVITY_UNAVAILABLE_DETAIL
-            : 'Network and activation events will appear here.'
+            : 'Orders and visits for this shop will appear here.'
         }
       />
     );

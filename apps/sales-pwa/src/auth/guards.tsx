@@ -14,7 +14,7 @@ function AuthShell({
 }) {
   return (
     <div className="ga-sales-auth">
-      <PageHeader title={title} subtitle="GroAurum Sales" />
+      <PageHeader title={title} subtitle="Salesaurum" />
       <Card>
         <EmptyState title={title} detail={detail} />
         {actions ? <div className="ga-sales-actions">{actions}</div> : null}
@@ -66,7 +66,7 @@ function SessionLoading() {
   return (
     <AuthShell
       title="Loading session"
-      detail="Restoring your GroAurum Sales session…"
+      detail="Restoring your session…"
     />
   );
 }
@@ -77,7 +77,7 @@ export function WrongAudience() {
   return (
     <AuthShell
       title="Wrong application"
-      detail={`This account belongs on ${audience.replace(/_/g, ' ')}. Open the correct GroAurum client, or sign in with a salesman account.`}
+      detail={`This account belongs on ${audience.replace(/_/g, ' ')}. Open the correct app, or sign in with a salesman account.`}
       actions={<SignOutActions />}
     />
   );

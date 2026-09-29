@@ -25,7 +25,7 @@ export function CustomerCreatedConfirmation({
   photoWarning: string | null;
 }) {
   return (
-    <Card title="Retailer added">
+    <Card title="Customer added">
       <p className="ga-sales-muted">
         {tradeName} is on your list. Open the shop or start an order now.
       </p>
@@ -110,8 +110,8 @@ export function CreateCustomerPage() {
         } catch (err) {
           photoWarning =
             err instanceof Error
-              ? `The retailer was saved, but the photo could not be uploaded. ${err.message}`
-              : 'The retailer was saved, but the photo could not be uploaded. Add it from the customer page.';
+              ? `The customer was saved, but the photo could not be uploaded. ${err.message}`
+              : 'The customer was saved, but the photo could not be uploaded. Add it from the customer page.';
         }
       }
       toast.success(`${name} added`);
@@ -120,7 +120,7 @@ export function CreateCustomerPage() {
       setCreated({ shopId, tradeName: name, photoWarning });
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : 'Could not create retailer');
+      setError(err instanceof Error ? err.message : 'Could not create customer');
     },
   });
 
@@ -173,11 +173,11 @@ export function CreateCustomerPage() {
   return (
     <div className="ga-sales-stack">
       <ScreenHeader
-        title="New retailer"
+        title="New customer"
         subtitle={
           mockMode
             ? 'Demo create — not saved to Supabase'
-            : 'Orders work immediately; send the Customer App link when ready.'
+            : 'This shop can be visited and ordered right away.'
         }
         backTo="/customers"
         backLabel="Customers"
@@ -222,6 +222,8 @@ export function CreateCustomerPage() {
             name="mobile"
             type="tel"
             inputMode="tel"
+            autoComplete="tel"
+            enterKeyHint="next"
             value={mobile}
             onChange={(e) => setMobile(e.target.value)}
             required
@@ -254,6 +256,9 @@ export function CreateCustomerPage() {
           <TextField
             label="PIN code"
             name="pinCode"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            enterKeyHint="next"
             value={pinCode}
             onChange={(e) => setPinCode(e.target.value)}
             required
@@ -352,9 +357,8 @@ export function CreateCustomerPage() {
           </div>
 
           <p className="ga-sales-muted">
-            After saving you can create orders immediately. Send the Customer
-            App link from the retailer page when the customer is ready to use
-            the app.
+            After saving, this shop is on your list and ready for visits and
+            orders.
           </p>
 
           {error ? (
@@ -369,7 +373,7 @@ export function CreateCustomerPage() {
             className="ga-sales-btn-block"
             disabled={createMutation.isPending}
           >
-            {createMutation.isPending ? 'Saving…' : 'Create retailer'}
+            {createMutation.isPending ? 'Saving…' : 'Create customer'}
           </Button>
         </form>
       </Card>

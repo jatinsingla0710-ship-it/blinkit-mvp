@@ -146,13 +146,14 @@ describe('Phase 3 serviceability adapter (live)', () => {
     const pool = getPool();
     const activeArea = await insertServiceArea(pool, 'P3 Active SA', true);
     const inactiveArea = await insertServiceArea(pool, 'P3 Inactive SA', false);
+    const pin = String(300000 + Math.floor(Math.random() * 600000));
 
     await pool.query(
       `INSERT INTO public.serviceability_rules (service_area_id, rule_type, is_active, config)
        VALUES
-         ($1, 'PIN_CODE', true, '{"pinCodes":["110024"]}'::jsonb),
-         ($2, 'PIN_CODE', true, '{"pinCodes":["110024"]}'::jsonb)`,
-      [activeArea, inactiveArea],
+         ($1, 'PIN_CODE', true, jsonb_build_object('pinCodes', jsonb_build_array($3::text))),
+         ($2, 'PIN_CODE', true, jsonb_build_object('pinCodes', jsonb_build_array($3::text)))`,
+      [activeArea, inactiveArea, pin],
     );
 
     const customer = await createAuthUser({
@@ -164,7 +165,7 @@ describe('Phase 3 serviceability adapter (live)', () => {
 
     await withSession(customer, async (client) => {
       const service = createSupabaseServiceAreaService(client);
-      const ok = await service.evaluateServiceability({ pinCode: '110024' });
+      const ok = await service.evaluateServiceability({ pinCode: pin });
       expect(ok.status).toBe('SERVICEABLE');
       expect(ok.serviceArea?.id).toBe(activeArea);
 

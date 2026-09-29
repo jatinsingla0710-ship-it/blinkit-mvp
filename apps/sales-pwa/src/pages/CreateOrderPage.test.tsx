@@ -154,7 +154,7 @@ beforeEach(() => {
 describe('shop first (R, S)', () => {
   it('asks for the retailer first and offers search', () => {
     const html = render('/orders/new');
-    expect(html).toContain('Search your retailers');
+    expect(html).toContain('Search your customers');
     expect(html).toContain('Sharma Stores');
     expect(html).not.toContain('Search products');
     expect(findButton(html, REVIEW)).toBeNull();
@@ -163,7 +163,7 @@ describe('shop first (R, S)', () => {
   it('cannot continue from ?shopId= alone while retailers are loading', () => {
     mocks.queries.retailers = { isLoading: true };
     const html = render('/orders/new?shopId=shop-1');
-    expect(html).toContain('Loading retailers…');
+    expect(html).toContain('Loading customers…');
     expect(isButtonDisabled(html, REVIEW)).toBe(true);
     expect(html).not.toContain('Search products');
   });
@@ -188,8 +188,8 @@ describe('shop first (R, S)', () => {
   it('shows retailer load errors with a retry and blocks continuing', () => {
     mocks.queries.retailers = { isError: true, error: new Error('permission denied') };
     const html = render('/orders/new?shopId=shop-1');
-    expect(html).toContain('Could not load your retailers: permission denied');
-    expect(isButtonDisabled(html, 'Retry retailers')).toBe(false);
+    expect(html).toContain('Could not load your customers: permission denied');
+    expect(isButtonDisabled(html, 'Retry customers')).toBe(false);
     expect(isButtonDisabled(html, REVIEW)).toBe(true);
   });
 });

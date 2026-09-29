@@ -44,6 +44,8 @@ describe('SalesShell bottom navigation', () => {
     ['/orders/new', 'Orders'],
     ['/customers/shop-1', 'Customers'],
     ['/profile/earnings', 'Profile'],
+    ['/profile/expenses', 'Profile'],
+    ['/orders/abc/return', 'Orders'],
   ])('marks the active tab for %s', (path, label) => {
     expect(currentTab(render(path))).toBe(label);
   });
@@ -53,5 +55,8 @@ describe('SalesShell bottom navigation', () => {
     expect(html).not.toContain('Log out');
     expect(html).not.toContain('Sign out');
     expect(html).toContain('Asha Verma');
+    expect(html).toContain('Salesaurum');
+    expect(html).toContain('/icons/icon-192.png');
+    expect(html).not.toContain('GroAurum');
   });
 });

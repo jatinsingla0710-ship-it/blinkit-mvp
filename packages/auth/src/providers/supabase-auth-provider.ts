@@ -4,6 +4,11 @@ import {
   type LiveStaffRole,
 } from '../staff-role-map';
 import type { PublicAuthConfig } from '../env';
+import {
+  assertLoginEmail,
+  assertSixDigitCode,
+  emailCodeErrorMessage,
+} from '../email-code';
 import { createAuthError } from '../errors';
 import type {
   AuthProvider,
@@ -18,6 +23,29 @@ import type {
 export type SupabaseAuthClientLike = {
   auth: {
     getSession: () => Promise<{
+      data: {
+        session: {
+          access_token: string;
+          refresh_token: string;
+          expires_at?: number | null;
+          user: {
+            id: string;
+            email?: string | null;
+            phone?: string | null;
+          };
+        } | null;
+      };
+      error: { message: string } | null;
+    }>;
+    signInWithOtp: (credentials: {
+      email: string;
+      options?: { shouldCreateUser?: boolean };
+    }) => Promise<{ error: { message: string } | null }>;
+    verifyOtp: (credentials: {
+      email: string;
+      token: string;
+      type: 'email';
+    }) => Promise<{
       data: {
         session: {
           access_token: string;
@@ -369,6 +397,102 @@ export function createSupabaseAuthProvider(
       listeners.add(listener);
       listener(state);
       return () => listeners.delete(listener);
+    },
+    async requestEmailCode(email: string) {
+      let normalized: string;
+      try {
+        normalized = assertLoginEmail(email);
+      } catch (err) {
+        throw createAuthError(
+          'unauthorized',
+          err instanceof Error ? err.message : 'Enter a valid company email.',
+          err,
+        );
+      }
+      try {
+        const { error } = await withTimeout(
+          client.auth.signInWithOtp({
+            email: normalized,
+            options: { shouldCreateUser: false },
+          }),
+          15_000,
+          'Could not send the code. Check your signal and try again.',
+        );
+        if (error) {
+          throw createAuthError(
+            'unauthorized',
+            emailCodeErrorMessage(error.message, 'send'),
+            error,
+          );
+        }
+      } catch (err) {
+        if (err && typeof err === 'object' && 'code' in err) throw err;
+        throw createAuthError(
+          'unauthorized',
+          emailCodeErrorMessage(
+            err instanceof Error ? err.message : '',
+            'send',
+          ),
+          err,
+        );
+      }
+    },
+    async verifyEmailCode(email: string, code: string) {
+      let normalized: string;
+      let token: string;
+      try {
+        normalized = assertLoginEmail(email);
+        token = assertSixDigitCode(code);
+      } catch (err) {
+        throw createAuthError(
+          'unauthorized',
+          err instanceof Error ? err.message : 'Enter the 6-digit code from your email.',
+          err,
+        );
+      }
+      try {
+        const { data, error } = await withTimeout(
+          client.auth.verifyOtp({
+            email: normalized,
+            token,
+            type: 'email',
+          }),
+          15_000,
+          'Could not verify the code. Check your signal and try again.',
+        );
+        if (error) {
+          throw createAuthError(
+            'unauthorized',
+            emailCodeErrorMessage(error.message, 'verify'),
+            error,
+          );
+        }
+        if (!data.session?.user) {
+          throw createAuthError(
+            'unauthorized',
+            'That code is not valid. Request a new code and try again.',
+          );
+        }
+        const session = await sessionFromAuthUser(data.session.user, {
+          accessToken: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+          expiresAt: data.session.expires_at
+            ? new Date(data.session.expires_at * 1000).toISOString()
+            : null,
+        });
+        setState({ status: 'authenticated', session, error: null });
+        return session;
+      } catch (err) {
+        if (err && typeof err === 'object' && 'code' in err) throw err;
+        throw createAuthError(
+          'unauthorized',
+          emailCodeErrorMessage(
+            err instanceof Error ? err.message : '',
+            'verify',
+          ),
+          err,
+        );
+      }
     },
     async signIn(credentials: SignInCredentials) {
       if (!credentials.email || !credentials.password) {

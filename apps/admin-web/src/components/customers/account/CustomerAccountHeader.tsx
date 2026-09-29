@@ -1,10 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@groaurum/ui';
 import type { CustomerDetail } from '@/data/customers-types';
-import {
-  CustomerStatusBadge,
-  DigitalAccessBadge,
-} from '@/components/customers/CustomerStatusBadges';
+import { CustomerStatusBadge } from '@/components/customers/CustomerStatusBadges';
 import { customerInitials } from '@/data/customer-account-dashboard';
 import './CustomerAccountHeader.css';
 
@@ -12,18 +9,14 @@ type Props = {
   customer: CustomerDetail;
   canManage: boolean;
   onEdit: () => void;
-  onSendAppLink: () => void;
   onReassign: () => void;
-  sendingAppLink?: boolean;
 };
 
 export function CustomerAccountHeader({
   customer,
   canManage,
   onEdit,
-  onSendAppLink,
   onReassign,
-  sendingAppLink,
 }: Props) {
   const locationLabel = [customer.areaLabel, customer.deliveryCity, customer.deliveryState]
     .filter((part) => part && part !== '—')
@@ -53,10 +46,6 @@ export function CustomerAccountHeader({
             </div>
             <div className="ga-cust-account-header__badges">
               <CustomerStatusBadge status={customer.status} />
-              <DigitalAccessBadge
-                status={customer.digitalAccess}
-                label={customer.digitalAccessVm.label}
-              />
             </div>
           </div>
         </div>
@@ -64,17 +53,7 @@ export function CustomerAccountHeader({
 
       {canManage ? (
         <div className="ga-cust-account-header__actions">
-          {customer.digitalAccess !== 'activated' &&
-          customer.digitalAccess !== 'access_disabled' ? (
-            <Button
-              variant="primary"
-              disabled={sendingAppLink || customer.phoneLabel === '—'}
-              onClick={onSendAppLink}
-            >
-              {sendingAppLink ? 'Recording…' : 'Send App Link'}
-            </Button>
-          ) : null}
-          <Button variant="secondary" onClick={onEdit}>
+          <Button variant="primary" onClick={onEdit}>
             Edit Customer
           </Button>
           <Button variant="ghost" onClick={onReassign}>

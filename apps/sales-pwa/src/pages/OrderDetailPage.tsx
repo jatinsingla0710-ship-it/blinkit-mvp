@@ -38,8 +38,8 @@ export function OrderLineRow({ line }: { line: SalesmanOrderLine }) {
 }
 
 const NEXT_STEP: Record<ReturnType<typeof orderStatusGroup>, string> = {
-  pending: 'Waiting for the retailer to approve this order. Stock is reserved only after approval.',
-  approved: 'Approved by the retailer and moving through dispatch and delivery.',
+  pending: 'Waiting for the customer to approve this order. Stock is reserved only after approval.',
+  approved: 'Approved by the customer and moving through dispatch and delivery.',
   delivered: 'This order has been delivered.',
   cancelled: 'This order was cancelled and will not be delivered.',
 };
@@ -81,7 +81,7 @@ export function OrderDetailPage() {
       {orderQuery.isSuccess && order === null ? (
         <EmptyStateCard
           title="Order not found"
-          detail="This order does not exist or is not linked to your retailers."
+          detail="This order does not exist or is not linked to your customers."
           action={
             <ButtonLink to="/orders" variant="secondary" block>
               Back to orders
@@ -125,7 +125,10 @@ export function OrderDetailPage() {
           </Card>
 
           <ButtonLink to={`/customers/${order.shopId}`} variant="secondary" block>
-            View retailer
+            View customer
+          </ButtonLink>
+          <ButtonLink to={`/orders/${order.id}/return`} variant="secondary" block>
+            Return or damage
           </ButtonLink>
         </>
       ) : null}

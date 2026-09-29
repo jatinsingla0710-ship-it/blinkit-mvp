@@ -12,6 +12,8 @@ export function useAuthSession() {
       isSessionLoading: ctx.isSessionLoading,
       isAuthenticated: ctx.isAuthenticated,
       signIn: ctx.signIn,
+      requestEmailCode: ctx.requestEmailCode,
+      verifyEmailCode: ctx.verifyEmailCode,
       signOut: ctx.signOut,
       refreshSession: ctx.refreshSession,
     }),

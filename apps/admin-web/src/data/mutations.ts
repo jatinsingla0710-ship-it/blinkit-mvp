@@ -378,36 +378,6 @@ export function useUpdateCustomerContactMutation() {
   });
 }
 
-export function useRecordCustomerAppLinkSentMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: ['mutation', 'customers', 'recordAppLinkSent'],
-    mutationFn: (shopId: string) =>
-      requireLiveAdminApi().recordCustomerAppLinkSent(shopId),
-    onSuccess: async (_data, shopId) => {
-      await invalidateEntity(queryClient, 'customers');
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.detail('customers', shopId),
-      });
-    },
-  });
-}
-
-export function useSendCustomerInvitationMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationKey: ['mutation', 'customers', 'sendInvitation'],
-    mutationFn: (vars: { shopId: string; mobile?: string | null }) =>
-      requireLiveAdminApi().sendCustomerInvitation(vars.shopId, vars.mobile),
-    onSuccess: async (_data, vars) => {
-      await invalidateEntity(queryClient, 'customers');
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.detail('customers', vars.shopId),
-      });
-    },
-  });
-}
-
 export function useCreateOrderMutation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -927,6 +897,62 @@ export function useSetSalesmanSalaryTermsMutation() {
       await invalidateEntity(queryClient, 'salesmen');
       await queryClient.invalidateQueries({
         queryKey: ['groaurum', 'salesmen', 'detail', input.profileId],
+      });
+    },
+  });
+}
+
+export function useSetSalesmanTargetMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'salesmen', 'target'],
+    mutationFn: (input: Parameters<LiveAdminApi['setSalesmanTarget']>[0]) =>
+      requireLiveAdminApi().setSalesmanTarget(input),
+    onSuccess: async (_data, input) => {
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'salesmen', 'target', input.profileId],
+      });
+    },
+  });
+}
+
+export function useReviewSalesmanExpenseMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'salesmen', 'expense-review'],
+    mutationFn: (input: Parameters<LiveAdminApi['reviewSalesmanExpense']>[0]) =>
+      requireLiveAdminApi().reviewSalesmanExpense(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'salesmen', 'claims'],
+      });
+    },
+  });
+}
+
+export function useReviewReturnRequestMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'salesmen', 'return-review'],
+    mutationFn: (input: Parameters<LiveAdminApi['reviewReturnRequest']>[0]) =>
+      requireLiveAdminApi().reviewReturnRequest(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'salesmen', 'claims'],
+      });
+    },
+  });
+}
+
+export function useSendSalesmanMessageMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'salesmen', 'message'],
+    mutationFn: (input: { profileId: string; body: string }) =>
+      requireLiveAdminApi().sendSalesmanMessage(input.profileId, input.body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'salesmen', 'messages'],
       });
     },
   });

@@ -44,7 +44,7 @@ export function OrderReview({
 
   return (
     <div className="ga-sales-stack">
-      <Card title="Retailer">
+      <Card title="Customer">
         <p className="ga-sales-list-item__title">{shop.tradeName}</p>
         <p className="ga-sales-list-item__meta">
           {shop.areaLabel} · {shop.addressLine}, {shop.city} {shop.pinCode}

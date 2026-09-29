@@ -3,7 +3,6 @@ import { ActionBar, Button } from '@groaurum/ui';
 export type SalesmenQuickActionId =
   | 'add_customer'
   | 'create_order'
-  | 'send_invitation'
   | 'view_territory'
   | 'provision_salesman';
 
@@ -39,14 +38,6 @@ export function SalesmenQuickActions({
       {canManageOrders ? (
         <Button variant="secondary" onClick={() => onAction?.('create_order')}>
           Create Order
-        </Button>
-      ) : null}
-      {canManageCustomers ? (
-        <Button
-          variant="secondary"
-          onClick={() => onAction?.('send_invitation')}
-        >
-          Send Invitation
         </Button>
       ) : null}
       <Button variant="secondary" onClick={() => onAction?.('view_territory')}>

@@ -74,6 +74,13 @@ export interface AuthProvider {
   subscribe(listener: AuthStateListener): () => void;
   /** Prepared for future login screens — mock may no-op or set role. */
   signIn(credentials: SignInCredentials): Promise<AuthSession>;
+  /**
+   * Email a 6-digit code to an existing account. Does not create a user.
+   * Password sign-in stays available.
+   */
+  requestEmailCode(email: string): Promise<void>;
+  /** Verify the 6-digit email code and start a persisted session. */
+  verifyEmailCode(email: string, code: string): Promise<AuthSession>;
   signOut(): Promise<void>;
   refreshSession(): Promise<AuthSession | null>;
   /**

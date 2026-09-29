@@ -4,7 +4,7 @@
 
 export type SalesmanStatus = 'active' | 'on_leave' | 'inactive' | 'suspended';
 
-export type VisitStatus = 'planned' | 'completed' | 'missed';
+export type VisitStatus = 'planned' | 'completed' | 'missed' | 'shop_closed';
 
 export type CustomerActivationStatus =
   | 'created'

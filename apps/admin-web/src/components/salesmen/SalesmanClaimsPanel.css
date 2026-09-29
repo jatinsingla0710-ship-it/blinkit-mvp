@@ -1,0 +1,56 @@
+.ga-sm-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ga-sm-claims h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.ga-sm-claims__hint {
+  margin: 0.2rem 0;
+  color: var(--ga-text-muted);
+}
+
+.ga-sm-claims__error {
+  margin: 0.2rem 0;
+  color: var(--ga-danger, #b42318);
+  font-weight: 700;
+}
+
+.ga-sm-claims__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm, 6px);
+}
+
+.ga-sm-claims__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ga-sm-claims__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ga-sm-claims__actions .ga-btn {
+  min-height: 48px;
+}
+
+.ga-sm-claims__photo {
+  width: 100%;
+  max-width: 280px;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: var(--ga-radius-sm, 6px);
+  background: var(--ga-bg);
+}

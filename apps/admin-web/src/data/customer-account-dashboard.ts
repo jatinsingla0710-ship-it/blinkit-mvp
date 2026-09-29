@@ -169,18 +169,6 @@ export function buildCustomerTimeline(
     },
   ];
 
-  if (customer.appLinkSentAtLabel) {
-    events.push({
-      id: 'app-link',
-      atLabel: customer.appLinkSentAtLabel,
-      title: 'App link sent',
-      detail: customer.appLinkSentByLabel
-        ? `Sent by ${customer.appLinkSentByLabel}`
-        : undefined,
-      sortKey: customer.appLinkSentAtLabel,
-    });
-  }
-
   for (const order of customer.orders.slice(0, 8)) {
     events.push({
       id: `order-${order.id}`,
@@ -199,15 +187,6 @@ export function buildCustomerTimeline(
         href: `/orders/${order.id}`,
       });
     }
-  }
-
-  if (customer.digitalAccessVm.activatedAtLabel) {
-    events.push({
-      id: 'activated',
-      atLabel: customer.digitalAccessVm.activatedAtLabel,
-      title: 'Customer App activated',
-      sortKey: customer.digitalAccessVm.activatedAtLabel,
-    });
   }
 
   return events

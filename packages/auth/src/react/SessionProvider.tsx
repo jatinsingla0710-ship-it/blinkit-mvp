@@ -16,6 +16,8 @@ export type SessionContextValue = AuthState & {
   isSessionLoading: boolean;
   isAuthenticated: boolean;
   signIn: (credentials: SignInCredentials) => Promise<AuthSession>;
+  requestEmailCode: (email: string) => Promise<void>;
+  verifyEmailCode: (email: string, code: string) => Promise<AuthSession>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<AuthSession | null>;
 };
@@ -52,6 +54,14 @@ export function SessionProvider({ provider, children }: Props) {
     (credentials: SignInCredentials) => provider.signIn(credentials),
     [provider],
   );
+  const requestEmailCode = useCallback(
+    (email: string) => provider.requestEmailCode(email),
+    [provider],
+  );
+  const verifyEmailCode = useCallback(
+    (email: string, code: string) => provider.verifyEmailCode(email, code),
+    [provider],
+  );
 
   const signOut = useCallback(() => provider.signOut(), [provider]);
 
@@ -67,10 +77,12 @@ export function SessionProvider({ provider, children }: Props) {
       isSessionLoading: state.status === 'loading',
       isAuthenticated: state.status === 'authenticated' && Boolean(state.session),
       signIn,
+      requestEmailCode,
+      verifyEmailCode,
       signOut,
       refreshSession,
     }),
-    [state, provider, signIn, signOut, refreshSession],
+    [state, provider, signIn, requestEmailCode, verifyEmailCode, signOut, refreshSession],
   );
 
   return (

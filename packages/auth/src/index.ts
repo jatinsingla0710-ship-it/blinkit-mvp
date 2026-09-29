@@ -65,6 +65,13 @@ export {
 
 export { createAuthError } from './errors';
 export {
+  assertLoginEmail,
+  assertSixDigitCode,
+  emailCodeErrorMessage,
+  normalizeLoginEmail,
+} from './email-code';
+export { MOCK_EMAIL_CODE } from './providers/mock-auth-provider';
+export {
   canAccessModule,
   hasPermission,
   isSessionExpired,

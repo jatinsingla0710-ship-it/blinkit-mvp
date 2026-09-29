@@ -77,7 +77,7 @@ describe('every inner screen has a back link (no dead ends)', () => {
     mocks.queries.retailer = { data: null };
     html = render('/customers/shop-1', '/customers/:shopId', <CustomerDetailPage />);
     expect(linkHref(html, 'Back to Customers')).toBe('/customers');
-    expect(html).toContain('Retailer not found');
+    expect(html).toContain('Customer not found');
   });
 
   it('New retailer → Customers', () => {
@@ -105,7 +105,7 @@ describe('loading, error and empty states', () => {
     mocks.queries.retailers = { isLoading: true };
     const html = render('/customers', '/customers', <CustomersPage />);
     expect(html).toContain('aria-busy="true"');
-    expect(html).toContain('Loading your retailers…');
+    expect(html).toContain('Loading your customers…');
   });
 
   it('Customers shows the error with Retry when nothing is loaded', () => {
@@ -131,7 +131,7 @@ describe('loading, error and empty states', () => {
   it('Customers empty state points to Add customer', () => {
     mocks.queries.retailers = { data: [] };
     const html = render('/customers', '/customers', <CustomersPage />);
-    expect(html).toContain('No retailers yet');
+    expect(html).toContain('No customers yet');
     expect(linkHref(html, 'Add customer')).toBe('/customers/new');
   });
 
@@ -156,9 +156,10 @@ describe('loading, error and empty states', () => {
     expect(isButtonDisabled(html, 'Retry areas')).toBe(false);
   });
 
-  it('My Earnings shows a KPI skeleton while loading', () => {
-    mocks.queries.performance = { isLoading: true };
+  it('My Earnings shows a loading state', () => {
+    mocks.queries.earnings = { isLoading: true };
     const html = render('/profile/earnings', '/profile/earnings', <PerformancePage />);
     expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('Loading your earnings');
   });
 });

@@ -16,19 +16,28 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   });
 }
 
-const root = document.getElementById('root');
-if (!root) {
-  throw new Error('Root element #root not found');
+async function start(): Promise<void> {
+  if (import.meta.env.DEV) {
+    const { installDevMocks } = await import('./data/install-dev-mocks');
+    installDevMocks();
+  }
+
+  const root = document.getElementById('root');
+  if (!root) {
+    throw new Error('Root element #root not found');
+  }
+
+  createRoot(root).render(
+    <StrictMode>
+      <BrowserRouter>
+        <SalesAuthProviders>
+          <SalesDataProviders>
+            <AppRoutes />
+          </SalesDataProviders>
+        </SalesAuthProviders>
+      </BrowserRouter>
+    </StrictMode>,
+  );
 }
 
-createRoot(root).render(
-  <StrictMode>
-    <BrowserRouter>
-      <SalesAuthProviders>
-        <SalesDataProviders>
-          <AppRoutes />
-        </SalesDataProviders>
-      </SalesAuthProviders>
-    </BrowserRouter>
-  </StrictMode>,
-);
+void start();

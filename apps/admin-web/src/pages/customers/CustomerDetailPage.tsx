@@ -1,10 +1,6 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
-import {
-  buildCustomerAppWhatsappMessage,
-  buildWhatsappShareUrl,
-} from '@groaurum/shared-types';
 import { CustomerAccountBusinessInfo } from '@/components/customers/account/CustomerAccountBusinessInfo';
 import { CustomerAccountCurrentActivity, CustomerAccountRecentOrders } from '@/components/customers/account/CustomerAccountOrders';
 import { CustomerAccountHeader } from '@/components/customers/account/CustomerAccountHeader';
@@ -12,7 +8,6 @@ import { CustomerAccountNeedsAttention } from '@/components/customers/account/Cu
 import { CustomerAccountSalesSummary } from '@/components/customers/account/CustomerAccountSalesSummary';
 import { CustomerAccountSummaryCards } from '@/components/customers/account/CustomerAccountSummaryCards';
 import { CustomerAccountTimeline } from '@/components/customers/account/CustomerAccountTimeline';
-import { CustomerAppAccessCard } from '@/components/customers/account/CustomerAppAccessCard';
 import { CustomerActivityTab } from '@/components/customers/CustomerActivityTab';
 import { CustomerAddressesTab } from '@/components/customers/CustomerAddressesTab';
 import { CustomerDocumentsTab } from '@/components/customers/CustomerDocumentsTab';
@@ -22,65 +17,16 @@ import { SalesmanReassignModal } from '@/components/customers/SalesmanReassignMo
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal';
 import { Card } from '@/components/ui/Card';
 import { QueryStateGate } from '@/data/QueryStateGate';
-import { getCustomerAppUrl } from '@/data/customer-app-config';
 import { useCustomerDetailQuery } from '@/data/hooks';
-import { useRecordCustomerAppLinkSentMutation } from '@/data/mutations';
 import './CustomerDetailPage.css';
 
 export function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
   const [reassignOpen, setReassignOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
-  const [appLinkError, setAppLinkError] = useState<string | null>(null);
-  const whatsappSubmittingRef = useRef(false);
   const { state } = useCustomerDetailQuery(customerId);
-  const recordAppLink = useRecordCustomerAppLinkSentMutation();
   const { hasPermission } = usePermissions();
   const canManageCustomers = hasPermission('customers:manage');
-
-  const openWhatsappAppLink = async (customer: {
-    id: string;
-    shopName: string;
-    ownerName: string;
-    phoneLabel: string;
-  }) => {
-    if (
-      !customerId ||
-      recordAppLink.isPending ||
-      whatsappSubmittingRef.current ||
-      customer.phoneLabel === '-'
-    ) {
-      return;
-    }
-    setAppLinkError(null);
-    whatsappSubmittingRef.current = true;
-    try {
-      await recordAppLink.mutateAsync(customerId);
-      const message = buildCustomerAppWhatsappMessage({
-        customerName: customer.ownerName || customer.shopName,
-        appUrl: getCustomerAppUrl(),
-      });
-      const url = buildWhatsappShareUrl(customer.phoneLabel, message);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      setAppLinkError(
-        err instanceof Error ? err.message : 'Could not record app link',
-      );
-    } finally {
-      whatsappSubmittingRef.current = false;
-    }
-  };
-
-  const copyAppLink = async () => {
-    try {
-      await navigator.clipboard.writeText(getCustomerAppUrl());
-      setCopyFeedback('App link copied');
-      window.setTimeout(() => setCopyFeedback(null), 2500);
-    } catch {
-      setCopyFeedback('Could not copy link');
-    }
-  };
 
   return (
     <QueryStateGate
@@ -96,13 +42,7 @@ export function CustomerDetailPage() {
             canManage={canManageCustomers}
             onEdit={() => setEditOpen(true)}
             onReassign={() => setReassignOpen(true)}
-            onSendAppLink={() => void openWhatsappAppLink(customer)}
-            sendingAppLink={recordAppLink.isPending}
           />
-
-          {appLinkError ? (
-            <p className="ga-cust-account__error">{appLinkError}</p>
-          ) : null}
 
           <CustomerAccountNeedsAttention items={customer.attentionItems} />
 
@@ -113,18 +53,6 @@ export function CustomerDetailPage() {
 
           <div className="ga-cust-account__layout">
             <div className="ga-cust-account__main">
-              <CustomerAppAccessCard
-                access={customer.digitalAccessVm}
-                customerName={customer.shopName}
-                ownerName={customer.ownerName}
-                mobile={customer.phoneLabel}
-                canManage={canManageCustomers}
-                sending={recordAppLink.isPending}
-                onSendViaWhatsapp={() => void openWhatsappAppLink(customer)}
-                onCopyLink={() => void copyAppLink()}
-                copyFeedback={copyFeedback}
-              />
-
               <CustomerAccountCurrentActivity
                 orders={customer.orders}
                 shopName={customer.shopName}

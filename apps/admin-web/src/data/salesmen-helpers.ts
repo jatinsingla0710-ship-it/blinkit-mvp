@@ -98,6 +98,8 @@ export function mapSalesVisitStatus(dbStatus: string): VisitStatus {
       return 'completed';
     case 'MISSED':
       return 'missed';
+    case 'SHOP_CLOSED':
+      return 'shop_closed';
     case 'PLANNED':
     case 'PENDING':
     default:

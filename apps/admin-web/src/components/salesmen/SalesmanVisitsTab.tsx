@@ -168,6 +168,7 @@ export function SalesmanVisitsTab({
   const planned = visits.filter((v) => v.status === 'planned').length;
   const completed = visits.filter((v) => v.status === 'completed').length;
   const missed = visits.filter((v) => v.status === 'missed').length;
+  const shopClosed = visits.filter((v) => v.status === 'shop_closed').length;
 
   return (
     <div className="ga-sm-visits">
@@ -181,6 +182,7 @@ export function SalesmanVisitsTab({
         <span>{planned} planned</span>
         <span>{completed} completed</span>
         <span>{missed} missed</span>
+        {shopClosed > 0 ? <span>{shopClosed} shop closed</span> : null}
       </div>
       <Timeline
         items={visits.map((visit) => ({
@@ -188,7 +190,7 @@ export function SalesmanVisitsTab({
           title: visit.shopName,
           meta: `${visit.areaLabel} · ${visit.plannedAtLabel}`,
           note: visit.note,
-          state: visit.status,
+          state: visit.status === 'shop_closed' ? 'skipped' : visit.status,
           trailing: (
             <span className="ga-sm-visits__trailing">
               <VisitStatusBadge status={visit.status} />

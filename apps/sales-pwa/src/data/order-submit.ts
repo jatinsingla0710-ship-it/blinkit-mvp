@@ -23,20 +23,20 @@ export function evaluateOrderSubmitGate(input: {
   catalogueReady: boolean;
 }): OrderSubmitGate {
   if (input.retailersError) {
-    return { canSubmit: false, reason: 'Retailers could not be loaded.' };
+    return { canSubmit: false, reason: 'Customers could not be loaded.' };
   }
   if (input.retailersLoading || input.retailers === undefined) {
-    return { canSubmit: false, reason: 'Loading retailers…' };
+    return { canSubmit: false, reason: 'Loading customers…' };
   }
   if (!input.shopId) {
-    return { canSubmit: false, reason: 'Select a retailer to continue.' };
+    return { canSubmit: false, reason: 'Select a customer to continue.' };
   }
   const shop = input.retailers.find((r) => r.id === input.shopId);
   if (!shop) {
     return {
       canSubmit: false,
       reason:
-        'This retailer is not in your assigned list. Pick a retailer from the list.',
+        'This customer is not in your assigned list. Pick a customer from the list.',
     };
   }
   if (!shop.serviceAreaId) {
@@ -166,10 +166,10 @@ export function friendlyOrderError(message: string): string {
     return 'One quantity cannot be priced per pack exactly. Try a different quantity, for example full bags only.';
   }
   if (/not assigned to this salesman/i.test(message)) {
-    return 'This retailer is no longer assigned to you.';
+    return 'This customer is no longer assigned to you.';
   }
   if (/Service area does not match|service area/i.test(message)) {
-    return 'The retailer’s service area changed. Reload the retailer and try again.';
+    return 'The customer’s service area changed. Reload the customer and try again.';
   }
   if (/not orderable/i.test(message)) {
     return 'One of the products is no longer available. Edit the items and try again.';

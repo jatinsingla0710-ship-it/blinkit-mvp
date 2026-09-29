@@ -22,6 +22,25 @@ function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+/**
+ * Email a 6-digit code to an existing auth user.
+ * Failure does not roll back the account: the temporary password remains the fallback.
+ * The service-role client stays inside this function.
+ */
+async function sendSalesmanEmailCode(
+  service: ReturnType<typeof createServiceClient>,
+  email: string,
+): Promise<{ invitationEmailSent: boolean; invitationEmailError: string | null }> {
+  const { error } = await service.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  });
+  if (error) {
+    return { invitationEmailSent: false, invitationEmailError: error.message };
+  }
+  return { invitationEmailSent: true, invitationEmailError: null };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return optionsResponse(req);
   if (req.method !== 'POST') {
@@ -218,6 +237,7 @@ Deno.serve(async (req) => {
         durationMs: Date.now() - started,
       });
 
+      const invitation = await sendSalesmanEmailCode(service, email);
       return jsonResponse(req, {
         profileId: existingAuthUserId,
         authUserId: existingAuthUserId,
@@ -227,6 +247,7 @@ Deno.serve(async (req) => {
         alreadyProvisioned: false,
         createdAuthUser: false,
         temporaryPasswordSet: false,
+        ...invitation,
       });
     }
 
@@ -295,6 +316,7 @@ Deno.serve(async (req) => {
       durationMs: Date.now() - started,
     });
 
+    const invitation = await sendSalesmanEmailCode(service, email);
     return jsonResponse(req, {
       profileId: authUserId,
       authUserId,
@@ -304,6 +326,7 @@ Deno.serve(async (req) => {
       alreadyProvisioned: false,
       createdAuthUser: true,
       temporaryPasswordSet: true,
+      ...invitation,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error';

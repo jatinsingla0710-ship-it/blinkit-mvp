@@ -34,7 +34,6 @@ export {
   useUpdateInventoryMutation,
   useCreateCustomerMutation,
   useUpdateCustomerMutation,
-  useSendCustomerInvitationMutation,
   useCreateOrderMutation,
   useUpdateOrderStatusMutation,
   useReassignShopSalesmanMutation,

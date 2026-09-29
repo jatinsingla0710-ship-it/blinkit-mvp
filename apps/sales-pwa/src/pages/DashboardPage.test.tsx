@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { isButtonDisabled } from '@/test-utils/markup';
+import { formatRupees } from '@/lib/money';
 
 const mocks = vi.hoisted(() => ({
   queries: {} as Record<string, Record<string, unknown>>,
@@ -88,12 +89,41 @@ describe('Home — visits and quick actions', () => {
       },
     };
     const html = render();
-    expect(html).toContain('Today&#x27;s Route / Visits');
+    expect(html).toContain('Today&#x27;s route');
     expect(html).toContain('5 shops planned today');
     expect(/href="\/visits"/.test(html)).toBe(true);
     expect(/href="\/orders\/new"/.test(html)).toBe(true);
     expect(/href="\/customers\/new"/.test(html)).toBe(true);
     expect(html).toContain('₹42,000');
+    expect(html).not.toContain('achieved of');
+  });
+
+  it('shows the target only when one exists', () => {
+    mocks.queries.attendance = { data: null };
+    mocks.queries.target = {
+      data: {
+        month: '2026-09-01',
+        targetAmount: 4000,
+        achievedAmount: 1000,
+        remainingAmount: 3000,
+        progressPercent: 25,
+      },
+    };
+    const html = render();
+    expect(html).toContain(
+      `${formatRupees(1000)} achieved of ${formatRupees(4000)}`,
+    );
+    expect(html).toContain(`${formatRupees(3000)} remaining`);
+    expect(html).toContain('role="progressbar"');
+    expect(html).toContain('width:25%');
+  });
+
+  it('hides the target card when the target is missing', () => {
+    mocks.queries.attendance = { data: null };
+    mocks.queries.target = { data: null };
+    const html = render();
+    expect(html).not.toContain('achieved of');
+    expect(html).not.toContain('role="progressbar"');
   });
 
   it('shows a KPI skeleton while the summary loads', () => {

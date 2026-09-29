@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Badge, TextField } from '@groaurum/ui';
+import { TextField } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
 import { filterRetailers } from '@/data/customer-search';
 import { ButtonLink } from '@/components/ButtonLink';
@@ -11,7 +11,6 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { LoadingState } from '@/components/Skeleton';
 import { PlusIcon } from '@/components/icons';
 import { errorMessage } from '@/lib/errors';
-import { activationTone } from '@/lib/tones';
 
 export function CustomersPage() {
   const api = useSalesmanApi();
@@ -32,9 +31,9 @@ export function CustomersPage() {
         subtitle={
           data
             ? search.trim()
-              ? `${visible.length} of ${data.length} assigned retailers`
-              : `${data.length} assigned retailers`
-            : 'Assigned retailers'
+              ? `${visible.length} of ${data.length} customers`
+              : `${data.length} customers`
+            : 'Your customers'
         }
         actions={
           <ButtonLink to="/customers/new" variant="primary">
@@ -44,11 +43,11 @@ export function CustomersPage() {
         }
       />
 
-      {isLoading ? <LoadingState label="Loading your retailers…" rows={4} /> : null}
+      {isLoading ? <LoadingState label="Loading your customers…" rows={4} /> : null}
 
       {isError ? (
         <ErrorState
-          message={errorMessage(error, 'Could not load your retailers.')}
+          message={errorMessage(error, 'Could not load your customers.')}
           onRetry={() => void refetch()}
           retrying={isFetching}
           stale={Boolean(data)}
@@ -57,8 +56,8 @@ export function CustomersPage() {
 
       {data && data.length === 0 ? (
         <EmptyStateCard
-          title="No retailers yet"
-          detail="Add your first retailer to start building your beat and taking orders."
+          title="No customers yet"
+          detail="Add your first customer. Visits and orders can start as soon as the shop is saved."
           action={
             <ButtonLink to="/customers/new" variant="primary" block>
               Add customer
@@ -80,7 +79,7 @@ export function CustomersPage() {
 
       {data && data.length > 0 && visible.length === 0 ? (
         <EmptyStateCard
-          title="No matching retailers"
+          title="No matching customers"
           detail="Try a shop name, contact name, mobile number, or area. Your assigned list did load."
         />
       ) : null}
@@ -103,9 +102,6 @@ export function CustomersPage() {
                     {shop.primaryContactMobile ?? 'No mobile'}
                   </p>
                 </div>
-                <Badge tone={activationTone(shop.activationStatus)}>
-                  {shop.activationLabel}
-                </Badge>
               </div>
               <p className="ga-sales-muted">
                 Last order: {shop.lastOrderLabel}

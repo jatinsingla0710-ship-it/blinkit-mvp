@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  buildCustomerAppWhatsappMessage,
-  buildWhatsappShareUrl,
-} from '@groaurum/shared-types';
 import type { SalesmanOrderSummary, SalesmanVisit } from '@groaurum/api-client';
 import { Badge, Button, Card, Field, FieldGrid } from '@groaurum/ui';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
 import { ButtonLink } from '@/components/ButtonLink';
+import { VoiceNoteButton } from '@/components/VoiceNoteButton';
 import { ShopPhotoCard } from '@/components/customer/ShopPhotoCard';
 import { OrderStatusBadge } from '@/components/order/OrderStatusBadge';
 import { EmptyStateCard } from '@/components/EmptyStateCard';
@@ -19,25 +16,18 @@ import { useToast } from '@/components/Toast';
 import { mapsDirectionsUrl, shopWhatsappHref, telHref } from '@/data/contact-links';
 import { shopPhotoFileError } from '@/data/customer-form';
 import { errorMessage } from '@/lib/errors';
-import { activationTone, visitStatusLabel, visitTone } from '@/lib/tones';
-import { resolveCustomerAppUrl } from '@/data/customer-app-config';
+import { visitStatusLabel, visitTone } from '@/lib/tones';
 import { missingServiceAreaMessage } from '@/data/order-submit';
 import {
   formatCoordinates,
   isValidCoordinatePair,
   readCurrentPosition,
 } from '@/data/geolocation';
-import { isSalesDataMockMode } from '@/data/salesmanApi';
-
 export function CustomerDetailPage() {
   const { shopId = '' } = useParams();
   const api = useSalesmanApi();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const mockMode = isSalesDataMockMode();
-  const customerAppUrl = resolveCustomerAppUrl();
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [trackingWarning, setTrackingWarning] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -72,52 +62,12 @@ export function CustomerDetailPage() {
     setPhotoError(null);
   }, [shopId, data?.deliveryLat, data?.deliveryLng]);
 
-  const recordAppLinkMutation = useMutation({
-    mutationFn: () => api.recordAppLinkSent(shopId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['sales', 'retailer', shopId] });
-      void queryClient.invalidateQueries({ queryKey: ['sales', 'retailers'] });
-    },
-    onError: (err) => {
-      setTrackingWarning(
-        `WhatsApp was opened, but the app-link send could not be recorded${
-          err instanceof Error && err.message ? `: ${err.message}` : '.'
-        }`,
-      );
-    },
-  });
-
-  function onSendAppLink() {
-    setActionError(null);
-    setTrackingWarning(null);
-    if (!data?.primaryContactMobile) {
-      setActionError('No mobile number on file for this retailer');
-      return;
-    }
-    if (!customerAppUrl.ok) {
-      setActionError(customerAppUrl.message);
-      return;
-    }
-    const message = buildCustomerAppWhatsappMessage({
-      customerName: data.primaryContactName ?? data.tradeName,
-      appUrl: customerAppUrl.url,
-    });
-    window.open(
-      buildWhatsappShareUrl(data.primaryContactMobile, message),
-      '_blank',
-      'noopener,noreferrer',
-    );
-    recordAppLinkMutation.mutate();
-  }
-
   const locationMutation = useMutation({
     mutationFn: async (coords: { lat: number; lng: number }) =>
       api.setShopDeliveryLocation(shopId, coords.lat, coords.lng),
-    onSuccess: (result) => {
+    onSuccess: () => {
       setLocationError(null);
-      setLocationMessage(
-        `Location saved: ${formatCoordinates(result.deliveryLat, result.deliveryLng)}`,
-      );
+      setLocationMessage(null);
       void queryClient.invalidateQueries({ queryKey: ['sales', 'retailer', shopId] });
       void queryClient.invalidateQueries({ queryKey: ['sales', 'retailers'] });
     },
@@ -170,8 +120,8 @@ export function CustomerDetailPage() {
   if (isLoading) {
     return (
       <div className="ga-sales-stack">
-        <ScreenHeader title="Retailer" backTo="/customers" backLabel="Customers" />
-        <LoadingState label="Loading retailer…" variant="detail" rows={5} />
+        <ScreenHeader title="Customer" backTo="/customers" backLabel="Customers" />
+        <LoadingState label="Loading customer…" variant="detail" rows={5} />
       </div>
     );
   }
@@ -179,17 +129,17 @@ export function CustomerDetailPage() {
   if (!data) {
     return (
       <div className="ga-sales-stack">
-        <ScreenHeader title="Retailer" backTo="/customers" backLabel="Customers" />
+        <ScreenHeader title="Customer" backTo="/customers" backLabel="Customers" />
         {isError ? (
           <ErrorState
-            message={errorMessage(error, 'Could not load this retailer.')}
+            message={errorMessage(error, 'Could not load this customer.')}
             onRetry={() => void refetch()}
             retrying={isFetching}
           />
         ) : (
           <EmptyStateCard
-            title="Retailer not found"
-            detail="This retailer is not in your assigned list. It may have been reassigned by your admin."
+            title="Customer not found"
+            detail="This customer is not in your assigned list. It may have been reassigned by your admin."
             action={
               <ButtonLink to="/customers" variant="secondary" block>
                 Back to customers
@@ -209,21 +159,14 @@ export function CustomerDetailPage() {
     <div className="ga-sales-stack">
       <ScreenHeader
         title={data.tradeName}
-        subtitle={
-          <>
-            {data.areaLabel}{' '}
-            <Badge tone={activationTone(data.activationStatus)}>
-              {data.activationLabel}
-            </Badge>
-          </>
-        }
+        subtitle={data.areaLabel}
         backTo="/customers"
         backLabel="Customers"
       />
 
       {isError ? (
         <ErrorState
-          message={errorMessage(error, 'Could not refresh this retailer.')}
+          message={errorMessage(error, 'Could not refresh this customer.')}
           onRetry={() => void refetch()}
           retrying={isFetching}
           stale
@@ -234,7 +177,6 @@ export function CustomerDetailPage() {
         <FieldGrid columns={2}>
           <Field label="Contact">{data.primaryContactName ?? '—'}</Field>
           <Field label="Mobile">{mobile ?? '—'}</Field>
-          <Field label="Area">{data.areaLabel}</Field>
           <Field label="Last order">{data.lastOrderLabel}</Field>
           <Field label="Address" wide>
             {data.addressLine}, {data.city}, {data.state} {data.pinCode}
@@ -295,6 +237,10 @@ export function CustomerDetailPage() {
           </Button>
         )}
       </div>
+      <ButtonLink to={`/customers/${data.id}/return`} variant="secondary" block>
+        Return or damage
+      </ButtonLink>
+      <VoiceNoteButton shopId={data.id} />
 
       <Card title="Shop photo">
         {photoQuery.isLoading ? <LoadingState label="Loading photo…" rows={1} /> : null}
@@ -345,7 +291,7 @@ export function CustomerDetailPage() {
                 : 'Use Current Location'}
           </Button>
         </div>
-        {locationMessage ? (
+        {locationMessage && !hasSavedLocation ? (
           <p className="ga-sales-success" style={{ marginTop: 12 }}>
             {locationMessage}
           </p>
@@ -417,43 +363,6 @@ export function CustomerDetailPage() {
           </div>
         ) : null}
       </Card>
-
-      <Card title="Customer App">
-        <p className="ga-sales-muted">
-          The customer can log in with their registered mobile number and OTP.
-          The app link helps them find the app — it is not required for login.
-        </p>
-        {!canOrder ? (
-          <p className="ga-sales-warning" role="status">
-            {missingServiceAreaMessage(data)}
-          </p>
-        ) : null}
-        {data.activationStatus !== 'activated' && !customerAppUrl.ok ? (
-          <p className="ga-sales-warning" role="status">
-            {customerAppUrl.message}
-          </p>
-        ) : null}
-        <div className="ga-sales-actions">
-          {data.activationStatus !== 'activated' ? (
-            <Button
-              variant="secondary"
-              disabled={!mobile || !customerAppUrl.ok}
-              onClick={onSendAppLink}
-            >
-              Send Customer App Link via WhatsApp
-            </Button>
-          ) : null}
-        </div>
-        {mockMode ? (
-          <p className="ga-sales-muted" style={{ marginTop: 12 }}>
-            Demo mode — app link tracking may be simulated only.
-          </p>
-        ) : null}
-        {actionError ? <p className="ga-sales-error">{actionError}</p> : null}
-        {trackingWarning ? (
-          <p className="ga-sales-warning">{trackingWarning}</p>
-        ) : null}
-      </Card>
     </div>
   );
 }
@@ -479,7 +388,6 @@ function VisitHistoryRow({ visit }: { visit: SalesmanVisit }) {
       <div className="ga-sales-list-item__row">
         <div>
           <p className="ga-sales-list-item__title">{visit.plannedAtLabel}</p>
-          <p className="ga-sales-list-item__meta">Planned {visit.plannedAtLabel}</p>
           {visit.visitedAtLabel ? (
             <p className="ga-sales-list-item__meta">Visited {visit.visitedAtLabel}</p>
           ) : null}

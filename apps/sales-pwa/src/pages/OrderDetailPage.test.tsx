@@ -101,6 +101,7 @@ describe('OrderDetailPage (C)', () => {
     expect(html).toContain('Order total');
     expect(html).toContain('₹8,773');
     expect(linkHref(html, 'Back to Orders')).toBe('/orders');
+    expect(linkHref(html, 'Return or damage')).toBe('/orders/a1b2c3d4-0000/return');
   });
 });
 

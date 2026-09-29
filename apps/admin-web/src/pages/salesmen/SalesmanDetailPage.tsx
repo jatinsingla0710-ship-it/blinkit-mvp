@@ -7,6 +7,9 @@ import { SalesmanOrdersTab } from '@/components/salesmen/SalesmanOrdersTab';
 import { SalesmanOverviewTab } from '@/components/salesmen/SalesmanOverviewTab';
 import { SalesmanPerformanceTab } from '@/components/salesmen/SalesmanPerformanceTab';
 import { SalesmanSalaryTab } from '@/components/salesmen/SalesmanSalaryTab';
+import { SalesmanClaimsPanel } from '@/components/salesmen/SalesmanClaimsPanel';
+import { SalesmanMessagesPanel } from '@/components/salesmen/SalesmanMessagesPanel';
+import { SalesmanTargetPanel } from '@/components/salesmen/SalesmanTargetPanel';
 import {
   SalesmenQuickActions,
   type SalesmenQuickActionId,
@@ -28,7 +31,9 @@ type SalesmanTab =
   | 'visits'
   | 'orders'
   | 'salary'
-  | 'performance';
+  | 'performance'
+  | 'claims'
+  | 'messages';
 
 const TABS: TabItem<SalesmanTab>[] = [
   { id: 'profile', label: 'Profile' },
@@ -38,6 +43,8 @@ const TABS: TabItem<SalesmanTab>[] = [
   { id: 'orders', label: 'Orders' },
   { id: 'salary', label: 'Salary' },
   { id: 'performance', label: 'Performance' },
+  { id: 'claims', label: 'Claims' },
+  { id: 'messages', label: 'Messages' },
 ];
 
 /**
@@ -61,12 +68,6 @@ export function SalesmanDetailPage() {
     if (id === 'create_order') {
       if (!canManageOrders) return;
       setTab('orders');
-      return;
-    }
-    if (id === 'send_invitation') {
-      if (!canManageCustomers) return;
-      setTab('work');
-      return;
     }
   };
 
@@ -153,12 +154,30 @@ export function SalesmanDetailPage() {
                   canManage={canManageSalesmen}
                 />
               ) : null}
-              {tab === 'performance' ? (
-                <SalesmanPerformanceTab
-                  performance={salesman.performance}
-                  collections={salesman.collections}
-                  collectionHistory={salesman.collectionHistory}
+              {tab === 'messages' ? (
+                <SalesmanMessagesPanel
+                  profileId={salesman.id}
+                  canManage={canManageSalesmen}
                 />
+              ) : null}
+              {tab === 'claims' ? (
+                <SalesmanClaimsPanel
+                  profileId={salesman.id}
+                  canManage={canManageSalesmen}
+                />
+              ) : null}
+              {tab === 'performance' ? (
+                <>
+                  <SalesmanTargetPanel
+                    profileId={salesman.id}
+                    canManage={canManageSalesmen}
+                  />
+                  <SalesmanPerformanceTab
+                    performance={salesman.performance}
+                    collections={salesman.collections}
+                    collectionHistory={salesman.collectionHistory}
+                  />
+                </>
               ) : null}
             </div>
           </Card>

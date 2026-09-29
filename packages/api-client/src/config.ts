@@ -102,7 +102,7 @@ export function parsePublicSupabaseConfig(input: {
     anonKey.toLowerCase().includes('service-role')
   ) {
     throw new Error(
-      'Service-role keys are forbidden in the customer app. Use the anon/publishable key only.',
+      'Service-role keys are forbidden in browser apps. Use the anon/publishable key only.',
     );
   }
 

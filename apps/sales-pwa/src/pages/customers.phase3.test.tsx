@@ -102,7 +102,7 @@ describe('customer list (A, B, C)', () => {
   it('empty list is only the real empty state', () => {
     mocks.queries.retailers = { data: [], isSuccess: true };
     const html = render('/customers', '/customers', <CustomersPage />);
-    expect(html).toContain('No retailers yet');
+    expect(html).toContain('No customers yet');
     expect(html).not.toContain('Search customers');
   });
 
@@ -110,7 +110,7 @@ describe('customer list (A, B, C)', () => {
     mocks.queries.retailers = { isError: true, error: new Error('permission denied') };
     const html = render('/customers', '/customers', <CustomersPage />);
     expect(html).toContain('permission denied');
-    expect(html).not.toContain('No retailers yet');
+    expect(html).not.toContain('No customers yet');
     expect(isButtonDisabled(html, 'Retry')).toBe(false);
   });
 });
@@ -227,7 +227,7 @@ describe('new customer confirmation (M, O, P)', () => {
       </MemoryRouter>,
     );
     expect(html).toContain('Sharma Stores');
-    expect(html).toContain('Retailer added');
+    expect(html).toContain('Customer added');
     expect(linkHref(html, 'Open customer')).toBe('/customers/shop-new');
     expect(linkHref(html, 'Create order')).toBe('/orders/new?shopId=shop-new');
   });

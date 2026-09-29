@@ -74,17 +74,12 @@ export function customerHealthOrdersThisMonth(
   };
 }
 
-/** @deprecated Legacy token invitation — prefer WhatsApp app link + mobile OTP. */
+/** @deprecated Kept for Admin contract tests. Not shown in active Admin or Sales UI. */
 export const CUSTOMER_INVITE_ACTION_LABEL = 'Send activation invite';
 export const CUSTOMER_INVITE_PENDING_LABEL = 'Sending…';
 
 export const CUSTOMER_INVITE_SUCCESS_HINT =
   'Invitation recorded. Ask the customer to open the app, enter their mobile number, and verify OTP. Share the login link manually if needed — SMS is not sent automatically.';
-
-export const CUSTOMER_APP_LINK_ACTION_LABEL = 'Send App Link via WhatsApp';
-export const CUSTOMER_APP_LINK_PENDING_LABEL = 'Recording…';
-export const CUSTOMER_APP_LINK_SUCCESS_HINT =
-  'App link shared. The customer can log in with their registered mobile number when ready.';
 
 export const CUSTOMER_ACTIVITY_UNAVAILABLE_DETAIL =
   'Customer activity timeline is not available yet — there is no live activity feed for shops in Admin. Orders and payments appear on their own tabs.';

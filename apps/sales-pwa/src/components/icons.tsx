@@ -92,6 +92,23 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
+export function MessageIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5 6h14v9H8l-3 3V6Z" />
+    </Svg>
+  );
+}
+
+export function BellIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6 16h12l-1.2-2.2V10a4.8 4.8 0 0 0-9.6 0v3.8L6 16Z" />
+      <path d="M10 18a2 2 0 0 0 4 0" />
+    </Svg>
+  );
+}
+
 export function WalletIcon(props: IconProps) {
   return (
     <Svg {...props}>

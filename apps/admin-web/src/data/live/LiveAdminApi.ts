@@ -1,4 +1,12 @@
-import type { GroAurumSupabaseClient } from '@groaurum/api-client';
+import {
+  parseSalesmanTarget,
+  type GroAurumSupabaseClient,
+  type SalesmanExpense,
+  type SalesmanMessage,
+  type SalesmanReturnRequest,
+  type SalesmanTargetProgress,
+  type SalesmanVoiceNote,
+} from '@groaurum/api-client';
 import {
   formatInr,
   formatInrPrecise,
@@ -392,6 +400,97 @@ function salesmanStatusFromProfile(
   if (emp === 'ON_LEAVE') return 'on_leave';
   if (row['is_active'] === false) return 'inactive';
   return 'active';
+}
+
+async function claimMediaUrl(
+  sb: GroAurumSupabaseClient,
+  path: string | null,
+): Promise<string | null> {
+  if (!path) return null;
+  const signed = await sb.storage.from('salesman-media').createSignedUrl(path, 60 * 60);
+  if (signed.error) return null;
+  return signed.data?.signedUrl ?? null;
+}
+
+function claimStatus(value: string): SalesmanExpense['status'] {
+  if (value === 'APPROVED' || value === 'REJECTED' || value === 'PENDING') return value;
+  return 'PENDING';
+}
+
+async function mapAdminExpense(
+  sb: GroAurumSupabaseClient,
+  row: {
+    id: string;
+    salesman_profile_id: string;
+    category: SalesmanExpense['category'];
+    amount: number;
+    expense_date: string;
+    note: string | null;
+    receipt_path: string | null;
+    status: string;
+    review_note: string | null;
+    reviewed_at: string | null;
+    created_at: string;
+  },
+): Promise<SalesmanExpense> {
+  return {
+    id: row.id,
+    salesmanProfileId: row.salesman_profile_id,
+    category: row.category,
+    amount: Number(row.amount),
+    expenseDate: String(row.expense_date).slice(0, 10),
+    note: row.note,
+    receiptPath: row.receipt_path,
+    receiptUrl: await claimMediaUrl(sb, row.receipt_path),
+    status: claimStatus(row.status),
+    reviewNote: row.review_note,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at,
+  };
+}
+
+async function mapAdminReturn(
+  sb: GroAurumSupabaseClient,
+  row: {
+    id: string;
+    salesman_profile_id: string;
+    shop_id: string;
+    shop_name: string;
+    order_id: string;
+    sku_id: string;
+    product_name: string;
+    sku_name: string;
+    sku_code: string;
+    quantity: number;
+    reason: string;
+    note: string | null;
+    photo_path: string | null;
+    status: string;
+    review_note: string | null;
+    reviewed_at: string | null;
+    created_at: string;
+  },
+): Promise<SalesmanReturnRequest> {
+  return {
+    id: row.id,
+    salesmanProfileId: row.salesman_profile_id,
+    shopId: row.shop_id,
+    shopName: row.shop_name,
+    orderId: row.order_id,
+    skuId: row.sku_id,
+    productName: row.product_name,
+    skuName: row.sku_name,
+    skuCode: row.sku_code,
+    quantity: Number(row.quantity),
+    reason: row.reason,
+    note: row.note,
+    photoPath: row.photo_path,
+    photoUrl: await claimMediaUrl(sb, row.photo_path),
+    status: claimStatus(row.status),
+    reviewNote: row.review_note,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at,
+  };
 }
 
 export class LiveAdminApi {
@@ -2230,12 +2329,6 @@ export class LiveAdminApi {
 
     const total = rows.length;
     const active = rows.filter((r) => r.status === 'active').length;
-    const notActivated = rows.filter(
-      (r) => r.digitalAccess === 'not_activated',
-    ).length;
-    const appLinkSent = rows.filter(
-      (r) => r.digitalAccess === 'app_link_sent',
-    ).length;
     const recentlyAdded = rows.filter((r) => {
       const created = new Date(r.createdAtIso);
       const weekAgo = new Date();
@@ -2265,22 +2358,6 @@ export class LiveAdminApi {
           value: `${active}`,
           hint: 'Operational for orders and delivery',
           tone: 'positive',
-        },
-        {
-          id: 'not_activated',
-          label: 'Not Activated',
-          value: `${notActivated}`,
-          hint: 'Have not logged into the Customer App',
-          tone: notActivated > 0 ? 'warning' : 'default',
-          href: '/customers?digital=not_activated',
-        },
-        {
-          id: 'app_link_sent',
-          label: 'App Link Sent',
-          value: `${appLinkSent}`,
-          hint: 'App link shared, awaiting first login',
-          tone: appLinkSent > 0 ? 'info' : 'default',
-          href: '/customers?digital=app_link_sent',
         },
         {
           id: 'recent',
@@ -4831,6 +4908,8 @@ export class LiveAdminApi {
     alreadyProvisioned: boolean;
     createdAuthUser: boolean;
     temporaryPasswordSet?: boolean;
+    invitationEmailSent?: boolean;
+    invitationEmailError?: string | null;
   }> {
     const { data, error } = await this.sb.functions.invoke('provision-salesman', {
       body: {
@@ -4870,6 +4949,9 @@ export class LiveAdminApi {
         row['temporaryPasswordSet'] === undefined
           ? undefined
           : Boolean(row['temporaryPasswordSet']),
+      invitationEmailSent: row['invitationEmailSent'] === true,
+      invitationEmailError:
+        typeof row['invitationEmailError'] === 'string' ? row['invitationEmailError'] : null,
     };
   }
 
@@ -4925,6 +5007,142 @@ export class LiveAdminApi {
     );
     if (error) throwRpcError(error, 'Could not set salary terms');
     return (data ?? {}) as Record<string, unknown>;
+  }
+
+  /** Admin: read one salesman month target. Null when none is set. */
+  async getSalesmanTarget(
+    profileId: string,
+    month: string,
+  ): Promise<SalesmanTargetProgress | null> {
+    const { data, error } = await this.sb.rpc('admin_get_salesman_target', {
+      p_profile_id: profileId,
+      p_month: month,
+    });
+    if (error) throwRpcError(error, 'Could not load the target');
+    return parseSalesmanTarget(data);
+  }
+
+  /** Admin: create or replace one salesman month target. */
+  async setSalesmanTarget(input: {
+    profileId: string;
+    month: string;
+    targetAmount: number;
+  }): Promise<SalesmanTargetProgress> {
+    const { data, error } = await this.sb.rpc('admin_set_salesman_target', {
+      p_profile_id: input.profileId,
+      p_month: input.month,
+      p_target_amount: input.targetAmount,
+    });
+    if (error) throwRpcError(error, 'Could not save the target');
+    const parsed = parseSalesmanTarget(data);
+    if (!parsed) throw new Error('Could not save the target');
+    return parsed;
+  }
+
+  /** Admin: one salesman's expense claims. Approval does not create a payment. */
+  async listSalesmanExpenses(profileId: string): Promise<SalesmanExpense[]> {
+    const { data, error } = await this.sb
+      .from('salesman_expenses')
+      .select(
+        'id, salesman_profile_id, category, amount, expense_date, note, receipt_path, status, review_note, reviewed_at, created_at',
+      )
+      .eq('salesman_profile_id', profileId)
+      .order('created_at', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load expenses');
+    return Promise.all((data ?? []).map((row) => mapAdminExpense(this.sb, row)));
+  }
+
+  async reviewSalesmanExpense(input: {
+    expenseId: string;
+    status: 'APPROVED' | 'REJECTED';
+    reviewNote?: string | null;
+  }): Promise<void> {
+    const { error } = await this.sb.rpc('admin_review_salesman_expense', {
+      p_expense_id: input.expenseId,
+      p_status: input.status,
+      p_review_note: input.reviewNote ?? null,
+    });
+    if (error) throwRpcError(error, 'Could not review the expense');
+  }
+
+  /** Admin: one salesman's return/damage requests. Approval does not change stock. */
+  async listSalesmanReturnRequests(profileId: string): Promise<SalesmanReturnRequest[]> {
+    const { data, error } = await this.sb
+      .from('salesman_return_requests')
+      .select(
+        'id, salesman_profile_id, shop_id, shop_name, order_id, sku_id, product_name, sku_name, sku_code, quantity, reason, note, photo_path, status, review_note, reviewed_at, created_at',
+      )
+      .eq('salesman_profile_id', profileId)
+      .order('created_at', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load return requests');
+    return Promise.all((data ?? []).map((row) => mapAdminReturn(this.sb, row)));
+  }
+
+  async reviewReturnRequest(input: {
+    requestId: string;
+    status: 'APPROVED' | 'REJECTED';
+    reviewNote?: string | null;
+  }): Promise<void> {
+    const { error } = await this.sb.rpc('admin_review_return_request', {
+      p_request_id: input.requestId,
+      p_status: input.status,
+      p_review_note: input.reviewNote ?? null,
+    });
+    if (error) throwRpcError(error, 'Could not review the return request');
+  }
+
+  async listSalesmanMessages(profileId: string): Promise<SalesmanMessage[]> {
+    const { data, error } = await this.sb
+      .from('salesman_messages')
+      .select('id, salesman_profile_id, sender_profile_id, body, created_at')
+      .eq('salesman_profile_id', profileId)
+      .order('created_at', { ascending: true });
+    if (error) throwRpcError(error, 'Could not load messages');
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      salesmanProfileId: row.salesman_profile_id,
+      senderProfileId: row.sender_profile_id,
+      body: row.body,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async sendSalesmanMessage(profileId: string, body: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_send_salesman_message', {
+      p_salesman_id: profileId,
+      p_body: body,
+    });
+    if (error) throwRpcError(error, 'Could not send the message');
+  }
+
+  async listSalesmanVoiceNotes(profileId: string): Promise<SalesmanVoiceNote[]> {
+    const { data, error } = await this.sb
+      .from('salesman_voice_notes')
+      .select('id, salesman_profile_id, shop_id, visit_id, audio_path, duration_seconds, created_at')
+      .eq('salesman_profile_id', profileId)
+      .order('created_at', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load voice notes');
+    return Promise.all(
+      (data ?? []).map(async (row) => {
+        let audioUrl: string | null = null;
+        if (row.audio_path) {
+          const signed = await this.sb.storage
+            .from('salesman-media')
+            .createSignedUrl(row.audio_path, 60 * 60);
+          audioUrl = signed.data?.signedUrl ?? null;
+        }
+        return {
+          id: row.id,
+          salesmanProfileId: row.salesman_profile_id,
+          shopId: row.shop_id,
+          visitId: row.visit_id,
+          audioPath: row.audio_path,
+          audioUrl,
+          durationSeconds: Number(row.duration_seconds),
+          createdAt: row.created_at,
+        };
+      }),
+    );
   }
 
   /** Admin: set earning model without touching salary terms or ledger. */
@@ -6112,11 +6330,6 @@ export class LiveAdminApi {
       return cash + online > due + 1e-9;
     }).length;
 
-    const approvalCount = shops.filter((s) => {
-      const lifecycle = str(s['lifecycle_status']);
-      return lifecycle === 'LEAD' || lifecycle === 'INVITED';
-    }).length;
-
     const attentionAlerts: AttentionAlert[] = [];
     if (lowStockCount > 0) {
       attentionAlerts.push({
@@ -6172,16 +6385,6 @@ export class LiveAdminApi {
         href: '/payments?tab=all',
       });
     }
-    if (approvalCount > 0) {
-      attentionAlerts.push({
-        id: 'customer_approvals',
-        title: 'New Customer Approvals',
-        count: approvalCount,
-        severity: 'medium',
-        href: '/customers',
-      });
-    }
-
     const quickActions: DashboardQuickAction[] = [
       {
         id: 'add_product',

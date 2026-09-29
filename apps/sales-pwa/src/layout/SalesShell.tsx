@@ -10,6 +10,7 @@ import {
   OrdersIcon,
   ProfileIcon,
 } from '@/components/icons';
+import { useT } from '@/i18n/language';
 import { NAV_TABS, navTabForPath, type NavTab } from './nav';
 import './SalesShell.css';
 
@@ -25,6 +26,13 @@ export function SalesShell() {
   const mockMode = isSalesDataMockMode();
   const { pathname } = useLocation();
   const activeTab = navTabForPath(pathname);
+  const t = useT();
+  const tabLabel: Record<NavTab, string> = {
+    home: t('nav.home'),
+    orders: t('nav.orders'),
+    customers: t('nav.customers'),
+    profile: t('nav.profile'),
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -35,7 +43,7 @@ export function SalesShell() {
       <div className={`ga-sales-shell${mockMode ? ' ga-sales-shell--mock' : ''}`}>
         {mockMode ? (
           <div className="ga-sales-mock-banner" role="status">
-            Demo / mock mode — create, invite, and orders are in-memory only and
+            Demo / mock mode — customers and orders are in-memory only and
             are not saved to Supabase. Set <code>VITE_DATA_ADAPTER=supabase</code>{' '}
             for real field operations.
           </div>
@@ -43,11 +51,14 @@ export function SalesShell() {
         <div className="ga-sales-sticky-top">
           <header className="ga-sales-topbar">
             <div className="ga-sales-topbar__brand">
-              <span className="ga-sales-topbar__logo">
-                GroAurum Sales{mockMode ? ' · Demo' : ''}
-              </span>
-              <span className="ga-sales-topbar__user">
-                {user?.displayName ?? (mockMode ? 'Demo salesman' : 'Salesman')}
+              <img className="ga-sales-topbar__mark" src="/icons/icon-192.png" alt="" />
+              <span className="ga-sales-topbar__text">
+                <span className="ga-sales-topbar__logo">
+                  Salesaurum{mockMode ? ' · Demo' : ''}
+                </span>
+                <span className="ga-sales-topbar__user">
+                  {user?.displayName ?? (mockMode ? 'Demo salesman' : 'Salesman')}
+                </span>
               </span>
             </div>
           </header>
@@ -71,7 +82,7 @@ export function SalesShell() {
                 }`}
               >
                 {TAB_ICONS[item.tab]}
-                <span>{item.label}</span>
+                <span>{tabLabel[item.tab]}</span>
               </Link>
             );
           })}

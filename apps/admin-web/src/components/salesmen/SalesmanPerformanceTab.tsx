@@ -39,7 +39,6 @@ export function SalesmanPerformanceTab({
     ),
     metric('New Customers', performance.newCustomers),
     metric('Repeat Customers', performance.repeatCustomers),
-    metric('Activation Success Rate', performance.activationSuccessRateLabel),
     metric(
       'Avg Order Value (This Month)',
       performance.averageOrderValueLabel,

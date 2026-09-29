@@ -28,6 +28,8 @@ export function VisitStatusBadge({ status }: { status: VisitStatus }) {
       return <Badge tone="info">Planned</Badge>;
     case 'missed':
       return <Badge tone="danger">Missed</Badge>;
+    case 'shop_closed':
+      return <Badge tone="warning">Shop closed</Badge>;
     default:
       return <Badge tone="neutral">{status}</Badge>;
   }

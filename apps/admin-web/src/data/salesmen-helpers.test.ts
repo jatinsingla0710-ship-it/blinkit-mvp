@@ -88,5 +88,6 @@ describe('Salesman H1 visit status mapping', () => {
     expect(mapSalesVisitStatus('MISSED')).toBe('missed');
     expect(mapSalesVisitStatus('PLANNED')).toBe('planned');
     expect(mapSalesVisitStatus('PENDING')).toBe('planned');
+    expect(mapSalesVisitStatus('SHOP_CLOSED')).toBe('shop_closed');
   });
 });

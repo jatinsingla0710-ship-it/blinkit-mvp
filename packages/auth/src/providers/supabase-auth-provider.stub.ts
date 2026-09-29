@@ -51,6 +51,8 @@ export function createSupabaseAuthProviderStub(
       return () => listeners.delete(listener);
     },
     signIn: (_credentials: SignInCredentials) => notConnected(),
+    requestEmailCode: () => notConnected(),
+    verifyEmailCode: () => notConnected(),
     signOut: () => notConnected(),
     refreshSession: async (): Promise<AuthSession | null> => {
       await notConnected();

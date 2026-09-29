@@ -9,7 +9,7 @@ export function retailerFixture(
     legalName: null,
     lifecycleStatus: 'ACTIVATED',
     activationStatus: 'activated',
-    activationLabel: 'Activated',
+    activationLabel: 'Ready',
     areaLabel: 'North',
     pinCode: '110001',
     addressLine: '1 Main Rd',

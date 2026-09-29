@@ -21,8 +21,8 @@ export function ShopPicker({
   if (retailers.length === 0) {
     return (
       <EmptyStateCard
-        title="No retailers assigned to you"
-        detail="Add a customer first, or ask your admin to assign retailers to you."
+        title="No customers assigned to you"
+        detail="Add a customer first, or ask your admin to assign customers to you."
         action={
           <ButtonLink to="/customers/new" variant="primary" block>
             Add customer
@@ -35,7 +35,7 @@ export function ShopPicker({
   return (
     <div className="ga-sales-stack">
       <TextField
-        label="Search your retailers"
+        label="Search your customers"
         name="shop-search"
         type="search"
         placeholder="Shop name, area, PIN or mobile"
@@ -46,10 +46,10 @@ export function ShopPicker({
       />
       {visible.length === 0 ? (
         <p className="ga-sales-muted" role="status">
-          No retailer matches “{search.trim()}”.
+          No customer matches “{search.trim()}”.
         </p>
       ) : (
-        <div className="ga-sales-list" role="list" aria-label="Your retailers">
+        <div className="ga-sales-list" role="list" aria-label="Your customers">
           {visible.map((shop) => (
             <div role="listitem" key={shop.id}>
               <button

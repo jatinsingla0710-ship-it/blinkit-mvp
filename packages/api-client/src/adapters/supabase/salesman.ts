@@ -3,7 +3,7 @@ import { selectEffectiveSkuPrice } from '../../catalogue/effective-price';
 import type { GroAurumSupabaseClient } from '../../supabase/client';
 import { mapCategory, mapProduct, mapSku } from './mappers';
 
-export type SalesVisitStatus = 'PLANNED' | 'VISITED' | 'PENDING' | 'MISSED';
+export type SalesVisitStatus = 'PLANNED' | 'VISITED' | 'PENDING' | 'MISSED' | 'SHOP_CLOSED';
 
 export type SalesActivationStatus =
   | 'not_activated'
@@ -114,6 +114,29 @@ export type SalesmanOrderPreview = {
   pricedAt: string;
 };
 
+export type VisitGpsResult = {
+  visitId: string;
+  status: string | null;
+  notes: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distanceMetres: number | null;
+  gpsVerification: 'verified' | 'unavailable';
+  checkedInAt: string | null;
+  completedAt: string | null;
+  photoPath: string | null;
+};
+
+export type CompleteVisitInput = {
+  visitId: string;
+  status: 'VISITED' | 'SHOP_CLOSED';
+  lat: number;
+  lng: number;
+  /** Undefined leaves stored notes unchanged. Null or blank clears them. */
+  notes?: string | null;
+  photoPath?: string | null;
+};
+
 export type SalesmanVisit = {
   id: string;
   shopId: string;
@@ -126,6 +149,13 @@ export type SalesmanVisit = {
   /** Set when the visit row has visited_at. Omitted by list methods that do not select it. */
   visitedAt?: string | null;
   visitedAtLabel?: string | null;
+  contactName?: string | null;
+  contactMobile?: string | null;
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
+  checkInAt?: string | null;
+  checkInDistanceMetres?: number | null;
+  gpsVerification?: 'verified' | 'unavailable' | null;
 };
 
 export type SalesmanPerformance = {
@@ -134,6 +164,141 @@ export type SalesmanPerformance = {
   newRetailers: number;
   activationRateLabel: string;
   repeatCustomers: number;
+};
+
+export type SalesmanEarningModel = 'SALARY' | 'COMMISSION' | 'SALARY_PLUS_COMMISSION';
+
+/** Calculated from the target row plus delivered-and-paid sales. */
+export type SalesmanTargetProgress = {
+  month: string;
+  targetAmount: number;
+  achievedAmount: number;
+  remainingAmount: number;
+  progressPercent: number;
+};
+
+export type SalesmanSalarySnapshot = {
+  monthlySalary: number;
+  dailyAllowance: number;
+  otherAllowance: number;
+};
+
+/** One order's earned commission, summed from salesman_commission_entries. */
+export type SalesmanCommissionLine = {
+  orderId: string;
+  orderNumber: string;
+  shopName: string;
+  earnedAt: string;
+  orderStatus: string;
+  commissionAmount: number;
+};
+
+/** An order with no earned commission row. No estimated commission is attached. */
+export type SalesmanAwaitingOrder = {
+  orderId: string;
+  orderNumber: string;
+  shopName: string;
+  createdAt: string;
+  orderStatus: string;
+  orderTotal: number;
+};
+
+export type SalesmanEarnings = {
+  month: string;
+  earningModel: SalesmanEarningModel | null;
+  earnedCommission: number;
+  salaryApplies: boolean;
+  salary: SalesmanSalarySnapshot | null;
+  totalEarnings: number;
+  totalIncludesSalary: boolean;
+  awaitingOrderCount: number;
+  awaitingOrderValue: number;
+  awaitingOrders: SalesmanAwaitingOrder[];
+  entries: SalesmanCommissionLine[];
+  payslipsAvailable: false;
+  target: SalesmanTargetProgress | null;
+};
+
+export type SalesmanClaimStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type SalesmanExpenseCategory = 'TRAVEL' | 'FOOD' | 'PHONE' | 'OTHER';
+
+export type SalesmanExpense = {
+  id: string;
+  salesmanProfileId: string;
+  category: SalesmanExpenseCategory;
+  amount: number;
+  expenseDate: string;
+  note: string | null;
+  receiptPath: string | null;
+  receiptUrl: string | null;
+  status: SalesmanClaimStatus;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+};
+
+export type SalesmanExpenseInput = {
+  category: SalesmanExpenseCategory;
+  amount: number;
+  expenseDate: string;
+  note?: string | null;
+};
+
+export type SalesmanReturnRequest = {
+  id: string;
+  salesmanProfileId: string;
+  shopId: string;
+  shopName: string;
+  orderId: string;
+  skuId: string;
+  productName: string;
+  skuName: string;
+  skuCode: string;
+  quantity: number;
+  reason: string;
+  note: string | null;
+  photoPath: string | null;
+  photoUrl: string | null;
+  status: SalesmanClaimStatus;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+};
+
+export type SalesmanReturnInput = {
+  orderId: string;
+  skuId: string;
+  quantity: number;
+  reason: string;
+  note?: string | null;
+};
+
+export type SalesmanMessage = {
+  id: string;
+  salesmanProfileId: string;
+  senderProfileId: string;
+  body: string;
+  createdAt: string;
+};
+
+export type SalesmanNotice = {
+  id: string;
+  title: string;
+  body: string;
+  href: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type SalesmanVoiceNote = {
+  id: string;
+  salesmanProfileId: string;
+  shopId: string;
+  visitId: string | null;
+  audioPath: string | null;
+  audioUrl: string | null;
+  durationSeconds: number;
+  createdAt: string;
 };
 
 /** Salesman H4 attendance / presence status. */
@@ -196,6 +361,122 @@ function formatInr(amount: number): string {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+function asRpcRecord(data: unknown, label: string): Record<string, unknown> {
+  let value = data;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value) as unknown;
+    } catch {
+      throw new Error(`${label} did not return a result.`);
+    }
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} did not return a result.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function rpcNumber(row: Record<string, unknown>, key: string, label: string): number {
+  const n = Number(row[key]);
+  if (!Number.isFinite(n)) throw new Error(`${label} did not return a result.`);
+  return n;
+}
+
+function rpcString(row: Record<string, unknown>, key: string, label: string): string {
+  const value = row[key];
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`${label} did not return a result.`);
+  }
+  return value;
+}
+
+export function parseSalesmanTarget(data: unknown): SalesmanTargetProgress | null {
+  if (data == null) return null;
+  const row = asRpcRecord(data, 'Target');
+  return {
+    month: rpcString(row, 'month', 'Target').slice(0, 10),
+    targetAmount: rpcNumber(row, 'targetAmount', 'Target'),
+    achievedAmount: rpcNumber(row, 'achievedAmount', 'Target'),
+    remainingAmount: rpcNumber(row, 'remainingAmount', 'Target'),
+    progressPercent: rpcNumber(row, 'progressPercent', 'Target'),
+  };
+}
+
+const EARNING_MODELS = new Set<SalesmanEarningModel>([
+  'SALARY',
+  'COMMISSION',
+  'SALARY_PLUS_COMMISSION',
+]);
+
+function parseSalary(value: unknown): SalesmanSalarySnapshot | null {
+  if (value == null) return null;
+  const row = asRpcRecord(value, 'Earnings');
+  return {
+    monthlySalary: rpcNumber(row, 'monthlySalary', 'Earnings'),
+    dailyAllowance: rpcNumber(row, 'dailyAllowance', 'Earnings'),
+    otherAllowance: rpcNumber(row, 'otherAllowance', 'Earnings'),
+  };
+}
+
+function parseCommissionLine(value: unknown): SalesmanCommissionLine {
+  const row = asRpcRecord(value, 'Earnings');
+  return {
+    orderId: rpcString(row, 'orderId', 'Earnings'),
+    orderNumber: rpcString(row, 'orderNumber', 'Earnings'),
+    shopName: rpcString(row, 'shopName', 'Earnings'),
+    earnedAt: rpcString(row, 'earnedAt', 'Earnings'),
+    orderStatus: rpcString(row, 'orderStatus', 'Earnings'),
+    commissionAmount: rpcNumber(row, 'commissionAmount', 'Earnings'),
+  };
+}
+
+function parseAwaitingOrder(value: unknown): SalesmanAwaitingOrder {
+  const row = asRpcRecord(value, 'Earnings');
+  return {
+    orderId: rpcString(row, 'orderId', 'Earnings'),
+    orderNumber: rpcString(row, 'orderNumber', 'Earnings'),
+    shopName: rpcString(row, 'shopName', 'Earnings'),
+    createdAt: rpcString(row, 'createdAt', 'Earnings'),
+    orderStatus: rpcString(row, 'orderStatus', 'Earnings'),
+    orderTotal: rpcNumber(row, 'orderTotal', 'Earnings'),
+  };
+}
+
+export function parseSalesmanEarnings(data: unknown): SalesmanEarnings {
+  const row = asRpcRecord(data, 'Earnings');
+  const modelRaw = row['earningModel'];
+  const earningModel =
+    typeof modelRaw === 'string' && EARNING_MODELS.has(modelRaw as SalesmanEarningModel)
+      ? (modelRaw as SalesmanEarningModel)
+      : null;
+  const entriesRaw = row['entries'];
+  const awaitingRaw = row['awaitingOrders'];
+  if (!Array.isArray(entriesRaw) || !Array.isArray(awaitingRaw)) {
+    throw new Error('Earnings did not return a result.');
+  }
+  if (typeof row['salaryApplies'] !== 'boolean' || typeof row['totalIncludesSalary'] !== 'boolean') {
+    throw new Error('Earnings did not return a result.');
+  }
+  if (row['payslipsAvailable'] !== false) {
+    throw new Error('Earnings did not return a result.');
+  }
+  return {
+    month: rpcString(row, 'month', 'Earnings').slice(0, 10),
+    earningModel,
+    earnedCommission: rpcNumber(row, 'earnedCommission', 'Earnings'),
+    salaryApplies: row['salaryApplies'],
+    salary: parseSalary(row['salary']),
+    totalEarnings: rpcNumber(row, 'totalEarnings', 'Earnings'),
+    totalIncludesSalary: row['totalIncludesSalary'],
+    awaitingOrderCount: rpcNumber(row, 'awaitingOrderCount', 'Earnings'),
+    awaitingOrderValue: rpcNumber(row, 'awaitingOrderValue', 'Earnings'),
+    awaitingOrders: awaitingRaw.map(parseAwaitingOrder),
+    entries: entriesRaw.map(parseCommissionLine),
+    payslipsAvailable: false,
+    target: parseSalesmanTarget(row['target']),
+  };
 }
 
 export function formatOrderNumber(orderId: string): string {
@@ -264,6 +545,52 @@ export function shopPhotoObjectPath(profileId: string, shopId: string): string {
   return `${profileId}/${shopId}/shop`;
 }
 
+/** Private object under the existing salesman-media policy: {uid}/{shopId}/visits/{visitId}. */
+export function visitPhotoObjectPath(
+  profileId: string,
+  shopId: string,
+  visitId: string,
+): string {
+  return `${profileId}/${shopId}/visits/${visitId}`;
+}
+
+/** Private object under salesman-media: {uid}/profile. Not a shop folder. */
+export function profilePhotoObjectPath(profileId: string): string {
+  return `${profileId}/profile`;
+}
+
+export function expenseReceiptObjectPath(profileId: string, expenseId: string): string {
+  return `${profileId}/expenses/${expenseId}`;
+}
+
+export function returnPhotoObjectPath(profileId: string, requestId: string): string {
+  return `${profileId}/returns/${requestId}`;
+}
+
+export function voiceNoteObjectPath(profileId: string, shopId: string, noteId: string): string {
+  return `${profileId}/${shopId}/voice/${noteId}`;
+}
+
+export type SalesLanguage = 'en' | 'hi';
+
+export type SalesmanOwnProfile = {
+  id: string;
+  displayName: string;
+  email: string | null;
+  preferredLanguage: SalesLanguage;
+  avatarPath: string | null;
+  avatarUrl: string | null;
+  setupCompletedAt: string | null;
+};
+
+export type UpdateOwnProfileInput = {
+  displayName: string;
+  preferredLanguage: SalesLanguage;
+  updateAvatar?: boolean;
+  avatarPath?: string | null;
+  completeSetup?: boolean;
+};
+
 export type ShopPhotoUpload = {
   bytes: ArrayBuffer;
   contentType: string;
@@ -321,17 +648,9 @@ function deriveSalesAppAccess(input: {
   return 'not_activated';
 }
 
-function salesActivationLabel(status: SalesActivationStatus): string {
-  switch (status) {
-    case 'activated':
-      return 'Activated';
-    case 'app_link_sent':
-      return 'App link sent';
-    case 'access_disabled':
-      return 'Access disabled';
-    default:
-      return 'Not activated';
-  }
+/** Sales screens do not show an activation label. Keep the field for the service type. */
+function salesActivationLabel(_status: SalesActivationStatus): string {
+  return '';
 }
 
 function startOfMonthIso(): string {
@@ -393,6 +712,25 @@ function mapAttendanceRow(row: {
   };
 }
 
+function mapVisitGpsResult(data: unknown): VisitGpsResult {
+  if (data == null || typeof data !== 'object') {
+    throw new Error('Visit update returned no result');
+  }
+  const row = data as Record<string, unknown>;
+  return {
+    visitId: String(row.visitId ?? ''),
+    status: row.status == null ? null : String(row.status),
+    notes: row.notes == null ? null : String(row.notes),
+    latitude: row.latitude == null ? null : Number(row.latitude),
+    longitude: row.longitude == null ? null : Number(row.longitude),
+    distanceMetres: row.distanceMetres == null ? null : Number(row.distanceMetres),
+    gpsVerification: row.gpsVerification === 'unavailable' ? 'unavailable' : 'verified',
+    checkedInAt: row.checkedInAt == null ? null : String(row.checkedInAt),
+    completedAt: row.completedAt == null ? null : String(row.completedAt),
+    photoPath: row.photoPath == null ? null : String(row.photoPath),
+  };
+}
+
 function mapDayActionResult(
   data: Record<string, unknown>,
 ): SalesmanDayActionResult {
@@ -414,6 +752,232 @@ function mapDayActionResult(
         : undefined,
     alreadyEnded:
       typeof data.alreadyEnded === 'boolean' ? data.alreadyEnded : undefined,
+  };
+}
+
+const VOICE_CONTENT_TYPES = new Set(['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg']);
+
+const CLAIM_STATUSES = new Set<SalesmanClaimStatus>(['PENDING', 'APPROVED', 'REJECTED']);
+const EXPENSE_CATEGORIES = new Set<SalesmanExpenseCategory>(['TRAVEL', 'FOOD', 'PHONE', 'OTHER']);
+
+function assertPhoto(file: ShopPhotoUpload): void {
+  if (!SHOP_PHOTO_CONTENT_TYPES.has(file.contentType)) {
+    throw new Error('Use a JPEG, PNG, or WebP photo.');
+  }
+}
+
+function claimStatus(value: unknown, label: string): SalesmanClaimStatus {
+  const status = String(value ?? '');
+  if (!CLAIM_STATUSES.has(status as SalesmanClaimStatus)) {
+    throw new Error(`${label} did not return a result.`);
+  }
+  return status as SalesmanClaimStatus;
+}
+
+async function signedMediaUrl(
+  client: GroAurumSupabaseClient,
+  path: string | null,
+): Promise<string | null> {
+  if (!path) return null;
+  const signed = await client.storage.from(SALESMAN_MEDIA_BUCKET).createSignedUrl(path, 60 * 60);
+  if (signed.error) {
+    if (!isStorageNotFound(signed.error)) throw signed.error;
+    return null;
+  }
+  return signed.data?.signedUrl ?? null;
+}
+
+type ExpenseRow = {
+  id: string;
+  salesman_profile_id: string;
+  category: string;
+  amount: number;
+  expense_date: string;
+  note: string | null;
+  receipt_path: string | null;
+  status: string;
+  review_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+};
+
+async function mapExpenseRow(
+  client: GroAurumSupabaseClient,
+  row: ExpenseRow,
+): Promise<SalesmanExpense> {
+  if (!EXPENSE_CATEGORIES.has(row.category as SalesmanExpenseCategory)) {
+    throw new Error('Expense did not return a result.');
+  }
+  return {
+    id: row.id,
+    salesmanProfileId: row.salesman_profile_id,
+    category: row.category as SalesmanExpenseCategory,
+    amount: Number(row.amount),
+    expenseDate: String(row.expense_date).slice(0, 10),
+    note: row.note,
+    receiptPath: row.receipt_path,
+    receiptUrl: await signedMediaUrl(client, row.receipt_path),
+    status: claimStatus(row.status, 'Expense'),
+    reviewNote: row.review_note,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at,
+  };
+}
+
+function mapExpenseJson(data: unknown): SalesmanExpense {
+  const row = asRpcRecord(data, 'Expense');
+  const category = String(row['category'] ?? '');
+  if (!EXPENSE_CATEGORIES.has(category as SalesmanExpenseCategory)) {
+    throw new Error('Expense did not return a result.');
+  }
+  return {
+    id: rpcString(row, 'id', 'Expense'),
+    salesmanProfileId: rpcString(row, 'salesmanProfileId', 'Expense'),
+    category: category as SalesmanExpenseCategory,
+    amount: rpcNumber(row, 'amount', 'Expense'),
+    expenseDate: rpcString(row, 'expenseDate', 'Expense').slice(0, 10),
+    note: row['note'] == null ? null : String(row['note']),
+    receiptPath: row['receiptPath'] == null ? null : String(row['receiptPath']),
+    receiptUrl: null,
+    status: claimStatus(row['status'], 'Expense'),
+    reviewNote: row['reviewNote'] == null ? null : String(row['reviewNote']),
+    reviewedAt: row['reviewedAt'] == null ? null : String(row['reviewedAt']),
+    createdAt: rpcString(row, 'createdAt', 'Expense'),
+  };
+}
+
+type ReturnRow = {
+  id: string;
+  salesman_profile_id: string;
+  shop_id: string;
+  shop_name: string;
+  order_id: string;
+  sku_id: string;
+  product_name: string;
+  sku_name: string;
+  sku_code: string;
+  quantity: number;
+  reason: string;
+  note: string | null;
+  photo_path: string | null;
+  status: string;
+  review_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+};
+
+async function mapReturnRow(
+  client: GroAurumSupabaseClient,
+  row: ReturnRow,
+): Promise<SalesmanReturnRequest> {
+  return {
+    id: row.id,
+    salesmanProfileId: row.salesman_profile_id,
+    shopId: row.shop_id,
+    shopName: row.shop_name,
+    orderId: row.order_id,
+    skuId: row.sku_id,
+    productName: row.product_name,
+    skuName: row.sku_name,
+    skuCode: row.sku_code,
+    quantity: Number(row.quantity),
+    reason: row.reason,
+    note: row.note,
+    photoPath: row.photo_path,
+    photoUrl: await signedMediaUrl(client, row.photo_path),
+    status: claimStatus(row.status, 'Return'),
+    reviewNote: row.review_note,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at,
+  };
+}
+
+function mapMessageRow(row: {
+  id: string;
+  salesman_profile_id: string;
+  sender_profile_id: string;
+  body: string;
+  created_at: string;
+}): SalesmanMessage {
+  return {
+    id: row.id,
+    salesmanProfileId: row.salesman_profile_id,
+    senderProfileId: row.sender_profile_id,
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
+function mapMessageJson(data: unknown): SalesmanMessage {
+  const row = asRpcRecord(data, 'Message');
+  return {
+    id: rpcString(row, 'id', 'Message'),
+    salesmanProfileId: rpcString(row, 'salesmanProfileId', 'Message'),
+    senderProfileId: rpcString(row, 'senderProfileId', 'Message'),
+    body: rpcString(row, 'body', 'Message'),
+    createdAt: rpcString(row, 'createdAt', 'Message'),
+  };
+}
+
+function mapVoiceJson(data: unknown): SalesmanVoiceNote {
+  const row = asRpcRecord(data, 'Voice note');
+  return {
+    id: rpcString(row, 'id', 'Voice note'),
+    salesmanProfileId: row['salesmanProfileId'] == null ? '' : String(row['salesmanProfileId']),
+    shopId: rpcString(row, 'shopId', 'Voice note'),
+    visitId: row['visitId'] == null ? null : String(row['visitId']),
+    audioPath: row['audioPath'] == null ? null : String(row['audioPath']),
+    audioUrl: null,
+    durationSeconds: rpcNumber(row, 'durationSeconds', 'Voice note'),
+    createdAt: rpcString(row, 'createdAt', 'Voice note'),
+  };
+}
+
+async function mapVoiceRow(
+  client: GroAurumSupabaseClient,
+  row: {
+    id: string;
+    salesman_profile_id: string;
+    shop_id: string;
+    visit_id: string | null;
+    audio_path: string | null;
+    duration_seconds: number;
+    created_at: string;
+  },
+): Promise<SalesmanVoiceNote> {
+  return {
+    id: row.id,
+    salesmanProfileId: row.salesman_profile_id,
+    shopId: row.shop_id,
+    visitId: row.visit_id,
+    audioPath: row.audio_path,
+    audioUrl: await signedMediaUrl(client, row.audio_path),
+    durationSeconds: Number(row.duration_seconds),
+    createdAt: row.created_at,
+  };
+}
+
+function mapReturnJson(data: unknown): SalesmanReturnRequest {
+  const row = asRpcRecord(data, 'Return');
+  return {
+    id: rpcString(row, 'id', 'Return'),
+    salesmanProfileId: rpcString(row, 'salesmanProfileId', 'Return'),
+    shopId: rpcString(row, 'shopId', 'Return'),
+    shopName: rpcString(row, 'shopName', 'Return'),
+    orderId: rpcString(row, 'orderId', 'Return'),
+    skuId: rpcString(row, 'skuId', 'Return'),
+    productName: rpcString(row, 'productName', 'Return'),
+    skuName: rpcString(row, 'skuName', 'Return'),
+    skuCode: rpcString(row, 'skuCode', 'Return'),
+    quantity: rpcNumber(row, 'quantity', 'Return'),
+    reason: rpcString(row, 'reason', 'Return'),
+    note: row['note'] == null ? null : String(row['note']),
+    photoPath: row['photoPath'] == null ? null : String(row['photoPath']),
+    photoUrl: null,
+    status: claimStatus(row['status'], 'Return'),
+    reviewNote: row['reviewNote'] == null ? null : String(row['reviewNote']),
+    reviewedAt: row['reviewedAt'] == null ? null : String(row['reviewedAt']),
+    createdAt: rpcString(row, 'createdAt', 'Return'),
   };
 }
 
@@ -859,34 +1423,69 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       if (!visits.length) return [];
 
       const shopIds = [...new Set(visits.map((v) => v.shop_id as string))];
-      const { data: shops, error: shopsError } = await client
-        .from('shops')
-        .select('id, trade_name, service_area_id, delivery_city')
-        .in('id', shopIds);
-      if (shopsError) throw shopsError;
+      const [shopsRes, contactsRes] = await Promise.all([
+        client
+          .from('shops')
+          .select('id, trade_name, delivery_city, delivery_lat, delivery_lng')
+          .in('id', shopIds),
+        client
+          .from('shop_contacts')
+          .select('shop_id, name, mobile, is_primary')
+          .in('shop_id', shopIds),
+      ]);
+      if (shopsRes.error) throw shopsRes.error;
+      if (contactsRes.error) throw contactsRes.error;
       const shopMap = new Map(
-        (shops ?? []).map((s) => [
+        (shopsRes.data ?? []).map((s) => [
           s.id,
           {
             name: String(s.trade_name),
             area: String(s.delivery_city ?? '—'),
+            lat: s.delivery_lat == null ? null : Number(s.delivery_lat),
+            lng: s.delivery_lng == null ? null : Number(s.delivery_lng),
           },
         ]),
       );
+      const contactMap = new Map<string, { name: string; mobile: string }>();
+      for (const contact of contactsRes.data ?? []) {
+        if (contact.is_primary && !contactMap.has(contact.shop_id)) {
+          contactMap.set(contact.shop_id, {
+            name: contact.name,
+            mobile: contact.mobile,
+          });
+        }
+      }
 
-      return visits.map((v) => {
-        const shop = shopMap.get(v.shop_id as string);
-        return {
-          id: v.id as string,
-          shopId: v.shop_id as string,
-          shopName: shop?.name ?? '—',
-          areaLabel: shop?.area ?? '—',
-          plannedAt: String(v.planned_at),
-          plannedAtLabel: formatDateTime(String(v.planned_at)),
-          status: String(v.status) as SalesVisitStatus,
-          notes: (v.notes as string | null) ?? null,
-        };
-      });
+      return visits
+        .map((v) => {
+          const shop = shopMap.get(v.shop_id as string);
+          const contact = contactMap.get(v.shop_id as string);
+          const distance = v.check_in_distance_m;
+          const gpsVerification: 'verified' | 'unavailable' | null =
+            v.check_in_at == null
+              ? null
+              : distance == null
+                ? 'unavailable'
+                : 'verified';
+          return {
+            id: v.id as string,
+            shopId: v.shop_id as string,
+            shopName: shop?.name ?? '—',
+            areaLabel: shop?.area ?? '—',
+            plannedAt: String(v.planned_at),
+            plannedAtLabel: formatDateTime(String(v.planned_at)),
+            status: String(v.status) as SalesVisitStatus,
+            notes: (v.notes as string | null) ?? null,
+            contactName: contact?.name ?? null,
+            contactMobile: contact?.mobile ?? null,
+            deliveryLat: shop?.lat ?? null,
+            deliveryLng: shop?.lng ?? null,
+            checkInAt: (v.check_in_at as string | null) ?? null,
+            checkInDistanceMetres: distance == null ? null : Number(distance),
+            gpsVerification,
+          };
+        })
+        .sort((a, b) => a.plannedAt.localeCompare(b.plannedAt) || a.id.localeCompare(b.id));
     },
 
     async listAllVisits(profileId: string): Promise<SalesmanVisit[]> {
@@ -1034,6 +1633,244 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       };
     },
 
+    /** Null when this salesman has no target for the month. */
+    async getMonthTarget(): Promise<SalesmanTargetProgress | null> {
+      const { data, error } = await client.rpc('salesman_month_target', {
+        p_month: null,
+      });
+      if (error) throw error;
+      return parseSalesmanTarget(data);
+    },
+
+    /**
+     * Earned commission comes only from salesman_commission_entries.
+     * Orders without a ledger row are returned without a commission amount.
+     */
+    async getEarnings(): Promise<SalesmanEarnings> {
+      const { data, error } = await client.rpc('salesman_earnings_month', {
+        p_month: null,
+      });
+      if (error) throw error;
+      return parseSalesmanEarnings(data);
+    },
+
+    async listExpenses(): Promise<SalesmanExpense[]> {
+      const { data, error } = await client
+        .from('salesman_expenses')
+        .select(
+          'id, salesman_profile_id, category, amount, expense_date, note, receipt_path, status, review_note, reviewed_at, created_at',
+        )
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return Promise.all((data ?? []).map((row) => mapExpenseRow(client, row)));
+    },
+
+    async getExpense(expenseId: string): Promise<SalesmanExpense | null> {
+      const { data, error } = await client
+        .from('salesman_expenses')
+        .select(
+          'id, salesman_profile_id, category, amount, expense_date, note, receipt_path, status, review_note, reviewed_at, created_at',
+        )
+        .eq('id', expenseId)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? mapExpenseRow(client, data) : null;
+    },
+
+    async createExpense(input: SalesmanExpenseInput): Promise<SalesmanExpense> {
+      const { data, error } = await client.rpc('salesman_create_expense', {
+        p_category: input.category,
+        p_amount: input.amount,
+        p_expense_date: input.expenseDate,
+        p_note: input.note ?? null,
+      });
+      if (error) throw error;
+      return mapExpenseJson(data);
+    },
+
+    async updatePendingExpense(
+      expenseId: string,
+      input: SalesmanExpenseInput,
+    ): Promise<SalesmanExpense> {
+      const { data, error } = await client.rpc('salesman_update_pending_expense', {
+        p_expense_id: expenseId,
+        p_category: input.category,
+        p_amount: input.amount,
+        p_expense_date: input.expenseDate,
+        p_note: input.note ?? null,
+      });
+      if (error) throw error;
+      return mapExpenseJson(data);
+    },
+
+    async uploadExpenseReceipt(
+      expenseId: string,
+      file: ShopPhotoUpload,
+    ): Promise<SalesmanExpense> {
+      assertPhoto(file);
+      const profileId = await requireAuthUserId(client);
+      const path = expenseReceiptObjectPath(profileId, expenseId);
+      const { error: uploadError } = await client.storage
+        .from(SALESMAN_MEDIA_BUCKET)
+        .upload(path, file.bytes, { contentType: file.contentType, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data, error } = await client.rpc('salesman_set_expense_receipt', {
+        p_expense_id: expenseId,
+        p_receipt_path: path,
+      });
+      if (error) throw error;
+      return mapExpenseJson(data);
+    },
+
+    async listReturnRequests(): Promise<SalesmanReturnRequest[]> {
+      const { data, error } = await client
+        .from('salesman_return_requests')
+        .select(
+          'id, salesman_profile_id, shop_id, shop_name, order_id, sku_id, product_name, sku_name, sku_code, quantity, reason, note, photo_path, status, review_note, reviewed_at, created_at',
+        )
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return Promise.all((data ?? []).map((row) => mapReturnRow(client, row)));
+    },
+
+    async getReturnRequest(requestId: string): Promise<SalesmanReturnRequest | null> {
+      const { data, error } = await client
+        .from('salesman_return_requests')
+        .select(
+          'id, salesman_profile_id, shop_id, shop_name, order_id, sku_id, product_name, sku_name, sku_code, quantity, reason, note, photo_path, status, review_note, reviewed_at, created_at',
+        )
+        .eq('id', requestId)
+        .maybeSingle();
+      if (error) throw error;
+      return data ? mapReturnRow(client, data) : null;
+    },
+
+    async createReturnRequest(input: SalesmanReturnInput): Promise<SalesmanReturnRequest> {
+      const { data, error } = await client.rpc('salesman_create_return_request', {
+        p_order_id: input.orderId,
+        p_sku_id: input.skuId,
+        p_quantity: input.quantity,
+        p_reason: input.reason,
+        p_note: input.note ?? null,
+      });
+      if (error) throw error;
+      return mapReturnJson(data);
+    },
+
+    async uploadReturnPhoto(
+      requestId: string,
+      file: ShopPhotoUpload,
+    ): Promise<SalesmanReturnRequest> {
+      assertPhoto(file);
+      const profileId = await requireAuthUserId(client);
+      const path = returnPhotoObjectPath(profileId, requestId);
+      const { error: uploadError } = await client.storage
+        .from(SALESMAN_MEDIA_BUCKET)
+        .upload(path, file.bytes, { contentType: file.contentType, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data, error } = await client.rpc('salesman_set_return_photo', {
+        p_request_id: requestId,
+        p_photo_path: path,
+      });
+      if (error) throw error;
+      return mapReturnJson(data);
+    },
+
+    async listMessages(): Promise<SalesmanMessage[]> {
+      const { data, error } = await client
+        .from('salesman_messages')
+        .select('id, salesman_profile_id, sender_profile_id, body, created_at')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []).map(mapMessageRow);
+    },
+
+    async sendMessage(body: string): Promise<SalesmanMessage> {
+      const { data, error } = await client.rpc('salesman_send_message', { p_body: body });
+      if (error) throw error;
+      return mapMessageJson(data);
+    },
+
+    async listNotices(): Promise<SalesmanNotice[]> {
+      const { data, error } = await client
+        .from('salesman_notices')
+        .select('id, title, body, href, read_at, created_at')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        title: row.title,
+        body: row.body,
+        href: row.href,
+        readAt: row.read_at,
+        createdAt: row.created_at,
+      }));
+    },
+
+    async markNoticeRead(noticeId: string): Promise<void> {
+      const { error } = await client.rpc('salesman_mark_notice_read', {
+        p_notice_id: noticeId,
+      });
+      if (error) throw error;
+    },
+
+    async savePushSubscription(input: {
+      endpoint: string;
+      p256dh: string;
+      authKey: string;
+    }): Promise<void> {
+      const { error } = await client.rpc('salesman_save_push_subscription', {
+        p_endpoint: input.endpoint,
+        p_p256dh: input.p256dh,
+        p_auth_key: input.authKey,
+      });
+      if (error) throw error;
+    },
+
+    async listVoiceNotes(shopId?: string): Promise<SalesmanVoiceNote[]> {
+      let query = client
+        .from('salesman_voice_notes')
+        .select(
+          'id, salesman_profile_id, shop_id, visit_id, audio_path, duration_seconds, created_at',
+        )
+        .order('created_at', { ascending: false });
+      if (shopId) query = query.eq('shop_id', shopId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return Promise.all((data ?? []).map((row) => mapVoiceRow(client, row)));
+    },
+
+    async uploadVoiceNote(input: {
+      shopId: string;
+      visitId?: string | null;
+      durationSeconds: number;
+      bytes: ArrayBuffer;
+      contentType: string;
+    }): Promise<SalesmanVoiceNote> {
+      if (!VOICE_CONTENT_TYPES.has(input.contentType)) {
+        throw new Error('Use a WebM, MP4, MPEG, or Ogg recording.');
+      }
+      const { data, error } = await client.rpc('salesman_create_voice_note', {
+        p_shop_id: input.shopId,
+        p_visit_id: input.visitId ?? null,
+        p_duration_seconds: input.durationSeconds,
+      });
+      if (error) throw error;
+      const created = mapVoiceJson(data);
+      const profileId = await requireAuthUserId(client);
+      const path = voiceNoteObjectPath(profileId, created.shopId, created.id);
+      const uploaded = await client.storage
+        .from(SALESMAN_MEDIA_BUCKET)
+        .upload(path, input.bytes, { contentType: input.contentType, upsert: false });
+      if (uploaded.error) throw uploaded.error;
+      const saved = await client.rpc('salesman_set_voice_note_path', {
+        p_note_id: created.id,
+        p_audio_path: path,
+      });
+      if (saved.error) throw saved.error;
+      return { ...mapVoiceJson(saved.data), audioUrl: null };
+    },
+
     async listServiceAreas(): Promise<{ id: string; name: string }[]> {
       const { data, error } = await client
         .from('service_areas')
@@ -1044,20 +1881,164 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       return (data ?? []).map((a) => ({ id: a.id, name: a.name }));
     },
 
-    async startDay(workDate?: string): Promise<SalesmanDayActionResult> {
+    async startDay(
+      workDate?: string,
+      location?: { lat: number; lng: number } | null,
+    ): Promise<SalesmanDayActionResult> {
       const { data, error } = await client.rpc('salesman_start_day', {
         p_work_date: workDate ?? null,
+        p_lat: location?.lat ?? null,
+        p_lng: location?.lng ?? null,
       });
       if (error) throw error;
       return mapDayActionResult((data ?? {}) as Record<string, unknown>);
     },
 
-    async endDay(workDate?: string): Promise<SalesmanDayActionResult> {
+    async endDay(
+      workDate?: string,
+      location?: { lat: number; lng: number } | null,
+    ): Promise<SalesmanDayActionResult> {
       const { data, error } = await client.rpc('salesman_end_day', {
         p_work_date: workDate ?? null,
+        p_lat: location?.lat ?? null,
+        p_lng: location?.lng ?? null,
       });
       if (error) throw error;
       return mapDayActionResult((data ?? {}) as Record<string, unknown>);
+    },
+
+    async checkInVisit(
+      visitId: string,
+      lat: number,
+      lng: number,
+    ): Promise<VisitGpsResult> {
+      const { data, error } = await client.rpc('salesman_check_in_visit', {
+        p_visit_id: visitId,
+        p_lat: lat,
+        p_lng: lng,
+      });
+      if (error) throw error;
+      return mapVisitGpsResult(data);
+    },
+
+    async completeVisit(input: CompleteVisitInput): Promise<VisitGpsResult> {
+      const { data, error } = await client.rpc('salesman_complete_visit', {
+        p_visit_id: input.visitId,
+        p_status: input.status,
+        p_lat: input.lat,
+        p_lng: input.lng,
+        p_update_notes: input.notes !== undefined,
+        p_notes: input.notes === undefined ? null : input.notes,
+        p_photo_path: input.photoPath ?? null,
+      });
+      if (error) throw error;
+      return mapVisitGpsResult(data);
+    },
+
+    async getOwnProfile(): Promise<SalesmanOwnProfile> {
+      const profileId = await requireAuthUserId(client);
+      const { data: authData, error: authError } = await client.auth.getUser();
+      if (authError) throw authError;
+      const { data, error } = await client
+        .from('profiles')
+        .select(
+          'id, display_name, preferred_language, avatar_path, profile_setup_completed_at',
+        )
+        .eq('id', profileId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('Profile not found');
+      const avatarPath = data.avatar_path;
+      let avatarUrl: string | null = null;
+      if (avatarPath) {
+        const signed = await client.storage
+          .from(SALESMAN_MEDIA_BUCKET)
+          .createSignedUrl(avatarPath, 60 * 60);
+        if (signed.error) {
+          if (!isStorageNotFound(signed.error)) throw signed.error;
+        } else {
+          avatarUrl = signed.data?.signedUrl ?? null;
+        }
+      }
+      const language: SalesLanguage = data.preferred_language === 'hi' ? 'hi' : 'en';
+      return {
+        id: data.id,
+        displayName: data.display_name,
+        email: authData.user?.email ?? null,
+        preferredLanguage: language,
+        avatarPath,
+        avatarUrl,
+        setupCompletedAt: data.profile_setup_completed_at,
+      };
+    },
+
+    async updateOwnProfile(input: UpdateOwnProfileInput): Promise<SalesmanOwnProfile> {
+      const { data, error } = await client.rpc('salesman_update_own_profile', {
+        p_display_name: input.displayName,
+        p_preferred_language: input.preferredLanguage,
+        p_update_avatar: input.updateAvatar ?? false,
+        p_avatar_path: input.avatarPath ?? null,
+        p_complete_setup: input.completeSetup ?? false,
+      });
+      if (error) throw error;
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('Profile update did not return a result.');
+      }
+      const row = data as Record<string, unknown>;
+      const profileId = String(row['id'] ?? '');
+      if (!profileId) throw new Error('Profile update did not return a result.');
+      const current = await this.getOwnProfile();
+      return {
+        ...current,
+        id: profileId,
+        displayName: String(row['displayName'] ?? current.displayName),
+        preferredLanguage: row['preferredLanguage'] === 'hi' ? 'hi' : 'en',
+        avatarPath:
+          row['avatarPath'] == null ? null : String(row['avatarPath']),
+        setupCompletedAt:
+          row['profileSetupCompletedAt'] == null
+            ? null
+            : String(row['profileSetupCompletedAt']),
+      };
+    },
+
+    async uploadProfilePhoto(file: ShopPhotoUpload): Promise<{ path: string }> {
+      if (!SHOP_PHOTO_CONTENT_TYPES.has(file.contentType)) {
+        throw new Error('Use a JPEG, PNG, or WebP photo.');
+      }
+      const profileId = await requireAuthUserId(client);
+      const path = profilePhotoObjectPath(profileId);
+      const { error } = await client.storage.from(SALESMAN_MEDIA_BUCKET).upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+      if (error) throw error;
+      return { path };
+    },
+
+    async uploadVisitPhoto(
+      shopId: string,
+      visitId: string,
+      file: ShopPhotoUpload,
+    ): Promise<{ path: string }> {
+      if (!SHOP_PHOTO_CONTENT_TYPES.has(file.contentType)) {
+        throw new Error('Use a JPEG, PNG, or WebP photo.');
+      }
+      const profileId = await requireAuthUserId(client);
+      const { data: shop, error: shopError } = await client
+        .from('shops')
+        .select('id')
+        .eq('id', shopId)
+        .maybeSingle();
+      if (shopError) throw shopError;
+      if (!shop) throw new Error('This shop is not assigned to you.');
+      const path = visitPhotoObjectPath(profileId, shopId, visitId);
+      const { error } = await client.storage.from(SALESMAN_MEDIA_BUCKET).upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+      if (error) throw error;
+      return { path };
     },
 
     async getTodayAttendance(

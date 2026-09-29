@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSalesmanApi } from './salesmanApi';
+import { createMockSalesmanService } from './salesman-api-mock';
 import { resolveVisitNotesForUpdate } from './visit-notes';
 
 afterEach(() => {
@@ -25,8 +25,7 @@ describe('resolveVisitNotesForUpdate (E)', () => {
 
 describe('mock salesman API updateVisitStatus (E)', () => {
   it('leaves notes unchanged on a status-only update', async () => {
-    vi.stubEnv('VITE_DATA_ADAPTER', 'mock');
-    const api = createSalesmanApi();
+    const api = createMockSalesmanService();
     const [visit] = await api.listTodaysVisits('mock-profile');
     if (!visit) throw new Error('mock data has no visits');
     await api.updateVisitStatus(visit.id, 'VISITED', 'Stocked up on rice');

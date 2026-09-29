@@ -49,6 +49,11 @@ body .ga-field__control {
   min-height: var(--ga-sales-touch);
   font-size: 16px;
   border-radius: var(--ga-radius-md);
+  /* Keep the focused field above the bottom nav when the keyboard opens. */
+  scroll-margin-top: 12px;
+  scroll-margin-bottom: calc(
+    var(--ga-sales-nav-height) + env(safe-area-inset-bottom, 0px) + 24px
+  );
 }
 
 body .ga-field__label,
@@ -61,8 +66,13 @@ body .ga-badge {
   padding: 0 10px;
 }
 
+body .ga-card {
+  box-shadow: none;
+}
+
 body .ga-card__title {
   font-size: var(--ga-text-sm);
+  letter-spacing: 0.02em;
 }
 
 body .ga-empty__title {

@@ -1,8 +1,14 @@
-/* GroAurum Sales shell worker. Scope is this origin only. */
-const SHELL_CACHE = 'groaurum-sales-shell-v3';
+/* Salesaurum app shell worker. Scope is this origin only. */
+const SHELL_CACHE = 'salesaurum-shell-v2';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -27,6 +33,27 @@ function isAppShellAsset(pathname) {
     pathname === '/manifest.json'
   );
 }
+
+self.addEventListener('push', (event) => {
+  let payload = { title: 'Salesaurum', body: '', url: '/profile/notices' };
+  try {
+    payload = { ...payload, ...(event.data ? event.data.json() : {}) };
+  } catch {
+    payload.body = event.data ? event.data.text() : '';
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'Salesaurum', {
+      body: payload.body || '',
+      data: { url: payload.url || '/profile/notices' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/profile/notices';
+  event.waitUntil(self.clients.openWindow(url));
+});
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;

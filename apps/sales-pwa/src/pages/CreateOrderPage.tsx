@@ -268,23 +268,23 @@ export function CreateOrderPage() {
     <div className="ga-sales-stack ga-sales-order-build">
       <ScreenHeader
         title="New order"
-        subtitle={shop ? shop.tradeName : 'Choose the retailer first'}
+        subtitle={shop ? shop.tradeName : 'Choose the customer first'}
         backTo={back.to}
         backLabel={back.label}
       />
 
       {retailersQuery.isError ? (
         <ErrorState
-          message={`Could not load your retailers: ${errorMessage(retailersQuery.error, 'unknown error')}`}
+          message={`Could not load your customers: ${errorMessage(retailersQuery.error, 'unknown error')}`}
           onRetry={() => {
             void retailersQuery.refetch();
           }}
           retrying={retailersQuery.isFetching}
-          retryLabel="Retry retailers"
+          retryLabel="Retry customers"
         />
       ) : null}
 
-      {retailersQuery.isLoading ? <LoadingState label="Loading retailers…" rows={3} /> : null}
+      {retailersQuery.isLoading ? <LoadingState label="Loading customers…" rows={3} /> : null}
 
       {retailersQuery.data && !shopId ? (
         <ShopPicker retailers={retailersQuery.data} onSelect={selectShop} />
@@ -295,11 +295,11 @@ export function CreateOrderPage() {
           <div className="ga-sales-list-item__row">
             <div>
               <p className="ga-sales-muted">Ordering for</p>
-              <p className="ga-sales-list-item__title">{shop?.tradeName ?? 'Unknown retailer'}</p>
+              <p className="ga-sales-list-item__title">{shop?.tradeName ?? 'Unknown customer'}</p>
               {shop ? <p className="ga-sales-list-item__meta">{shop.areaLabel}</p> : null}
             </div>
             <Button type="button" variant="secondary" onClick={() => selectShop('')}>
-              Change retailer
+              Change customer
             </Button>
           </div>
         </Card>
@@ -314,7 +314,7 @@ export function CreateOrderPage() {
       {draftFromOtherShop ? (
         <p className="ga-sales-warning" role="status">
           These items were saved in a draft for {draftFromOtherShop}. Check them before ordering
-          for {shop?.tradeName ?? 'this retailer'}.
+          for {shop?.tradeName ?? 'this customer'}.
         </p>
       ) : null}
 

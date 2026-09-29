@@ -1,0 +1,56 @@
+.ga-sm-target {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm, 6px);
+}
+
+.ga-sm-target__heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.ga-sm-target__hint,
+.ga-sm-target__ok,
+.ga-sm-target__error {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.ga-sm-target__hint,
+.ga-sm-target__ok {
+  color: var(--ga-text-muted);
+}
+
+.ga-sm-target__error {
+  color: var(--ga-danger, #b42318);
+  font-weight: 700;
+}
+
+.ga-sm-target__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.ga-sm-target__stats dt {
+  font-size: 0.95rem;
+  color: var(--ga-text-muted);
+}
+
+.ga-sm-target__stats dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.ga-sm-target__actions {
+  display: flex;
+  justify-content: flex-start;
+}

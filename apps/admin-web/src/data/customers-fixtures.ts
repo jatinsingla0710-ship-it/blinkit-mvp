@@ -238,22 +238,6 @@ export const CUSTOMERS_SNAPSHOT_FIXTURE: CustomersSnapshot = {
       tone: 'positive',
     },
     {
-      id: 'not_activated',
-      label: 'Not Activated',
-      value: '1',
-      hint: 'Customers who have not yet accessed their account',
-      tone: 'warning',
-      href: '/customers?digital=not_activated',
-    },
-    {
-      id: 'app_link_sent',
-      label: 'App Link Sent',
-      value: '1',
-      hint: 'App link shared, awaiting first login',
-      tone: 'info',
-      href: '/customers?digital=app_link_sent',
-    },
-    {
       id: 'recent',
       label: 'Recently Added',
       value: '1',

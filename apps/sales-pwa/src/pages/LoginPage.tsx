@@ -1,22 +1,45 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuthSession } from '@groaurum/auth/react';
-import { Button, Card, PageHeader, TextField } from '@groaurum/ui';
-import { readDevLoginPrefill } from '@/lib/operationalEnv';
+import { PageHeader } from '@groaurum/ui';
+import { EMAIL_CODE_RESEND_MS, resendWaitSeconds } from '@/data/email-login';
+import { readDevLoginPrefill, publicOperationalEnv } from '@/lib/operationalEnv';
+import { LoginPanel, type LoginStep } from './LoginPanel';
+
+function authFailure(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
+    return err.message;
+  }
+  return err instanceof Error ? err.message : fallback;
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { status, isAuthenticated, signIn } = useAuthSession();
+  const { status, isAuthenticated, signIn, requestEmailCode, verifyEmailCode } = useAuthSession();
   const devPrefill = readDevLoginPrefill();
+  const demoCodeHint =
+    publicOperationalEnv().VITE_AUTH_PROVIDER === 'mock'
+      ? 'Demo code is 123456.'
+      : null;
+  const [step, setStep] = useState<LoginStep>('email');
   const [email, setEmail] = useState(devPrefill.email);
   const [password, setPassword] = useState(devPrefill.password);
+  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [resendAt, setResendAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (step !== 'code') return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [step]);
 
   if (status === 'loading') {
     return (
       <div className="ga-sales-login">
-        <PageHeader title="GroAurum Sales" subtitle="Loading session…" />
+        <PageHeader title="Sign in" subtitle="Loading session…" />
       </div>
     );
   }
@@ -25,54 +48,77 @@ export function LoginPage() {
     return <Navigate to="/" replace />;
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function sendCode() {
     setError(null);
-    setSubmitting(true);
+    setBusy(true);
     try {
-      await signIn({ email, password });
-      navigate('/', { replace: true });
+      await requestEmailCode(email);
+      setStep('code');
+      setResendAt(Date.now() + EMAIL_CODE_RESEND_MS);
+      setNow(Date.now());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed');
+      setError(authFailure(err, 'Could not send the code. Try again.'));
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   }
 
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    if (step === 'email') {
+      await sendCode();
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      if (step === 'code') {
+        await verifyEmailCode(email, code);
+      } else {
+        await signIn({ email, password });
+      }
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(
+        authFailure(
+          err,
+          step === 'code' ? 'Could not verify the code. Try again.' : 'Sign-in failed. Try again.',
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResend() {
+    if (busy || resendWaitSeconds(Date.now(), resendAt) > 0) return;
+    await sendCode();
+  }
+
   return (
-    <div className="ga-sales-login">
-      <PageHeader
-        title="GroAurum Sales"
-        subtitle="Sign in to manage retailers, visits, and assisted orders"
-      />
-      <Card>
-        <form className="ga-sales-form" onSubmit={onSubmit}>
-          <TextField
-            label="Email"
-            name="email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            grow
-          />
-          <TextField
-            label="Password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            grow
-          />
-          {error ? <p className="ga-sales-error">{error}</p> : null}
-          <Button type="submit" variant="primary" disabled={submitting}>
-            {submitting ? 'Signing in…' : 'Sign in'}
-          </Button>
-        </form>
-      </Card>
-    </div>
+    <LoginPanel
+      step={step}
+      email={email}
+      code={code}
+      password={password}
+      error={error}
+      busy={busy}
+      resendSeconds={step === 'code' ? resendWaitSeconds(now, resendAt) : 0}
+      demoCodeHint={step === 'code' ? demoCodeHint : null}
+      onEmail={setEmail}
+      onCode={setCode}
+      onPassword={setPassword}
+      onSubmit={(event) => void onSubmit(event)}
+      onResend={() => void onResend()}
+      onUsePassword={() => {
+        setError(null);
+        setStep('password');
+      }}
+      onUseEmailCode={() => {
+        setError(null);
+        setStep('email');
+      }}
+    />
   );
 }
