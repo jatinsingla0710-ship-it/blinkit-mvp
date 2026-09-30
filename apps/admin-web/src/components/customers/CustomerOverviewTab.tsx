@@ -80,15 +80,6 @@ export function CustomerOverviewTab({ customer }: Props) {
             )}
           </dd>
         </div>
-        {customer.hasPendingInvitation ? (
-          <div>
-            <dt>Pending invitation token</dt>
-            <dd>
-              Active until {customer.pendingInvitationExpiresAtLabel ?? '—'}{' '}
-              (share manually — not sent via SMS/email)
-            </dd>
-          </div>
-        ) : null}
         <div>
           <dt>Created</dt>
           <dd>{customer.createdAtLabel}</dd>

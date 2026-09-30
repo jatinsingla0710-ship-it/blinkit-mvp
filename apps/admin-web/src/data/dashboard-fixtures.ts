@@ -1,24 +1,7 @@
-import type { DashboardSnapshot, NavItem } from './dashboard-types';
+import type { DashboardSnapshot } from './dashboard-types';
 
-/**
- * Static navigation — not business data.
- */
-export const SIDEBAR_NAV: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', path: '/' },
-  { id: 'orders', label: 'Orders', path: '/orders' },
-  { id: 'sales', label: 'Sales', path: '/sales' },
-  { id: 'customers', label: 'Customers', path: '/customers' },
-  { id: 'products', label: 'Products', path: '/products' },
-  { id: 'categories', label: 'Categories', path: '/categories' },
-  { id: 'pricing', label: 'Pricing', path: '/pricing' },
-  { id: 'inventory', label: 'Inventory', path: '/inventory' },
-  { id: 'salesmen', label: 'Salesmen', path: '/salesmen' },
-  { id: 'delivery', label: 'Delivery', path: '/delivery' },
-  { id: 'payments', label: 'Payments', path: '/payments' },
-  { id: 'service-areas', label: 'Service Areas', path: '/service-areas' },
-  { id: 'reports', label: 'Reports', path: '/reports' },
-  { id: 'settings', label: 'Settings', path: '/settings' },
-];
+/** Re-export Phase 1 nav so mock fixtures stay aligned with live IA. */
+export { SIDEBAR_NAV, SIDEBAR_NAV_GROUPS } from './nav';
 
 /** Empty dashboard snapshot for mock adapter — no fabricated business metrics. */
 export const DASHBOARD_FIXTURE: DashboardSnapshot = {

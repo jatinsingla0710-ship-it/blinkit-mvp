@@ -1,7 +1,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
-import { SIDEBAR_NAV } from '@/data/nav';
+import { SIDEBAR_NAV_GROUPS } from '@/data/nav';
 import { PATH_MODULE } from '@/auth/moduleRoutes';
 import { PageSkeleton } from '@/components/ui/PageSkeleton';
 import { Sidebar } from './Sidebar';
@@ -12,13 +12,16 @@ export function AdminShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { canAccessModule } = usePermissions();
 
-  const items = useMemo(
+  const groups = useMemo(
     () =>
-      SIDEBAR_NAV.filter((item) => {
-        const module = PATH_MODULE[item.path];
-        if (!module) return true;
-        return canAccessModule(module);
-      }),
+      SIDEBAR_NAV_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          const module = PATH_MODULE[item.path];
+          if (!module) return true;
+          return canAccessModule(module);
+        }),
+      })).filter((group) => group.items.length > 0),
     [canAccessModule],
   );
 
@@ -27,7 +30,7 @@ export function AdminShell() {
       <TopNav onMenuClick={() => setSidebarOpen((v) => !v)} />
       <div className="ga-shell__body">
         <Sidebar
-          items={items}
+          groups={groups}
           open={sidebarOpen}
           onNavigate={() => setSidebarOpen(false)}
         />

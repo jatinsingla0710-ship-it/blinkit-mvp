@@ -1,12 +1,14 @@
 import { usePermissions } from '@groaurum/auth/react';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { SkuPriceListTable } from '@/components/pricing/SkuPriceListTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { usePricesListQuery } from '@/data/hooks';
+import { PRODUCTS_SECTION_LINKS } from '@/data/section-links';
 import './PricingListPage.css';
 
 /**
- * Pricing Management — SKU current trade prices.
+ * Product pricing — SKU trade prices (under Products section).
  */
 export function PricingListPage() {
   const { hasPermission } = usePermissions();
@@ -23,8 +25,13 @@ export function PricingListPage() {
           <div className="ga-pricing-list">
             <PageHeader
               title="Pricing"
-              subtitle="Wholesale SKU trade prices · append-only history"
+              subtitle="Set and review product trade prices"
               meta={`${live} live · ${unpriced} unpriced${canManagePricing ? '' : ' · read-only'}`}
+            />
+
+            <SectionRelatedLinks
+              label="Products section"
+              links={[...PRODUCTS_SECTION_LINKS]}
             />
 
             <SkuPriceListTable rows={rows} />

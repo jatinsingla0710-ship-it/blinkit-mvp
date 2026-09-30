@@ -63,6 +63,7 @@ const ENTITY_TABLE: Record<string, string> = {
   payments: 'payments',
   products: 'products',
   skus: 'skus',
+  sku_prices: 'sku_prices',
   shops: 'shops',
   categories: 'categories',
 };

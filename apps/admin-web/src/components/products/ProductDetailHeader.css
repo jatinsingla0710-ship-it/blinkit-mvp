@@ -69,6 +69,13 @@
   gap: 8px;
 }
 
+.ga-product-detail-header__visibility {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-warning, #9a6700);
+}
+
 .ga-product-detail-header__actions {
   display: flex;
   flex-wrap: wrap;

@@ -142,6 +142,17 @@ export interface NavItem {
   id: string;
   label: string;
   path: string;
+  /** Additional path prefixes that keep this nav item highlighted. */
+  matchPrefixes?: string[];
+  /** Prefixes that must not activate this item (e.g. commission under pricing). */
+  excludePrefixes?: string[];
+}
+
+export interface NavGroup {
+  id: string;
+  /** Section heading; null = no group label. */
+  label: string | null;
+  items: NavItem[];
 }
 
 /** @deprecated Legacy KPI shape — used by Orders/Inventory module KPI strips only. */

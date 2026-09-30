@@ -47,6 +47,27 @@
   gap: var(--ga-space-3);
 }
 
+.ga-sales-list__insights-toggle {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.ga-sales-list__insights-btn {
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface);
+  border-radius: var(--ga-radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  cursor: pointer;
+}
+
+.ga-sales-list__insights-btn:hover {
+  color: var(--ga-text);
+  border-color: var(--ga-primary);
+}
+
 .ga-sales-list__register {
   margin-top: var(--ga-space-2);
 }

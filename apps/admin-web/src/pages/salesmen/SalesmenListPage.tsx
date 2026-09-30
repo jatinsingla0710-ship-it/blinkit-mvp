@@ -6,6 +6,7 @@ import {
   browseSalesmen,
 } from '@/data/browse-helpers';
 import type { SalesmanBrowseState } from '@/data/salesmen-types';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { SalesmenBrowseBar } from '@/components/salesmen/SalesmenBrowseBar';
 import { SalesmenQuickActions } from '@/components/salesmen/SalesmenQuickActions';
 import { SalesmanOrderFormModal } from '@/components/salesmen/SalesmanOrderFormModal';
@@ -17,10 +18,11 @@ import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useSalesmenSnapshotQuery } from '@/data/hooks';
+import { TEAM_SECTION_LINKS } from '@/data/section-links';
 import './SalesmenListPage.css';
 
 /**
- * Salesman Management — Auth-backed provision + assisted create flows.
+ * Sales Team — field salesmen, performance, and commission rules.
  */
 export function SalesmenListPage() {
   const { state } = useSalesmenSnapshotQuery();
@@ -47,8 +49,13 @@ export function SalesmenListPage() {
         <div className="ga-sm-list">
           <PageHeader
             title="Salesmen"
-            subtitle="Field sales operations · coverage and performance"
+            subtitle="Field team coverage, visits, earnings, and claims"
             meta={snapshot.generatedAtLabel}
+          />
+
+          <SectionRelatedLinks
+            label="Team section"
+            links={[...TEAM_SECTION_LINKS]}
           />
 
           <KpiCards items={snapshot.kpis} />

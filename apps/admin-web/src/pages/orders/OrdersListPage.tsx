@@ -14,12 +14,14 @@ import {
   type OrdersListPreset,
 } from '@/data/order-helpers';
 import type { OrdersFilterState, OrdersSortId } from '@/data/orders-types';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { OrdersAttentionPanel } from '@/components/orders/OrdersAttentionPanel';
 import { OrdersSummaryCards } from '@/components/orders/OrdersSummaryCards';
 import { OrdersTable } from '@/components/orders/OrdersTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useOrdersNeedingAttentionQuery, useOrdersSnapshotQuery } from '@/data/hooks';
+import { SALES_SECTION_LINKS } from '@/data/section-links';
 import './OrdersListPage.css';
 
 const PAGE_SIZE = 20;
@@ -45,7 +47,7 @@ function readInitialFilters(searchParams: URLSearchParams): {
 }
 
 /**
- * Orders Management - wholesale operations control center.
+ * Sales → Orders — open and in-progress wholesale orders.
  */
 export function OrdersListPage() {
   const { state } = useOrdersSnapshotQuery();
@@ -138,8 +140,13 @@ export function OrdersListPage() {
         <div className="ga-orders-list">
           <PageHeader
             title="Orders"
-            subtitle="Wholesale order workflow - placement to payment"
+            subtitle="Track orders from placement through delivery and payment"
             meta={snapshot.generatedAtLabel}
+          />
+
+          <SectionRelatedLinks
+            label="Sales section"
+            links={[...SALES_SECTION_LINKS]}
           />
 
           <OrdersSummaryCards items={summaryItems} />

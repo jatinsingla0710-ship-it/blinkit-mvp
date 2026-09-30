@@ -1,43 +1,51 @@
-import { NavLink } from 'react-router-dom';
-import type { NavItem } from '@/data/dashboard-types';
+import { NavLink, useLocation } from 'react-router-dom';
+import type { NavGroup } from '@/data/dashboard-types';
+import { isSidebarItemActive } from '@/data/nav';
 import './Sidebar.css';
 
 type Props = {
-  items: NavItem[];
+  groups: NavGroup[];
   open?: boolean;
   onNavigate?: () => void;
 };
 
-export function Sidebar({ items, open = false, onNavigate }: Props) {
+export function Sidebar({ groups, open = false, onNavigate }: Props) {
+  const location = useLocation();
+
   return (
     <aside className={['ga-sidebar', open ? 'ga-sidebar--open' : ''].join(' ')}>
       <nav className="ga-sidebar__nav" aria-label="Admin">
-        <ul className="ga-sidebar__list">
-          {items.map((item) => (
-            <li key={item.id}>
-              <NavLink
-                to={item.path}
-                end={
-                  item.path === '/' ||
-                  items.some(
-                    (other) =>
-                      other.path !== item.path &&
-                      other.path.startsWith(`${item.path}/`),
-                  )
-                }
-                className={({ isActive }) =>
-                  [
-                    'ga-sidebar__link',
-                    isActive ? 'ga-sidebar__link--active' : '',
-                  ].join(' ')
-                }
-                onClick={onNavigate}
-              >
-                {item.label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+        {groups.map((group) => {
+          if (group.items.length === 0) return null;
+          return (
+            <div key={group.id} className="ga-sidebar__group">
+              {group.label ? (
+                <p className="ga-sidebar__group-label">{group.label}</p>
+              ) : null}
+              <ul className="ga-sidebar__list">
+                {group.items.map((item) => (
+                  <li key={item.id}>
+                    <NavLink
+                      to={item.path}
+                      end={item.path === '/'}
+                      className={() =>
+                        [
+                          'ga-sidebar__link',
+                          isSidebarItemActive(location.pathname, item)
+                            ? 'ga-sidebar__link--active'
+                            : '',
+                        ].join(' ')
+                      }
+                      onClick={onNavigate}
+                    >
+                      {item.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

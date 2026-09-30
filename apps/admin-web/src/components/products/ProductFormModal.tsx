@@ -1379,8 +1379,8 @@ export function ProductFormModal({
             ) : null}
             {mode === 'create' ? (
               <p className="ga-product-form__hint">
-                Save as Draft keeps the product unpublished. Create &amp; Publish
-                sets status to Published.
+                Save as Draft keeps this product hidden from salesmen. Create
+                &amp; Publish makes it orderable once price is set.
               </p>
             ) : null}
           </div>

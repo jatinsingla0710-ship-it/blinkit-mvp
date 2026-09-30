@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
 import { Button } from '@groaurum/ui';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { CodSettlementsPanel } from '@/components/payments/CodSettlementsPanel';
+import { SALES_SECTION_LINKS } from '@/data/section-links';
 import {
   useCodCustodySummariesQuery,
   usePaymentsListQuery,
@@ -72,8 +74,8 @@ export function PaymentsPage() {
   return (
     <div className="ga-payments-page">
       <PageHeader
-        title="Payments"
-        subtitle="Customer payment ≠ Admin settlement · collections · custody · online"
+        title="Collections"
+        subtitle="Customer payments, COD custody, and settlements"
         meta={
           overview.data
             ? `As of ${overview.data.asOfDate}${canManage ? '' : ' · read-only'}`
@@ -83,14 +85,15 @@ export function PaymentsPage() {
         }
       />
 
+      <SectionRelatedLinks
+        label="Sales section"
+        links={[...SALES_SECTION_LINKS]}
+      />
+
       <Card>
         <p className="ga-payments-page__callout">
-          <strong>Customer paid</strong> means the shop paid.{' '}
-          <strong>Cash with Delivery Boy</strong> means cash is still in the
-          field. <strong>Received by Manager</strong> means the delivery boy
-          handed cash over — Owner has not necessarily confirmed yet.{' '}
-          <strong>Received by Owner</strong> is the final company confirmation.
-          Online amounts never enter delivery-boy cash custody.
+          Customer paid ≠ cash received by the company. Use Cash / COD and
+          Settlements to track delivery cash until Owner confirms.
         </p>
         <Tabs items={TABS} active={tab} onChange={setTab} />
 

@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import './DashboardPage.css';
 
 /**
- * Admin Dashboard — live business control center (Supabase + React Query).
+ * Admin Dashboard — business overview from live operations data.
  */
 export function DashboardPage() {
   const { state } = useDashboardSnapshotQuery();
@@ -20,7 +20,7 @@ export function DashboardPage() {
         <div className="ga-dashboard">
           <PageHeader
             title="Dashboard"
-            subtitle="Business control center · live operations"
+            subtitle="What needs attention across sales, stock, and collections"
             meta={snapshot.generatedAtLabel}
           />
 

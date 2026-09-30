@@ -153,7 +153,7 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
       !form.acknowledgeActivatedChange
     ) {
       setError(
-        'This customer already has digital access. Confirm that changing the mobile may require the customer to verify the new number.',
+        'This customer has a linked login. Confirm that changing the mobile may require them to verify the new number.',
       );
       return;
     }
@@ -232,46 +232,24 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
           onChange={(e) => setForm((f) => ({ ...f, ownerEmail: e.target.value }))}
         />
 
-        {hasDigitalAccess ? (
+        {hasDigitalAccess && mobileChanged ? (
           <div className="ga-cust-form__access-note">
-            <p>
-              <strong>Digital access:</strong> Activated
-              {customer.linkedLoginMobileLabel ? (
-                <>
-                  {' '}
-                  · Login mobile: {customer.linkedLoginMobileLabel}
-                </>
-              ) : null}
-            </p>
-            {!customer.contactMobileMatchesLogin ? (
-              <p className="ga-cust-form__warning">
-                Contact mobile and login mobile currently differ. The customer may
-                need to verify the contact number via OTP.
-              </p>
-            ) : null}
-            {mobileChanged ? (
-              <label className="ga-cust-form__confirm">
-                <input
-                  type="checkbox"
-                  checked={form.acknowledgeActivatedChange}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      acknowledgeActivatedChange: e.target.checked,
-                    }))
-                  }
-                />
-                I understand the customer may need to verify the new mobile number
-                before it becomes their login number.
-              </label>
-            ) : null}
+            <label className="ga-cust-form__confirm">
+              <input
+                type="checkbox"
+                checked={form.acknowledgeActivatedChange}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    acknowledgeActivatedChange: e.target.checked,
+                  }))
+                }
+              />
+              I understand the customer may need to verify the new mobile number
+              before it becomes their login number.
+            </label>
           </div>
-        ) : (
-          <p className="ga-cust-form__hint">
-            App access: Not activated. The updated mobile can log in with OTP and
-            link to this customer.
-          </p>
-        )}
+        ) : null}
 
         <h3 className="ga-cust-form__section">Address & territory</h3>
         <SelectField

@@ -91,7 +91,10 @@ export function CreateOrderPage() {
   const skusQuery = useQuery({
     queryKey: ['sales', 'orderable-skus'],
     queryFn: () => api.listOrderableSkus(),
-    staleTime: 5 * 60_000,
+    // Must stay short: Admin product/price edits should appear on this screen.
+    staleTime: 30_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   const rowsBySku = useMemo(

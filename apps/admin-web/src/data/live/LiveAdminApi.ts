@@ -157,6 +157,7 @@ import type {
   OrderLineItem,
   OrderActivityRow,
   OrderPaymentSummary,
+  OrdersNeedingAttentionResult,
   DeliveryStaffOption,
   DeliveryStatusVm,
   PaymentStatusVm,
@@ -4069,7 +4070,7 @@ export class LiveAdminApi {
   /** Orders needing ops attention (assignment, exceptions, sale convert). */
   async listOrdersNeedingAttention(
     limit = 50,
-  ): Promise<import('@/data/orders-types').OrdersNeedingAttentionResult> {
+  ): Promise<OrdersNeedingAttentionResult> {
     const { data, error } = await this.sb.rpc('admin_orders_needing_attention', {
       p_limit: limit,
     });
@@ -6395,13 +6396,13 @@ export class LiveAdminApi {
       {
         id: 'update_price',
         label: 'Update Price',
-        description: 'Schedule or change SKU trade price',
+        description: 'Change a product trade price',
         href: '/pricing',
       },
       {
         id: 'add_customer',
         label: 'Add Customer',
-        description: 'Onboard a new retailer',
+        description: 'Add a new shop',
         href: '/customers',
       },
       {
@@ -6647,11 +6648,12 @@ export class LiveAdminApi {
     return salesDashboard.fetchSalesDashboardMetrics(this.sb);
   }
 
-  async listSalesRegister(
-    opts?: Parameters<
-      Awaited<typeof import('./salesDashboardApi')>['listSalesRegister']
-    >[1],
-  ) {
+  async listSalesRegister(opts?: {
+    fromIso?: string | null;
+    toIso?: string | null;
+    search?: string;
+    limit?: number;
+  }) {
     const salesDashboard = await import('./salesDashboardApi');
     return salesDashboard.listSalesRegister(this.sb, opts);
   }

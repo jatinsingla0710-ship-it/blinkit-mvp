@@ -52,7 +52,7 @@ export function ReportsPage() {
           <div className="ga-rp-page">
             <PageHeader
               title="Reports"
-              subtitle="Invoiced wholesale from converted sales · not all orders"
+              subtitle="Sales performance from completed invoices"
               meta={snapshot.generatedAtLabel}
             />
 

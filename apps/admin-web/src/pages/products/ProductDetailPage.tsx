@@ -28,19 +28,13 @@ import { formatMutationError } from '@/data/mutation-errors';
 import { useUpdateProductMutation } from '@/data/mutations';
 import './ProductDetailPage.css';
 
-type DetailTab =
-  | 'overview'
-  | 'pricing'
-  | 'inventory'
-  | 'discounts'
-  | 'activity';
+type DetailTab = 'overview' | 'pricing' | 'inventory' | 'packs';
 
 const TABS: TabItem<DetailTab>[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'pricing', label: 'Pricing' },
-  { id: 'inventory', label: 'Inventory' },
-  { id: 'discounts', label: 'Discounts' },
-  { id: 'activity', label: 'Activity' },
+  { id: 'inventory', label: 'Stock' },
+  { id: 'packs', label: 'Packs' },
 ];
 
 export function ProductDetailPage() {
@@ -196,29 +190,17 @@ export function ProductDetailPage() {
                     />
                   ) : (
                     <p className="ga-product-detail__pending">
-                      No inventory tracked for this product yet.
+                      No stock recorded for this product yet.
                     </p>
                   )}
-                </div>
-              ) : null}
-
-              {tab === 'discounts' ? (
-                <div className="ga-product-detail__stack">
-                  <ProductPricingPanel
-                    sku={primarySku}
-                    outerDiscountTiers={product.outerDiscountTiers}
-                    canManage={canManageProducts}
-                    onManageDiscounts={() => setEditOpen(true)}
-                    discountsOnly
-                  />
-                </div>
-              ) : null}
-
-              {tab === 'activity' ? (
-                <div className="ga-product-detail__stack">
                   <ProductInventoryActivity
                     rows={product.inventoryMovements ?? []}
                   />
+                </div>
+              ) : null}
+
+              {tab === 'packs' ? (
+                <div className="ga-product-detail__stack">
                   <ProductSkusTab
                     productId={product.id}
                     productName={product.name}
@@ -238,7 +220,7 @@ export function ProductDetailPage() {
         <aside className="ga-product-detail__sidebar">
           <ProductWorkflowNextSteps
             product={product}
-            onAddSku={() => setTab('activity')}
+            onAddSku={() => setTab('packs')}
             onPublish={() => {
               updateProduct.mutate(
                 { id: product.id, input: { isActive: true } },

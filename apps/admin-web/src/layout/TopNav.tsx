@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser, useAuthSession } from '@groaurum/auth/react';
-import { Button } from '@/components/ui/Button';
 import './TopNav.css';
 
 type Props = {
   onMenuClick?: () => void;
-  notificationCount?: number;
 };
 
 function roleLabel(role: string | undefined): string {
@@ -17,7 +15,7 @@ function roleLabel(role: string | undefined): string {
     .join(' ');
 }
 
-export function TopNav({ onMenuClick, notificationCount = 0 }: Props) {
+export function TopNav({ onMenuClick }: Props) {
   const user = useCurrentUser();
   const { signOut } = useAuthSession();
   const navigate = useNavigate();
@@ -59,18 +57,6 @@ export function TopNav({ onMenuClick, notificationCount = 0 }: Props) {
       </div>
 
       <div className="ga-topnav__right">
-        <Button
-          variant="ghost"
-          className="ga-topnav__notify"
-          aria-label="Notifications"
-          type="button"
-        >
-          Alerts
-          {notificationCount > 0 ? (
-            <span className="ga-topnav__notify-count">{notificationCount}</span>
-          ) : null}
-        </Button>
-
         <div className="ga-topnav__user">
           <button
             type="button"

@@ -8,6 +8,7 @@ import {
   SalesPerformanceSummary,
   SalesTopInsights,
 } from '@/components/sales/SalesAnalyticsPanels';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { SalesDateFilter } from '@/components/sales/SalesDateFilter';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -18,6 +19,7 @@ import {
 } from '@/data/hooks';
 import { dateRangeForPreset, type SalesDatePreset } from '@/data/sales-fiscal';
 import { exportSalesRegisterCsv } from '@/data/live/salesDashboardApi';
+import { SALES_SECTION_LINKS } from '@/data/section-links';
 import './SalesListPage.css';
 
 function downloadCsv(filename: string, content: string) {
@@ -31,7 +33,7 @@ function downloadCsv(filename: string, content: string) {
 }
 
 /**
- * Sales dashboard + register — converted sale invoices only.
+ * Sales → Invoices — register first; charts optional.
  */
 export function SalesListPage() {
   const dashboard = useSalesDashboardQuery();
@@ -39,6 +41,7 @@ export function SalesListPage() {
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [search, setSearch] = useState('');
+  const [showInsights, setShowInsights] = useState(false);
 
   const range = useMemo(
     () =>
@@ -65,8 +68,8 @@ export function SalesListPage() {
   return (
     <div className="ga-sales-list">
       <PageHeader
-        title="Sales"
-        subtitle="Completed sales · financial year analytics · invoice register"
+        title="Invoices"
+        subtitle="Completed sales and invoice register"
         meta={
           dashboard.data
             ? `As of ${dashboard.data.asOfDate} (${dashboard.data.timezone})`
@@ -86,16 +89,21 @@ export function SalesListPage() {
         }
       />
 
+      <SectionRelatedLinks
+        label="Sales section"
+        links={[...SALES_SECTION_LINKS]}
+      />
+
       {dashboard.isPending ? (
         <Card>
-          <p className="ga-sales-list__loading">Loading sales dashboard…</p>
+          <p className="ga-sales-list__loading">Loading sales…</p>
         </Card>
       ) : dashboard.isError ? (
         <Card>
           <p className="ga-sales-list__error">
             {dashboard.error instanceof Error
               ? dashboard.error.message
-              : 'Could not load sales dashboard'}
+              : 'Could not load sales'}
           </p>
         </Card>
       ) : dashboard.data ? (
@@ -103,25 +111,41 @@ export function SalesListPage() {
           {!dashboard.data.hasSales ? (
             <EmptyState
               title="No sales yet"
-              detail="Your sales analytics will appear here once orders are delivered and converted into sales."
+              detail="Invoices appear here after orders are delivered, paid, and converted."
             />
           ) : null}
           <SalesDashboardKpis metrics={dashboard.data} />
-          <Card>
-            <MonthlySalesChart metrics={dashboard.data} />
-          </Card>
-          <SalesPerformanceSummary metrics={dashboard.data} />
-          <div className="ga-sales-list__compare-grid">
-            <SalesGrowthPanel metrics={dashboard.data} />
-            <SalesFyComparisonPanel metrics={dashboard.data} />
-          </div>
-          <SalesTopInsights metrics={dashboard.data} />
+          {dashboard.data.hasSales ? (
+            <div className="ga-sales-list__insights-toggle">
+              <button
+                type="button"
+                className="ga-sales-list__insights-btn"
+                aria-expanded={showInsights}
+                onClick={() => setShowInsights((v) => !v)}
+              >
+                {showInsights ? 'Hide charts' : 'Show charts & insights'}
+              </button>
+            </div>
+          ) : null}
+          {showInsights ? (
+            <>
+              <Card>
+                <MonthlySalesChart metrics={dashboard.data} />
+              </Card>
+              <SalesPerformanceSummary metrics={dashboard.data} />
+              <div className="ga-sales-list__compare-grid">
+                <SalesGrowthPanel metrics={dashboard.data} />
+                <SalesFyComparisonPanel metrics={dashboard.data} />
+              </div>
+              <SalesTopInsights metrics={dashboard.data} />
+            </>
+          ) : null}
         </>
       ) : null}
 
       <section className="ga-sales-list__register">
         <div className="ga-sales-list__register-head">
-          <h2 className="ga-sales-list__subhead">Sales Register</h2>
+          <h2 className="ga-sales-list__subhead">Invoice register</h2>
           <SalesDateFilter
             preset={preset}
             customFrom={customFrom}

@@ -4,6 +4,7 @@ import { ActionBar } from '@groaurum/ui';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ServiceAreaFormModal } from '@/components/service-areas/ServiceAreaFormModal';
 import { ServiceAreaPinsModal } from '@/components/service-areas/ServiceAreaPinsModal';
@@ -11,11 +12,12 @@ import { QueryStateGate } from '@/data/QueryStateGate';
 import { useServiceAreasListQuery } from '@/data/hooks';
 import { useUpdateServiceAreaMutation } from '@/data/mutations';
 import type { ServiceAreaListItem } from '@/data/service-area-model';
+import { SETTINGS_SECTION_LINKS } from '@/data/section-links';
 import '@groaurum/ui/styles/data-table.css';
 import './ServiceAreasListPage.css';
 
 /**
- * Service Areas + PIN_CODE rules — live list + CRUD via existing hooks.
+ * Service Areas — coverage territories (under Settings).
  */
 export function ServiceAreasListPage() {
   const { hasAnyRole } = usePermissions();
@@ -67,8 +69,13 @@ export function ServiceAreasListPage() {
         <div className="ga-sa-list">
           <PageHeader
             title="Service Areas"
-            subtitle="Delivery territories and PIN_CODE serviceability"
+            subtitle="Where your team sells and delivers"
             meta={`${rows.length} areas`}
+          />
+
+          <SectionRelatedLinks
+            label="Settings"
+            links={[...SETTINGS_SECTION_LINKS]}
           />
 
           {canWrite ? (

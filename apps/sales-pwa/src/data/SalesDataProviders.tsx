@@ -9,11 +9,19 @@ import {
   isSalesDataMockMode,
   type SalesmanApi,
 } from '@/data/salesmanApi';
+import {
+  hydrateUpdatedAtForQueryKey,
+  shouldPersistSalesQuery,
+} from '@/data/sales-query-cache';
 import { getSalesSupabaseClient } from '@/lib/salesSupabaseClient';
 import { useRealtimeQueryInvalidation } from '@/realtime/useRealtimeQueryInvalidation';
 
 const SalesmanApiContext = createContext<SalesmanApi | null>(null);
 
+/**
+ * Realtime → catalogue refresh so Admin product/price/stock edits reach Salesman.
+ * sku_prices maps via ENTITY_TABLE fallback (table name = entity).
+ */
 const SALES_REALTIME_SPECS = [
   {
     entity: 'shops',
@@ -23,9 +31,30 @@ const SALES_REALTIME_SPECS = [
     entity: 'orders',
     keys: [['sales', 'dashboard']] as const,
   },
+  {
+    entity: 'products',
+    keys: [['sales', 'orderable-skus']] as const,
+  },
+  {
+    entity: 'skus',
+    keys: [['sales', 'orderable-skus']] as const,
+  },
+  {
+    entity: 'categories',
+    keys: [['sales', 'orderable-skus']] as const,
+  },
+  {
+    entity: 'sku_prices',
+    keys: [['sales', 'orderable-skus']] as const,
+  },
+  {
+    entity: 'inventory',
+    keys: [['sales', 'orderable-skus']] as const,
+  },
 ] as const;
 
-const QUERY_CACHE_KEY = 'sales.queryCache.v1';
+/** Bumped so older caches that stored stale catalogue rows are discarded. */
+const QUERY_CACHE_KEY = 'sales.queryCache.v2';
 
 function createQueryClient(): QueryClient {
   const client = new QueryClient({
@@ -34,15 +63,26 @@ function createQueryClient(): QueryClient {
         staleTime: 30_000,
         gcTime: 5 * 60_000,
         retry: 1,
-        refetchOnWindowFocus: false,
+        // Catalogue/prices change in Admin; refocus should pick them up.
+        refetchOnWindowFocus: true,
       },
     },
   });
   try {
+    // Drop pre-fix caches that stored stale catalogue/prices as fresh.
+    globalThis.localStorage?.removeItem('sales.queryCache.v1');
     const raw = globalThis.localStorage?.getItem(QUERY_CACHE_KEY);
-    const entries = raw ? (JSON.parse(raw) as { queryKey: unknown[]; data: unknown }[]) : [];
+    const entries = raw
+      ? (JSON.parse(raw) as { queryKey: unknown[]; data: unknown }[])
+      : [];
     for (const entry of entries) {
-      client.setQueryData(entry.queryKey, entry.data);
+      if (!Array.isArray(entry.queryKey)) continue;
+      // Never rehydrate catalogue/preview as fresh — Admin may have changed prices.
+      if (!shouldPersistSalesQuery(entry.queryKey)) continue;
+      const updatedAt = hydrateUpdatedAtForQueryKey(entry.queryKey);
+      client.setQueryData(entry.queryKey, entry.data, {
+        ...(updatedAt !== undefined ? { updatedAt } : {}),
+      });
     }
   } catch {
     // A damaged cache must not block the app.
@@ -52,7 +92,12 @@ function createQueryClient(): QueryClient {
       const entries = client
         .getQueryCache()
         .getAll()
-        .filter((query) => query.state.status === 'success' && Array.isArray(query.queryKey))
+        .filter(
+          (query) =>
+            query.state.status === 'success' &&
+            Array.isArray(query.queryKey) &&
+            shouldPersistSalesQuery(query.queryKey),
+        )
         .slice(0, 40)
         .map((query) => ({ queryKey: query.queryKey, data: query.state.data }));
       globalThis.localStorage?.setItem(QUERY_CACHE_KEY, JSON.stringify(entries));

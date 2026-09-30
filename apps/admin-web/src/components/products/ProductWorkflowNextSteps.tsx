@@ -62,7 +62,7 @@ export function ProductWorkflowNextSteps({
           Product Published
         </p>
         <p className="ga-product-workflow__detail">
-          Customers can see this product
+          Visible to salesmen for ordering
           {product.inventoryStatus === 'out_of_stock' ||
           product.inventoryStatus === 'not_tracked'
             ? ' (may show OUT OF STOCK until inventory is added)'
@@ -164,7 +164,7 @@ export function ProductWorkflowNextSteps({
             <p className="ga-product-workflow__detail">
               {hasInventory
                 ? 'Stock on hand recorded'
-                : 'Not required — customers see OUT OF STOCK without it'}
+                : 'Optional — salesmen see OUT OF STOCK without it'}
             </p>
           </div>
           {stockSkuId ? (
@@ -180,7 +180,7 @@ export function ProductWorkflowNextSteps({
             <p className="ga-product-workflow__label">Publish</p>
             <p className="ga-product-workflow__detail">
               {readyToPublish
-                ? 'Ready for customer catalogue'
+                ? 'Ready for salesmen to order'
                 : missingRequired.length > 0
                   ? `Cannot publish yet — still needed: ${missingRequired
                       .map((item) => item.label)
@@ -208,7 +208,7 @@ export function ProductWorkflowNextSteps({
             }
             title={
               readyToPublish
-                ? 'Publish to customer catalogue'
+                ? 'Publish so salesmen can order this product'
                 : missingRequired.length > 0
                   ? `Still needed: ${missingRequired.map((i) => i.label).join(', ')}`
                   : 'Complete required fields'

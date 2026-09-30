@@ -104,9 +104,16 @@ export function CatalogueList({
                     {row.sku.name} · {row.sku.skuCode}
                   </p>
                   <p className="ga-sales-product__price">
-                    {formatMoney(row.unitPrice)}{' '}
+                    {formatMoney(
+                      preview?.ok && preview.unitPrice != null
+                        ? preview.unitPrice
+                        : row.unitPrice,
+                    )}{' '}
                     <span className="ga-sales-muted">
                       per {sellingQuantityLabel(row.sku, 1).replace(/^1\s+/, '')}
+                      {preview?.ok && preview.unitPrice != null && qty > 0
+                        ? ' · order price'
+                        : ''}
                     </span>
                   </p>
                   {packInfo ? <p className="ga-sales-list-item__meta">{packInfo}</p> : null}

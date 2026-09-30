@@ -37,20 +37,6 @@ export function CustomerAccountBusinessInfo({
             <dt>Mobile</dt>
             <dd>{customer.phoneLabel}</dd>
           </div>
-          {customer.linkedLoginMobileLabel ? (
-            <div>
-              <dt>Login mobile</dt>
-              <dd>
-                {customer.linkedLoginMobileLabel}
-                {!customer.contactMobileMatchesLogin ? (
-                  <span className="ga-cust-account-info-block__warn">
-                    {' '}
-                    · differs from contact mobile
-                  </span>
-                ) : null}
-              </dd>
-            </div>
-          ) : null}
           {customer.emailLabel ? (
             <div>
               <dt>Email</dt>

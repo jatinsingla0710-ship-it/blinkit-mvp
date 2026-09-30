@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { ProductFormModal } from '@/components/products/ProductFormModal';
 import { ProductListTable } from '@/components/products/ProductListTable';
 import {
@@ -16,6 +17,7 @@ import {
 } from '@/components/products/ProductsBrowseBar';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useProductsListQuery } from '@/data/hooks';
+import { PRODUCTS_SECTION_LINKS } from '@/data/section-links';
 import './ProductListPage.css';
 
 export function ProductListPage() {
@@ -65,10 +67,15 @@ export function ProductListPage() {
               <div>
                 <h1 className="ga-product-list__title">Products</h1>
                 <p className="ga-product-list__subtitle">
-                  {rows.length} products in catalogue
+                  Catalogue, pricing, and stock for what you sell
                 </p>
               </div>
             </header>
+
+            <SectionRelatedLinks
+              label="Products section"
+              links={[...PRODUCTS_SECTION_LINKS]}
+            />
 
             <ProductListKpiCards
               rows={rows}

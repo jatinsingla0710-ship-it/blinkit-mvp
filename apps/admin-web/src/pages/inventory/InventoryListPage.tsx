@@ -1,13 +1,15 @@
 import { useState } from 'react';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { KpiCards } from '@/components/dashboard/KpiCards';
 import { InventoryTable } from '@/components/inventory/InventoryTable';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useInventorySnapshotQuery } from '@/data/hooks';
+import { INVENTORY_SECTION_LINKS } from '@/data/section-links';
 import './InventoryListPage.css';
 
 /**
- * Inventory Management — stock & warehouse console (not product catalog).
+ * Inventory — stock levels by product and warehouse.
  */
 export function InventoryListPage() {
   const { state } = useInventorySnapshotQuery();
@@ -51,8 +53,13 @@ export function InventoryListPage() {
           <div className="ga-inv-list">
             <PageHeader
               title="Inventory"
-              subtitle="Stock levels by product and warehouse"
+              subtitle="See stock on hand, low stock, and movements"
               meta={snapshot.generatedAtLabel}
+            />
+
+            <SectionRelatedLinks
+              label="Inventory section"
+              links={[...INVENTORY_SECTION_LINKS]}
             />
 
             <KpiCards items={snapshot.kpis} />

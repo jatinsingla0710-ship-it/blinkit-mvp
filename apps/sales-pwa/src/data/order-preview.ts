@@ -97,7 +97,8 @@ export function useOrderPreview(
     queryKey: ['sales', 'order-preview', debouncedKey],
     queryFn: () => api.previewOrderLines(requestLines),
     enabled: online && requestLines.length > 0,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
     retry: 1,
     placeholderData: (previous: SalesmanOrderPreview | undefined) => previous,
   });

@@ -16,12 +16,14 @@ import { SystemPreferencesSection } from '@/components/settings/SystemPreference
 import { TaxesSection } from '@/components/settings/TaxesSection';
 import { UserRolesSection } from '@/components/settings/UserRolesSection';
 import { WarehousesSection } from '@/components/settings/WarehousesSection';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useSettingsSnapshotQuery } from '@/data/hooks';
 import { useUpsertSettingMutation } from '@/data/mutations';
+import { SETTINGS_SECTION_LINKS } from '@/data/section-links';
 import './SettingsPage.css';
 
 const TABS: TabItem<SettingsSectionId>[] = [
@@ -71,8 +73,13 @@ export function SettingsPage() {
         <div className="ga-st-page">
           <PageHeader
             title="Settings"
-            subtitle="Business configuration · system-wide controls"
+            subtitle="Business configuration and system masters"
             meta={snapshot.generatedAtLabel}
+          />
+
+          <SectionRelatedLinks
+            label="Configuration"
+            links={[...SETTINGS_SECTION_LINKS]}
           />
 
           <Card title="Quick Actions">

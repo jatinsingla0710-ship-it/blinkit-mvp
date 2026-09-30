@@ -1,4 +1,8 @@
-import type { DigitalAccessStatus } from '@/data/customers-types';
+import type {
+  DigitalAccessStatus,
+  PaymentStatusVm,
+  PreferredPaymentVm,
+} from '@/data/customers-types';
 import { Badge } from '@/components/ui/Badge';
 
 export function CustomerStatusBadge({
@@ -38,7 +42,7 @@ export function DigitalAccessBadge({
 export function PreferredPaymentBadge({
   payment,
 }: {
-  payment: import('@/data/customers-types').PreferredPaymentVm;
+  payment: PreferredPaymentVm;
 }) {
   if (payment === 'not_set') {
     return <Badge tone="neutral">Not set</Badge>;
@@ -49,7 +53,7 @@ export function PreferredPaymentBadge({
 export function CustomerPaymentStatusBadge({
   status,
 }: {
-  status: import('@/data/customers-types').PaymentStatusVm;
+  status: PaymentStatusVm;
 }) {
   switch (status) {
     case 'PAID':

@@ -27,12 +27,6 @@ export function ProductDetailHeader({
   breadcrumbParent,
 }: Props) {
   const primarySku = product.skus.find((sku) => sku.isActive) ?? product.skus[0];
-  const statusLabel =
-    product.publishStatus === 'published'
-      ? 'Published'
-      : product.publishStatus === 'draft'
-        ? 'Draft'
-        : 'Archived';
 
   return (
     <header className="ga-product-detail-header">
@@ -53,14 +47,11 @@ export function ProductDetailHeader({
           <div>
             <h1 className="ga-product-detail-header__title">{product.name}</h1>
             <p className="ga-product-detail-header__meta-line">
-              {statusLabel}
-              {product.isActive ? ' · Active' : ' · Inactive'}
               {primarySku ? (
-                <>
-                  {' · '}
-                  <span className="ga-table__mono">{primarySku.skuCode}</span>
-                </>
-              ) : null}
+                <span className="ga-table__mono">{primarySku.skuCode}</span>
+              ) : (
+                'No selling pack yet'
+              )}
             </p>
             <p className="ga-product-detail-header__category">
               Category:{' '}
@@ -72,6 +63,16 @@ export function ProductDetailHeader({
               <PublishStatusBadge status={product.publishStatus} />
               <InventoryStatusBadge status={product.inventoryStatus} />
             </div>
+            {product.publishStatus === 'draft' ? (
+              <p className="ga-product-detail-header__visibility" role="status">
+                Draft — not shown to salesmen until Published with an active price.
+              </p>
+            ) : null}
+            {product.publishStatus === 'archived' ? (
+              <p className="ga-product-detail-header__visibility" role="status">
+                Archived — hidden from salesmen.
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

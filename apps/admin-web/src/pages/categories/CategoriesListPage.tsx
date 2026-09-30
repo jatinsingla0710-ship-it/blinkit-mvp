@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
 import { ActionBar } from '@groaurum/ui';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -13,6 +14,7 @@ import {
   useUpdateCategoryMutation,
 } from '@/data/mutations';
 import { formatMutationError } from '@/data/mutation-errors';
+import { PRODUCTS_SECTION_LINKS } from '@/data/section-links';
 import './CategoriesListPage.css';
 
 /**
@@ -83,6 +85,11 @@ export function CategoriesListPage() {
               </Button>
             ) : null}
           </header>
+
+          <SectionRelatedLinks
+            label="Products section"
+            links={[...PRODUCTS_SECTION_LINKS]}
+          />
 
           <div className="ga-cat-list__stats" role="group" aria-label="Category summary">
             <div className="ga-cat-list__stat">

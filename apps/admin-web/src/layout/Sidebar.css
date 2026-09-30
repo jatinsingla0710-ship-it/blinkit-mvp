@@ -7,10 +7,35 @@
   overflow-y: auto;
 }
 
+.ga-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ga-space-4);
+}
+
+.ga-sidebar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ga-sidebar__group-label {
+  margin: 0;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted, var(--ga-text-secondary));
+}
+
 .ga-sidebar__list {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .ga-sidebar__link {

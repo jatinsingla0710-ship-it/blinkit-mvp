@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePermissions } from '@groaurum/auth/react';
 import { Button, Modal, TextField } from '@groaurum/ui';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { Card } from '@/components/ui/Card';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
@@ -8,6 +9,7 @@ import type { SkuCommissionRowVm } from '@/data/commission-types';
 import { useSkuCommissionListQuery } from '@/data/hooks';
 import { formatMutationError } from '@/data/mutation-errors';
 import { useSetSkuCommissionTermMutation } from '@/data/mutations';
+import { TEAM_SECTION_LINKS } from '@/data/section-links';
 import '@groaurum/ui/styles/data-table.css';
 import './CommissionListPage.css';
 
@@ -36,8 +38,13 @@ export function CommissionListPage() {
         <div className="ga-commission-list">
           <PageHeader
             title="Commission"
-            subtitle="Fixed commission per selling unit · separate from trade prices"
+            subtitle="How much salesmen earn per product unit sold"
             meta={`${rows.filter((row) => row.open).length} active${canManage ? '' : ' · read-only'}`}
+          />
+
+          <SectionRelatedLinks
+            label="Team section"
+            links={[...TEAM_SECTION_LINKS]}
           />
           <Card title="SKU commission">
             {rows.length === 0 ? (

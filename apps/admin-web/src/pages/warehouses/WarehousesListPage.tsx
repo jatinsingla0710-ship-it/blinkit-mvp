@@ -4,17 +4,19 @@ import { ActionBar } from '@groaurum/ui';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { WarehouseFormModal } from '@/components/warehouses/WarehouseFormModal';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useWarehousesListQuery } from '@/data/hooks';
 import { useUpdateWarehouseMutation } from '@/data/mutations';
 import type { WarehouseListItem } from '@/data/warehouse-model';
+import { INVENTORY_SECTION_LINKS, SETTINGS_SECTION_LINKS } from '@/data/section-links';
 import '@groaurum/ui/styles/data-table.css';
 import './WarehousesListPage.css';
 
 /**
- * Warehouses (operational_locations) — live list + CRUD via existing hooks.
+ * Warehouses — storage locations (Settings / Inventory).
  */
 export function WarehousesListPage() {
   const { hasAnyRole } = usePermissions();
@@ -64,8 +66,16 @@ export function WarehousesListPage() {
         <div className="ga-wh-list">
           <PageHeader
             title="Warehouses"
-            subtitle="Operational locations for inventory and dispatch"
+            subtitle="Storage locations used for stock and dispatch"
             meta={`${rows.length} locations`}
+          />
+
+          <SectionRelatedLinks
+            label="Related"
+            links={[
+              ...INVENTORY_SECTION_LINKS.filter((l) => l.to !== '/warehouses'),
+              SETTINGS_SECTION_LINKS[0],
+            ]}
           />
 
           {canWrite ? (
