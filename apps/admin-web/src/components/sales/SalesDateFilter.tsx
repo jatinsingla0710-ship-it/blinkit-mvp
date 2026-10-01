@@ -3,6 +3,7 @@ import './SalesDateFilter.css';
 
 const PRESETS: { id: SalesDatePreset; label: string }[] = [
   { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
   { id: 'this_week', label: 'This Week' },
   { id: 'this_month', label: 'This Month' },
   { id: 'last_month', label: 'Last Month' },

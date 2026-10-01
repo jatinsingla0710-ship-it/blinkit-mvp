@@ -67,7 +67,7 @@ export function ProductListPage() {
               <div>
                 <h1 className="ga-product-list__title">Products</h1>
                 <p className="ga-product-list__subtitle">
-                  Catalogue, pricing, and stock for what you sell
+                  Catalogue for Salesaurum — price, stock, and packs
                 </p>
               </div>
             </header>

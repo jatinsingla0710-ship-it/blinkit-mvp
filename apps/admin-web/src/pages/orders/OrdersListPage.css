@@ -51,3 +51,19 @@
   color: var(--ga-text-muted);
   font-weight: 500;
 }
+
+.ga-orders-list__reset {
+  border: 1px solid var(--ga-border);
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  cursor: pointer;
+}
+
+.ga-orders-list__reset:hover {
+  border-color: var(--ga-primary);
+  color: var(--ga-primary);
+}

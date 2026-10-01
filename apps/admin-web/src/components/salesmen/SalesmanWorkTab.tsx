@@ -36,10 +36,9 @@ export function SalesmanWorkTab({
       </FieldGrid>
 
       <section className="ga-sm-work__shops">
-        <h3 className="ga-sm-work__heading">Assigned shops</h3>
+        <h3 className="ga-sm-work__heading">Assigned customers</h3>
         <p className="ga-sm-work__hint">
-          Shops are assigned from Customers or via salesman reassign — not from
-          this screen.
+          Assign or reassign shops from Customers — not from this screen.
         </p>
         <SalesmanCustomersTab
           rows={salesman.assignedCustomers}

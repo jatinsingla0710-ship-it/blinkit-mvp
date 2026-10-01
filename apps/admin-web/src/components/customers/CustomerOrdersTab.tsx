@@ -13,7 +13,7 @@ export function CustomerOrdersTab({ rows }: Props) {
     return (
       <EmptyState
         title="No orders yet"
-        detail="Wholesale orders for this retailer will appear here."
+        detail="Wholesale orders for this customer will appear here."
       />
     );
   }

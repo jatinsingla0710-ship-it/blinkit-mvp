@@ -65,12 +65,19 @@ export function ProductDetailHeader({
             </div>
             {product.publishStatus === 'draft' ? (
               <p className="ga-product-detail-header__visibility" role="status">
-                Draft — not shown to salesmen until Published with an active price.
+                Draft — not visible in Salesaurum until Published with an active
+                selling price.
               </p>
             ) : null}
             {product.publishStatus === 'archived' ? (
               <p className="ga-product-detail-header__visibility" role="status">
-                Archived — hidden from salesmen.
+                Archived — hidden from Salesaurum.
+              </p>
+            ) : null}
+            {product.publishStatus === 'published' ? (
+              <p className="ga-product-detail-header__visibility" role="status">
+                Published — visible to salesmen in Salesaurum when priced and in
+                stock.
               </p>
             ) : null}
           </div>

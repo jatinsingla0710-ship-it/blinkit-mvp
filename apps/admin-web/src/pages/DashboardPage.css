@@ -5,6 +5,36 @@
   max-width: 1440px;
 }
 
+.ga-dashboard__section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ga-dashboard__section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ga-dashboard__section-link {
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+  text-decoration: none;
+}
+
+.ga-dashboard__section-link:hover {
+  text-decoration: underline;
+}
+
+.ga-dashboard__financial-error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+}
+
 .ga-dashboard__row {
   display: grid;
   gap: var(--ga-space-3);

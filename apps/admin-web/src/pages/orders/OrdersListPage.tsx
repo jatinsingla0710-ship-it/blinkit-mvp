@@ -140,7 +140,7 @@ export function OrdersListPage() {
         <div className="ga-orders-list">
           <PageHeader
             title="Orders"
-            subtitle="Track orders from placement through delivery and payment"
+            subtitle="Open and in-progress wholesale orders"
             meta={snapshot.generatedAtLabel}
           />
 
@@ -162,7 +162,7 @@ export function OrdersListPage() {
               </span>
               <input
                 type="search"
-                placeholder="Order no, customer, mobile..."
+                placeholder="Order no, customer, mobile…"
                 value={filters.search}
                 onChange={(e) => {
                   setFilters({ ...filters, search: e.target.value });
@@ -171,11 +171,20 @@ export function OrdersListPage() {
                 aria-label="Search orders"
               />
             </label>
+            <button
+              type="button"
+              className="ga-orders-list__reset"
+              onClick={() => {
+                setFilters({ ...EMPTY_ORDERS_FILTERS });
+                setPage(1);
+              }}
+            >
+              Reset filters
+            </button>
             <div className="ga-orders-list__summary">
               <span>
                 Showing {paged.rows.length} of {paged.total}
-                {preset ? ` - ${preset.replace(/_/g, ' ')}` : ''}
-                {` - ${snapshot.rows.length} total`}
+                {preset ? ` · ${preset.replace(/_/g, ' ')}` : ''}
               </span>
             </div>
           </div>

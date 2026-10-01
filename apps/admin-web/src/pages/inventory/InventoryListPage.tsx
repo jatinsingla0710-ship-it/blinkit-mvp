@@ -53,7 +53,7 @@ export function InventoryListPage() {
           <div className="ga-inv-list">
             <PageHeader
               title="Inventory"
-              subtitle="See stock on hand, low stock, and movements"
+              subtitle="What is in stock and what needs attention"
               meta={snapshot.generatedAtLabel}
             />
 
@@ -82,9 +82,9 @@ export function InventoryListPage() {
                 {(
                   [
                     ['all', 'All'],
-                    ['healthy', 'Healthy'],
-                    ['low', 'Low Stock'],
-                    ['out_of_stock', 'Out of Stock'],
+                    ['healthy', 'In stock'],
+                    ['low', 'Low stock'],
+                    ['out_of_stock', 'Out of stock'],
                   ] as const
                 ).map(([id, label]) => (
                   <button
@@ -101,6 +101,16 @@ export function InventoryListPage() {
                   </button>
                 ))}
               </div>
+              <button
+                type="button"
+                className="ga-inv-list__reset"
+                onClick={() => {
+                  setQuery('');
+                  setStatusFilter('all');
+                }}
+              >
+                Reset filters
+              </button>
               <p className="ga-inv-list__count">
                 Showing {filtered.length} of {snapshot.rows.length}
               </p>

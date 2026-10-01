@@ -166,7 +166,7 @@ export function buildSalesmanLeaderboardFromSales(input: {
     .sort((a, b) => b.revenue - a.revenue);
   const limit = input.limit ?? 10;
   return {
-    columns: ['Name', 'Sales', 'Revenue'],
+    columns: ['Salesman', 'Orders', 'Revenue'],
     rows: ranked.slice(0, limit).map((r, i) => ({
       id: `sm-${i}-${r.name}`,
       cells: [r.name, `${r.count}`, formatInr(r.revenue)],
@@ -182,7 +182,7 @@ export function salesReportEmptyDetail(
     case 'products':
       return 'No sale_items yet. Convert delivered and paid orders to populate this table.';
     case 'salesmen':
-      return 'No converted sales yet. Leaderboard uses sales linked to order creators.';
+      return 'No converted sales yet. Leaderboard uses sales linked to order creators (created_by).';
     case 'revenue':
       return 'No converted sales in the last 7 days.';
     default:

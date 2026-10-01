@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@groaurum/ui';
 import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -9,6 +10,9 @@ import {
   type ReceivableRow,
 } from '@/data/customer-ledger';
 import { useReceivablesSnapshotQuery } from '@/data/hooks';
+import {
+  summarizeReceivableRows,
+} from '@/data/financial-reports';
 import { ACCOUNTING_SECTION_LINKS } from '@/data/section-links';
 import '@groaurum/ui/styles/data-table.css';
 import './ReceivablesPage.css';
@@ -86,6 +90,11 @@ export function ReceivablesPage() {
     return filterReceivableRows(state.data.rows, search, filter);
   }, [state.data, search, filter]);
 
+  const summary = useMemo(
+    () => summarizeReceivableRows(filtered),
+    [filtered],
+  );
+
   return (
     <QueryStateGate
       title="Receivables"
@@ -93,18 +102,35 @@ export function ReceivablesPage() {
       emptyTitle="No customer balances yet"
       emptyDetail="Balances appear after sales and collections are recorded."
     >
-      {(snapshot) => (
+      {() => (
         <div className="ga-receivables">
           <PageHeader
             title="Receivables"
-            subtitle="Customers with unpaid balances"
-            meta={`Due total ${snapshot.totalOutstandingLabel} · as of ${snapshot.generatedAtLabel}`}
+            subtitle="Who owes money — from the customer ledger"
+            meta={`${summary.customerCount} customers · due ${summary.totalOutstandingLabel}`}
           />
 
           <SectionRelatedLinks
             label="Accounting"
             links={[...ACCOUNTING_SECTION_LINKS]}
           />
+
+          <div className="ga-receivables__summary">
+            <div>
+              <p className="ga-receivables__label">Due (filtered)</p>
+              <p className="ga-receivables__value">
+                {summary.totalOutstandingLabel}
+              </p>
+            </div>
+            <div>
+              <p className="ga-receivables__label">Sales</p>
+              <p className="ga-receivables__value">{summary.totalSalesLabel}</p>
+            </div>
+            <div>
+              <p className="ga-receivables__label">Paid</p>
+              <p className="ga-receivables__value">{summary.totalPaidLabel}</p>
+            </div>
+          </div>
 
           <div className="ga-receivables__toolbar">
             <label className="ga-receivables__search">
@@ -116,11 +142,15 @@ export function ReceivablesPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </label>
-            <div className="ga-receivables__filters" role="group" aria-label="Balance filter">
+            <div
+              className="ga-receivables__filters"
+              role="group"
+              aria-label="Balance filter"
+            >
               {(
                 [
                   ['outstanding', 'Outstanding'],
-                  ['paid', 'Paid'],
+                  ['paid', 'Paid up'],
                   ['all', 'All'],
                 ] as const
               ).map(([id, label]) => (
@@ -138,6 +168,15 @@ export function ReceivablesPage() {
                 </button>
               ))}
             </div>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSearch('');
+                setFilter('outstanding');
+              }}
+            >
+              Reset filters
+            </Button>
           </div>
 
           <ReceivablesTable rows={filtered} />

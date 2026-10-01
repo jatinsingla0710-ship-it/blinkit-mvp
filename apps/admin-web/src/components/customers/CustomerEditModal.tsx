@@ -153,7 +153,7 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
       !form.acknowledgeActivatedChange
     ) {
       setError(
-        'This customer has a linked login. Confirm that changing the mobile may require them to verify the new number.',
+        'This customer already has a login number. Confirm that changing the mobile may require them to verify the new number.',
       );
       return;
     }
@@ -245,8 +245,8 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
                   }))
                 }
               />
-              I understand the customer may need to verify the new mobile number
-              before it becomes their login number.
+              I understand they may need to verify the new mobile number before
+              it becomes their login number.
             </label>
           </div>
         ) : null}

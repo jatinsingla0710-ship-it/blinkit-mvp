@@ -14,6 +14,7 @@ export type FinancialYearBounds = {
 
 export type SalesDatePreset =
   | 'today'
+  | 'yesterday'
   | 'this_week'
   | 'this_month'
   | 'last_month'
@@ -106,6 +107,11 @@ export function dateRangeForPreset(
   switch (preset) {
     case 'today':
       return { from: today, to: endOfDay(today), label: 'Today' };
+    case 'yesterday': {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      return { from: y, to: endOfDay(y), label: 'Yesterday' };
+    }
     case 'this_week': {
       const dow = today.getDay();
       const mondayOffset = dow === 0 ? -6 : 1 - dow;

@@ -5,6 +5,7 @@ import { CustomerFormModal } from '@/components/customers/CustomerFormModal';
 import { CustomersListToolbar } from '@/components/customers/CustomersListToolbar';
 import { CustomersTable } from '@/components/customers/CustomersTable';
 import { KpiCards } from '@/components/dashboard/KpiCards';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import {
   filterCustomerRows,
@@ -29,17 +30,19 @@ export function CustomersListPage() {
   }, [state.data, search, statusFilter]);
 
   return (
-    <QueryStateGate title="Customers" state={state}>
+    <QueryStateGate
+      title="Customers"
+      state={state}
+      emptyTitle="No customers yet"
+      emptyDetail="Create your first customer to start taking orders."
+    >
       {(snapshot) => (
         <div className="ga-cust-list">
-          <header className="ga-cust-list__header">
-            <div>
-              <h1 className="ga-cust-list__title">Customers</h1>
-              <p className="ga-cust-list__subtitle">
-                Shops your team sells to
-              </p>
-            </div>
-          </header>
+          <PageHeader
+            title="Customers"
+            subtitle="Shops your team sells to"
+            meta={snapshot.generatedAtLabel}
+          />
 
           <KpiCards items={snapshot.kpis} />
 

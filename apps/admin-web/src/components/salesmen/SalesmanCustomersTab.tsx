@@ -21,7 +21,7 @@ export function SalesmanCustomersTab({
     return (
       <EmptyState
         title="No assigned customers"
-        detail="Retail coverage for this salesman will appear here."
+        detail="Assign shops to this salesman from Customers."
       />
     );
   }
@@ -31,12 +31,12 @@ export function SalesmanCustomersTab({
       <table className="ga-table">
         <thead>
           <tr>
-            <th>Shop Name</th>
+            <th>Customer</th>
             <th>Area</th>
             <th>Status</th>
-            <th>Last Order</th>
-            <th>Last Visit</th>
-            <th>Actions</th>
+            <th>Last order</th>
+            <th>Last visit</th>
+            <th />
           </tr>
         </thead>
         <tbody>

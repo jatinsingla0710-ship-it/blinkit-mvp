@@ -7,13 +7,23 @@ type Props = {
   alerts: AttentionAlert[];
 };
 
+/** Short “why it matters” copy for existing attention ids — presentation only. */
+const ATTENTION_WHY: Record<string, string> = {
+  low_stock: 'Stock may run out — check inventory before orders stall.',
+  stale_pending: 'Orders waiting too long — process or follow up.',
+  failed_delivery: 'Delivery failed — investigate and reattempt.',
+  delivered_unpaid: 'Goods delivered but payment still open.',
+  payment_amount_mismatch: 'Collected amount does not match the order total.',
+  pending_payments: 'Customer payments still pending collection.',
+};
+
 function severityClass(severity: AttentionAlert['severity']): string {
   return `ga-attention__item--${severity}`;
 }
 
 export function AttentionRequired({ alerts }: Props) {
   return (
-    <Card title="Attention Required">
+    <Card title="Needs attention">
       {alerts.length === 0 ? (
         <div className="ga-attention__ok">
           <span className="ga-attention__ok-icon" aria-hidden="true">
@@ -28,22 +38,30 @@ export function AttentionRequired({ alerts }: Props) {
         </div>
       ) : (
         <ul className="ga-attention__list">
-          {alerts.map((alert) => (
-            <li key={alert.id}>
-              <Link
-                to={alert.href}
-                className={['ga-attention__item', severityClass(alert.severity)].join(
-                  ' ',
-                )}
-              >
-                <span className="ga-attention__count">{alert.count}</span>
-                <span className="ga-attention__title">{alert.title}</span>
-                <span className="ga-attention__chevron" aria-hidden="true">
-                  →
-                </span>
-              </Link>
-            </li>
-          ))}
+          {alerts.map((alert) => {
+            const why = ATTENTION_WHY[alert.id];
+            return (
+              <li key={alert.id}>
+                <Link
+                  to={alert.href}
+                  className={['ga-attention__item', severityClass(alert.severity)].join(
+                    ' ',
+                  )}
+                >
+                  <span className="ga-attention__count">{alert.count}</span>
+                  <span className="ga-attention__body">
+                    <span className="ga-attention__title">{alert.title}</span>
+                    {why ? (
+                      <span className="ga-attention__why">{why}</span>
+                    ) : null}
+                  </span>
+                  <span className="ga-attention__chevron" aria-hidden="true">
+                    →
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </Card>
@@ -52,7 +70,7 @@ export function AttentionRequired({ alerts }: Props) {
 
 export function AttentionRequiredSkeleton() {
   return (
-    <Card title="Attention Required">
+    <Card title="Needs attention">
       <ul className="ga-attention__list" aria-busy="true">
         {Array.from({ length: 3 }, (_, i) => (
           <li key={i}>

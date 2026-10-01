@@ -75,6 +75,17 @@ import {
   type PayrollRow,
 } from '../salesman-payroll';
 import {
+  aggregateProductSales,
+  buildOwnerFinancialKpis,
+  buildProfitLoss,
+  filterExpensesByDate,
+  sumPaidPayroll,
+  sumSalesTotal,
+  summarizeDayBookByType,
+  type ProfitLossVm,
+} from '../financial-reports';
+import type { KpiCardItem } from '@/components/dashboard/KpiCards';
+import {
   buildInventoryOverview,
   formatAvailableStockLabel,
   formatPackagingLabel,
@@ -249,6 +260,12 @@ import {
   startOfDay,
   toDateOnly,
 } from '../dashboard-helpers';
+import {
+  businessDateRangeInclusive,
+  businessDayEndExclusiveIso,
+  businessDayStartIso,
+  ymdInBusinessTz,
+} from '../business-dates';
 import type { ReportsSnapshot, ReportsSection } from '../reports-types';
 import type {
   SettingsSnapshot,
@@ -3012,8 +3029,9 @@ export class LiveAdminApi {
     type?: DayBookEntryType | 'all';
     paymentMethod?: string;
   }): Promise<DayBookSnapshot> {
-    const fromTs = `${opts.dateFrom}T00:00:00+05:30`;
-    const toTs = `${opts.dateTo}T23:59:59.999+05:30`;
+    const range = businessDateRangeInclusive(opts.dateFrom, opts.dateTo);
+    const fromTs = range.fromIso;
+    const toTs = range.toIsoInclusive;
 
     const [ordersRes, paymentsByPaid, paymentsByCreated, expensesRes, payrollRes] =
       await Promise.all([
@@ -3299,6 +3317,230 @@ export class LiveAdminApi {
         calculated_at: str(row['calculated_at']),
       }),
     );
+  }
+
+  /**
+   * Owner financial overview for Dashboard + P&amp;L.
+   * Reuses Day Book, receivables, expenses, payroll, and sales register.
+   */
+  async ownerFinancialOverview(): Promise<{
+    generatedAtLabel: string;
+    kpis: KpiCardItem[];
+  }> {
+    const now = new Date();
+    const today = ymdInBusinessTz(now);
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const todayRange = businessDateRangeInclusive(today, today);
+    const monthRange = businessDateRangeInclusive(monthStart, today);
+
+    const [dayBookToday, receivables, expensesSnap, payrollMonth, salesToday, salesMonth, shopsRes] =
+      await Promise.all([
+        this.dayBookSnapshot({ dateFrom: today, dateTo: today }),
+        this.receivablesSnapshot(),
+        this.companyExpensesSnapshot(),
+        this.payrollMonthSnapshot(monthStart),
+        this.listSalesRegister({
+          fromIso: todayRange.fromIso,
+          toIso: todayRange.toIsoInclusive,
+          limit: 500,
+        }),
+        this.listSalesRegister({
+          fromIso: monthRange.fromIso,
+          toIso: monthRange.toIsoInclusive,
+          limit: 500,
+        }),
+        this.sb
+          .from('shops')
+          .select('id', { count: 'exact', head: true })
+          .is('deleted_at', null)
+          .eq('is_active', true),
+      ]);
+
+    const byType = summarizeDayBookByType(dayBookToday.entries);
+    const expensesMonth = filterExpensesByDate(
+      expensesSnap.rows,
+      monthStart,
+      today,
+    ).reduce((s, r) => s + r.amount, 0);
+
+    const kpis = buildOwnerFinancialKpis({
+      todaySales: sumSalesTotal(
+        salesToday.map((r) => ({
+          id: r.saleId,
+          total: r.amount,
+          convertedAt: r.saleDateIso,
+          status: r.saleStatus,
+        })),
+      ),
+      monthSales: sumSalesTotal(
+        salesMonth.map((r) => ({
+          id: r.saleId,
+          total: r.amount,
+          convertedAt: r.saleDateIso,
+          status: r.saleStatus,
+        })),
+      ),
+      collectionsToday: byType.collectionsIn + byType.salesIn,
+      outstanding: receivables.totalOutstanding,
+      expensesMonth,
+      payrollPaidMonth: payrollMonth.paidTotal,
+      netCashToday: byType.net,
+      activeCustomers: shopsRes.count ?? 0,
+    });
+
+    return {
+      generatedAtLabel: `Updated ${formatDateTime(now.toISOString())}`,
+      kpis,
+    };
+  }
+
+  /**
+   * Profit &amp; Loss for a date range from existing Day Book + sales + expenses + paid payroll.
+   */
+  async profitLossSnapshot(opts: {
+    dateFrom: string;
+    dateTo: string;
+  }): Promise<{
+    generatedAtLabel: string;
+    rangeLabel: string;
+    profitLoss: ProfitLossVm;
+    dayBookByType: ReturnType<typeof summarizeDayBookByType>;
+  }> {
+    const from = opts.dateFrom.slice(0, 10);
+    const to = opts.dateTo.slice(0, 10);
+    const range = businessDateRangeInclusive(from, to);
+
+    const [dayBook, expensesSnap, salesRows, payrollRes] = await Promise.all([
+      this.dayBookSnapshot({ dateFrom: from, dateTo: to }),
+      this.companyExpensesSnapshot(),
+      this.listSalesRegister({
+        fromIso: range.fromIso,
+        toIso: range.toIsoInclusive,
+        limit: 2000,
+      }),
+      this.sb
+        .from('salesman_payroll')
+        .select(
+          'id, salesman_profile_id, payroll_month, earning_model, base_salary, unpaid_leave_days, unpaid_deduction, earned_commission, daily_allowance, other_allowance, adjustments, total_amount, status, paid_at, payment_method, payment_reference, notes, calculated_at',
+        )
+        .eq('status', 'PAID')
+        .gte('paid_at', range.fromIso)
+        .lt('paid_at', range.toIsoExclusive),
+    ]);
+
+    if (payrollRes.error) {
+      throwRpcError(payrollRes.error, 'Could not load paid payroll for P&L');
+    }
+
+    const byType = summarizeDayBookByType(dayBook.entries);
+    const expensesTotal = filterExpensesByDate(
+      expensesSnap.rows,
+      from,
+      to,
+    ).reduce((s, r) => s + r.amount, 0);
+
+    const payrollRows = ((payrollRes.data ?? []) as Row[]).map((row) =>
+      mapPayrollRow({
+        id: str(row['id']),
+        salesman_profile_id: str(row['salesman_profile_id']),
+        payroll_month: str(row['payroll_month']),
+        earning_model: str(row['earning_model']),
+        base_salary: num(row['base_salary']),
+        unpaid_leave_days: num(row['unpaid_leave_days']),
+        unpaid_deduction: num(row['unpaid_deduction']),
+        earned_commission: num(row['earned_commission']),
+        daily_allowance: num(row['daily_allowance']),
+        other_allowance: num(row['other_allowance']),
+        adjustments: num(row['adjustments']),
+        total_amount: num(row['total_amount']),
+        status: str(row['status']),
+        paid_at: row['paid_at'] ? str(row['paid_at']) : null,
+        payment_method: row['payment_method']
+          ? str(row['payment_method'])
+          : null,
+        calculated_at: str(row['calculated_at']),
+      }),
+    );
+
+    const profitLoss = buildProfitLoss({
+      salesTotal: sumSalesTotal(
+        salesRows.map((r) => ({
+          id: r.saleId,
+          total: r.amount,
+          convertedAt: r.saleDateIso,
+          status: r.saleStatus,
+        })),
+      ),
+      collectionsTotal: byType.salesIn + byType.collectionsIn,
+      refundsTotal: byType.refundsOut,
+      expensesTotal,
+      payrollPaidTotal: sumPaidPayroll(payrollRows),
+    });
+
+    return {
+      generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+      rangeLabel: `${from} → ${to}`,
+      profitLoss,
+      dayBookByType: byType,
+    };
+  }
+
+  /** Product sales from sale_items of non-refunded sales in the date range. */
+  async productSalesReport(opts: {
+    dateFrom: string | null;
+    dateTo: string | null;
+  }): Promise<{
+    generatedAtLabel: string;
+    rows: {
+      product: string;
+      sku: string;
+      quantity: number;
+      salesValue: number;
+    }[];
+  }> {
+    let salesQuery = this.sb
+      .from('sales')
+      .select('id, converted_at, status')
+      .neq('status', 'REFUNDED');
+    if (opts.dateFrom) {
+      salesQuery = salesQuery.gte(
+        'converted_at',
+        businessDayStartIso(opts.dateFrom),
+      );
+    }
+    if (opts.dateTo) {
+      salesQuery = salesQuery.lt(
+        'converted_at',
+        businessDayEndExclusiveIso(opts.dateTo),
+      );
+    }
+    const { data: sales, error: salesErr } = await salesQuery.limit(2000);
+    if (salesErr) throwRpcError(salesErr, 'Could not load sales for product report');
+    const saleIds = ((sales ?? []) as Row[]).map((s) => str(s['id']));
+    if (saleIds.length === 0) {
+      return {
+        generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+        rows: [],
+      };
+    }
+    const { data: items, error: itemsErr } = await this.sb
+      .from('sale_items')
+      .select('sale_id, product_name, sku_code, sku_name, quantity, line_total')
+      .in('sale_id', saleIds);
+    if (itemsErr) throwRpcError(itemsErr, 'Could not load sale items');
+    const rows = aggregateProductSales(
+      ((items ?? []) as Row[]).map((item) => ({
+        product_name: str(item['product_name']) || null,
+        sku_code: str(item['sku_code']) || null,
+        sku_name: str(item['sku_name']) || null,
+        quantity: num(item['quantity']),
+        line_total: num(item['line_total']),
+      })),
+    );
+    return {
+      generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+      rows,
+    };
   }
 
   async calculateSalesmanPayroll(input: {

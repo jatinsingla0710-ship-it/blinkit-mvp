@@ -1,21 +1,114 @@
 .ga-rp-page {
   display: flex;
   flex-direction: column;
-  gap: var(--ga-space-2);
-  max-width: 1440px;
-}
-
-.ga-rp-page__main .ga-card__body {
-  padding-top: 0;
-}
-
-.ga-rp-page__panel {
-  padding-top: 16px;
+  gap: 16px;
+  max-width: 1100px;
 }
 
 .ga-rp-page__export-note {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: var(--ga-text-secondary);
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+}
+
+.ga-rp-hub {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.ga-rp-hub__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--ga-color-surface, #fff);
+}
+
+.ga-rp-hub__card:hover {
+  border-color: var(--ga-color-border-strong, #98a2b3);
+}
+
+.ga-rp-hub__card strong {
+  font-size: 1rem;
+}
+
+.ga-rp-hub__card span {
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+  line-height: 1.4;
+}
+
+.ga-rp-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px 20px;
+}
+
+.ga-rp-summary__label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ga-color-text-muted, #667085);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ga-rp-summary__value {
+  margin: 4px 0 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.ga-rp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.ga-rp-back {
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+  text-decoration: none;
+}
+
+.ga-rp-back:hover {
+  text-decoration: underline;
+}
+
+.ga-rp-disclaimer {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
   line-height: 1.45;
+}
+
+.ga-rp-pl {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ga-rp-pl__section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.ga-rp-pl__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--ga-color-border, #eaecf0);
+  font-size: 0.9375rem;
+}
+
+.ga-rp-pl__row--total {
+  font-weight: 700;
+  border-bottom: none;
+  padding-top: 0.75rem;
 }

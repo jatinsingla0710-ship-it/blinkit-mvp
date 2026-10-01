@@ -16,8 +16,8 @@ export function InventoryTable({ rows }: Props) {
     <Card title="Stock by Product" className="ga-inv-table-card">
       {rows.length === 0 ? (
         <EmptyState
-          title="No inventory found"
-          detail="Stock positions will appear here once warehouse balances exist."
+          title="No stock rows yet"
+          detail="Stock appears here after products have warehouse balances. Adjust stock from a product."
         />
       ) : (
         <div className="ga-table-wrap">

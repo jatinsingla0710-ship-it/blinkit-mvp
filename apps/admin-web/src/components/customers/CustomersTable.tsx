@@ -15,8 +15,8 @@ export function CustomersTable({ rows }: Props) {
     <Card title="Customers">
       {rows.length === 0 ? (
         <EmptyState
-          title="No customers"
-          detail="Retail shops will appear here."
+          title="No customers yet"
+          detail="Create your first customer to start taking orders."
         />
       ) : (
         <div className="ga-table-wrap">
@@ -26,9 +26,9 @@ export function CustomersTable({ rows }: Props) {
                 <th>Customer</th>
                 <th>Mobile</th>
                 <th>Area</th>
-                <th>Business Status</th>
-                <th>Last Order</th>
-                <th>Action</th>
+                <th>Status</th>
+                <th>Last order</th>
+                <th />
               </tr>
             </thead>
             <tbody>

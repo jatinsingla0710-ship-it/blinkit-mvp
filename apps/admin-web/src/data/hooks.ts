@@ -922,6 +922,81 @@ export function useDayBookSnapshotQuery(opts: {
   };
 }
 
+export function useOwnerFinancialOverviewQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'financial', 'owner-overview'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.ownerFinancialOverview();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useProfitLossQuery(opts: { dateFrom: string; dateTo: string }) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'financial', 'profit-loss', opts.dateFrom, opts.dateTo],
+    enabled: Boolean(client.liveApi && opts.dateFrom && opts.dateTo),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.profitLossSnapshot(opts);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useProductSalesReportQuery(opts: {
+  dateFrom: string | null;
+  dateTo: string | null;
+}) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: [
+      'groaurum',
+      'financial',
+      'product-sales',
+      opts.dateFrom ?? 'all',
+      opts.dateTo ?? 'all',
+    ],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.productSalesReport(opts);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
 export function useOrderDeliveryExtrasQuery(orderId: string | undefined) {
   const client = useAdminDataClient();
   const query = useQuery({

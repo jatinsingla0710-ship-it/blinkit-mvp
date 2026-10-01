@@ -140,6 +140,18 @@ export function DayBookPage() {
                 ))}
               </select>
             </label>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const todayDate = todayExpenseDate();
+                setDateFrom(todayDate);
+                setDateTo(todayDate);
+                setType('all');
+                setPaymentMethod('all');
+              }}
+            >
+              Reset filters
+            </Button>
           </div>
 
           <div className="ga-daybook__summary">

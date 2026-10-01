@@ -60,12 +60,12 @@ type OrderTab =
   | 'activity';
 
 const TABS: TabItem<OrderTab>[] = [
-  { id: 'overview', label: 'Order Summary' },
-  { id: 'items', label: 'Products' },
+  { id: 'overview', label: 'Summary' },
+  { id: 'items', label: 'Items' },
   { id: 'payment', label: 'Payment' },
   { id: 'delivery', label: 'Delivery' },
-  { id: 'invoice', label: 'Invoice' },
   { id: 'timeline', label: 'Timeline' },
+  { id: 'invoice', label: 'Invoice' },
   { id: 'activity', label: 'Activity' },
 ];
 
@@ -163,7 +163,7 @@ export function OrderDetailPage() {
       title="Order"
       state={state}
       emptyTitle="Order not found"
-      emptyDetail="Return to Orders and select an operations row."
+      emptyDetail="Return to Orders and select an order."
     >
       {(order) => {
         const assigned =
@@ -192,7 +192,7 @@ export function OrderDetailPage() {
           <div className="ga-ord-detail">
             <PageHeader
               title={order.orderCode}
-              subtitle={`${order.shopName ?? order.customerName} · ${order.salesmanName}`}
+              subtitle={`${order.shopName ?? order.customerName} · ${order.orderValueLabel}`}
               meta={
                 <span className="ga-ord-detail__meta">
                   <FulfillmentStatusBadge status={order.fulfillmentStatus} />
@@ -208,7 +208,7 @@ export function OrderDetailPage() {
                       Inv {order.invoiceNumber}
                     </span>
                   ) : null}
-                  <span>Updated {order.updatedAtLabel}</span>
+                  <span>Placed {order.placedAtLabel}</span>
                 </span>
               }
             />

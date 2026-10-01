@@ -39,14 +39,14 @@ type SalesmanTab =
 
 const TABS: TabItem<SalesmanTab>[] = [
   { id: 'profile', label: 'Overview' },
-  { id: 'work', label: 'Work' },
-  { id: 'attendance', label: 'Attendance' },
-  { id: 'visits', label: 'Visits' },
-  { id: 'orders', label: 'Orders' },
   { id: 'performance', label: 'Performance' },
   { id: 'earnings', label: 'Earnings' },
   { id: 'payroll', label: 'Payroll' },
   { id: 'claims', label: 'Claims' },
+  { id: 'work', label: 'Customers' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'attendance', label: 'Attendance' },
+  { id: 'visits', label: 'Visits' },
   { id: 'messages', label: 'Messages' },
 ];
 

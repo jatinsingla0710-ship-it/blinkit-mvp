@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
 import { CustomerAccountBusinessInfo } from '@/components/customers/account/CustomerAccountBusinessInfo';
-import { CustomerAccountCurrentActivity, CustomerAccountRecentOrders } from '@/components/customers/account/CustomerAccountOrders';
+import { CustomerAccountRecentOrders } from '@/components/customers/account/CustomerAccountOrders';
 import { CustomerAccountHeader } from '@/components/customers/account/CustomerAccountHeader';
 import { CustomerAccountNeedsAttention } from '@/components/customers/account/CustomerAccountNeedsAttention';
-import { CustomerAccountSalesSummary } from '@/components/customers/account/CustomerAccountSalesSummary';
 import { CustomerAccountSummaryCards } from '@/components/customers/account/CustomerAccountSummaryCards';
 import { CustomerAccountTimeline } from '@/components/customers/account/CustomerAccountTimeline';
 import { CustomerActivityTab } from '@/components/customers/CustomerActivityTab';
@@ -21,6 +20,11 @@ import { QueryStateGate } from '@/data/QueryStateGate';
 import { useCustomerDetailQuery } from '@/data/hooks';
 import './CustomerDetailPage.css';
 
+/**
+ * Customer detail — business relationship view.
+ * Hierarchy: Header → Money summary → Attention → Ledger → Recent activity → Details.
+ * Reuses Phase 3A ledger; no second balance source.
+ */
 export function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>();
   const [reassignOpen, setReassignOpen] = useState(false);
@@ -33,7 +37,7 @@ export function CustomerDetailPage() {
     <QueryStateGate
       title="Customer"
       state={state}
-      emptyTitle="Retailer not found"
+      emptyTitle="Customer not found"
       emptyDetail="Return to Customers and select a shop."
     >
       {(customer) => (
@@ -45,21 +49,27 @@ export function CustomerDetailPage() {
             onReassign={() => setReassignOpen(true)}
           />
 
-          <CustomerAccountNeedsAttention items={customer.attentionItems} />
-
           <CustomerAccountSummaryCards
             summary={customer.summary}
             shopName={customer.shopName}
+            totalSalesLabel={customer.ledger.totalSalesLabel}
+            totalPaidLabel={customer.ledger.totalPaidLabel}
+            outstandingLabel={customer.ledger.outstandingLabel}
+            outstanding={customer.ledger.outstanding}
           />
+
+          <CustomerAccountNeedsAttention items={customer.attentionItems} />
 
           <div className="ga-cust-account__layout">
             <div className="ga-cust-account__main">
               <Card
+                id="ledger"
                 title="Account ledger"
                 className="ga-cust-account-card"
               >
                 <p className="ga-cust-account__ledger-intro">
-                  Sales and payments for {customer.shopName}, newest first.
+                  Sales (debit) and payments (credit) for {customer.shopName},
+                  newest first.
                 </p>
                 <CustomerLedgerPanel
                   ledger={customer.ledger}
@@ -67,16 +77,12 @@ export function CustomerDetailPage() {
                 />
               </Card>
 
-              <CustomerAccountCurrentActivity
-                orders={customer.orders}
-                shopName={customer.shopName}
-              />
               <CustomerAccountRecentOrders
                 orders={customer.orders}
                 shopName={customer.shopName}
               />
 
-              <Card id="orders" title="All Orders" className="ga-cust-account-card">
+              <Card id="orders" title="All orders" className="ga-cust-account-card">
                 <CustomerOrdersTab rows={customer.orders} />
               </Card>
 
@@ -88,7 +94,7 @@ export function CustomerDetailPage() {
                 <CustomerAddressesTab rows={customer.addresses} />
               </Card>
 
-              <Card title="Activity Log" className="ga-cust-account-card">
+              <Card title="Activity" className="ga-cust-account-card">
                 <CustomerActivityTab rows={customer.activity} deferred />
               </Card>
 
@@ -100,10 +106,6 @@ export function CustomerDetailPage() {
             </div>
 
             <aside className="ga-cust-account__side">
-              <CustomerAccountSalesSummary
-                summary={customer.summary}
-                shopName={customer.shopName}
-              />
               <CustomerAccountBusinessInfo
                 customer={customer}
                 onEdit={() => setEditOpen(true)}

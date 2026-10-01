@@ -37,6 +37,23 @@
   gap: 0.4rem;
 }
 
+.ga-inv-list__reset {
+  border: 1px solid var(--ga-border);
+  background: #fff;
+  border-radius: var(--ga-radius-sm);
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ga-text-secondary);
+  cursor: pointer;
+}
+
+.ga-inv-list__reset:hover {
+  border-color: var(--ga-primary);
+  color: var(--ga-primary);
+}
+
 .ga-inv-list__chip {
   padding: 0.35rem 0.7rem;
   border: 1px solid var(--ga-border);

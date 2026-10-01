@@ -82,7 +82,7 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
     id: 'system',
     label: null,
     items: [
-      { id: 'reports', label: 'Reports', path: '/reports' },
+      { id: 'reports', label: 'Reports', path: '/reports', matchPrefixes: ['/reports'] },
       {
         id: 'settings',
         label: 'Settings',

@@ -39,7 +39,7 @@ export function OrdersTable({
       {rows.length === 0 ? (
         <EmptyState
           title="No matching orders"
-          detail="Try another workflow card or adjust your search."
+          detail="Try another search or clear filters to see all orders."
         />
       ) : (
         <>
@@ -49,11 +49,13 @@ export function OrdersTable({
                 <tr>
                   <th>Order</th>
                   <th>Customer</th>
-                  <th>Current Stage</th>
+                  <th>Amount</th>
+                  <th>Status</th>
                   <th>Payment</th>
                   <th>Delivery</th>
+                  <th>Date</th>
                   {showAttentionColumn ? <th>Attention</th> : null}
-                  <th>Next Action</th>
+                  <th>Next step</th>
                 </tr>
               </thead>
               <tbody>
@@ -75,8 +77,11 @@ export function OrdersTable({
                         </Link>
                       </td>
                       <td>
-                        <span className="ga-table__primary">{row.customerName}</span>
+                        <span className="ga-table__primary">
+                          {row.customerName}
+                        </span>
                       </td>
+                      <td>{row.orderValueLabel}</td>
                       <td>{fulfillmentStatusLabel(row.fulfillmentStatus)}</td>
                       <td>
                         <PaymentStatusBadge status={row.paymentStatus} />
@@ -84,6 +89,7 @@ export function OrdersTable({
                       <td>
                         <DeliveryStatusBadge status={row.deliveryStatus} />
                       </td>
+                      <td>{row.placedAtLabel}</td>
                       {showAttentionColumn ? (
                         <td>
                           {row.needsAttention ? (
@@ -94,7 +100,7 @@ export function OrdersTable({
                               {row.attentionReason ?? 'Needs attention'}
                             </span>
                           ) : (
-                            '-'
+                            '—'
                           )}
                         </td>
                       ) : null}
@@ -119,7 +125,7 @@ export function OrdersTable({
           </div>
           <div className="ga-orders-pager">
             <span>
-              Page {page} of {pageCount} - {total} orders
+              Page {page} of {pageCount} · {total} orders
             </span>
             <div className="ga-orders-pager__btns">
               <button

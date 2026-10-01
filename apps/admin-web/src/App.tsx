@@ -154,6 +154,46 @@ const DayBookPage = lazy(() =>
 const ReportsPage = lazy(() =>
   import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
+const ProfitLossPage = lazy(() =>
+  import('@/pages/reports/ProfitLossPage').then((m) => ({
+    default: m.ProfitLossPage,
+  })),
+);
+const SalesReportPage = lazy(() =>
+  import('@/pages/reports/SalesReportPage').then((m) => ({
+    default: m.SalesReportPage,
+  })),
+);
+const CollectionsReportPage = lazy(() =>
+  import('@/pages/reports/CollectionsReportPage').then((m) => ({
+    default: m.CollectionsReportPage,
+  })),
+);
+const OutstandingReportPage = lazy(() =>
+  import('@/pages/reports/OutstandingReportPage').then((m) => ({
+    default: m.OutstandingReportPage,
+  })),
+);
+const ExpenseReportPage = lazy(() =>
+  import('@/pages/reports/ExpenseReportPage').then((m) => ({
+    default: m.ExpenseReportPage,
+  })),
+);
+const PayrollReportPage = lazy(() =>
+  import('@/pages/reports/PayrollReportPage').then((m) => ({
+    default: m.PayrollReportPage,
+  })),
+);
+const ProductSalesReportPage = lazy(() =>
+  import('@/pages/reports/ProductSalesReportPage').then((m) => ({
+    default: m.ProductSalesReportPage,
+  })),
+);
+const SalesmanPerformanceReportPage = lazy(() =>
+  import('@/pages/reports/SalesmanPerformanceReportPage').then((m) => ({
+    default: m.SalesmanPerformanceReportPage,
+  })),
+);
 const SalesmanDetailPage = lazy(() =>
   import('@/pages/salesmen/SalesmanDetailPage').then((m) => ({
     default: m.SalesmanDetailPage,
@@ -289,6 +329,38 @@ export function AppRoutes() {
           element={guard('warehouses', <WarehousesListPage />)}
         />
         <Route path="reports" element={guard('reports', <ReportsPage />)} />
+        <Route
+          path="reports/profit-loss"
+          element={guard('reports', <ProfitLossPage />)}
+        />
+        <Route
+          path="reports/sales"
+          element={guard('reports', <SalesReportPage />)}
+        />
+        <Route
+          path="reports/collections"
+          element={guard('reports', <CollectionsReportPage />)}
+        />
+        <Route
+          path="reports/outstanding"
+          element={guard('reports', <OutstandingReportPage />)}
+        />
+        <Route
+          path="reports/expenses"
+          element={guard('reports', <ExpenseReportPage />)}
+        />
+        <Route
+          path="reports/payroll"
+          element={guard('reports', <PayrollReportPage />)}
+        />
+        <Route
+          path="reports/products"
+          element={guard('reports', <ProductSalesReportPage />)}
+        />
+        <Route
+          path="reports/salesmen"
+          element={guard('reports', <SalesmanPerformanceReportPage />)}
+        />
         <Route path="settings" element={guard('settings', <SettingsPage />)} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

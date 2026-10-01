@@ -40,6 +40,11 @@ export const ACCOUNTING_SECTION_LINKS = [
     description: 'Daily money in and out',
   },
   {
+    to: '/reports',
+    label: 'Reports',
+    description: 'Sales, P&L, and payroll',
+  },
+  {
     to: '/payments',
     label: 'Collections',
     description: 'Record and settle payments',

@@ -95,6 +95,7 @@ describe('Phase 1 Admin navigation', () => {
       '/receivables',
       '/expenses',
       '/day-book',
+      '/reports',
       '/payments',
     ]);
     expect(PRODUCTS_SECTION_LINKS.map((l) => l.to)).toEqual([

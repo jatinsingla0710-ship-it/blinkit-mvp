@@ -56,6 +56,31 @@
   white-space: nowrap;
 }
 
+.ga-receivables__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ga-receivables__label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ga-color-text-muted, #667085);
+}
+
+.ga-receivables__value {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .ga-receivables__summary {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ga-sr-only {
   position: absolute;
   width: 1px;
