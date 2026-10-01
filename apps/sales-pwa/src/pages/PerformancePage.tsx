@@ -21,6 +21,12 @@ export function PerformancePage() {
     enabled: Boolean(profileId),
   });
 
+  const payrollStatusQuery = useQuery({
+    queryKey: ['sales', 'payroll-status', profileId, data?.month ?? ''],
+    queryFn: () => api.getPayrollStatusForMonth(data?.month ?? null),
+    enabled: Boolean(profileId && data?.month),
+  });
+
   return (
     <div className="ga-sales-stack">
       <ScreenHeader
@@ -41,14 +47,31 @@ export function PerformancePage() {
         />
       ) : null}
 
-      {data ? <EarningsBody earnings={data} /> : null}
+      {data ? (
+        <EarningsBody
+          earnings={data}
+          payrollStatus={payrollStatusQuery.data ?? null}
+        />
+      ) : null}
     </div>
   );
 }
 
-function EarningsBody({ earnings }: { earnings: SalesmanEarnings }) {
+function EarningsBody({
+  earnings,
+  payrollStatus,
+}: {
+  earnings: SalesmanEarnings;
+  payrollStatus: 'DRAFT' | 'APPROVED' | 'PAID' | null;
+}) {
   return (
     <>
+      {payrollStatus === 'PAID' ? (
+        <p className="ga-sales-muted" role="status">
+          Paid — this month's payroll has been marked paid by the office.
+        </p>
+      ) : null}
+
       <section className="ga-sales-earnings-hero" aria-label="Earned commission">
         <p className="ga-sales-kpi__label">Earned commission</p>
         <p className="ga-sales-earnings-hero__value">{formatRupees(earnings.earnedCommission)}</p>
@@ -145,7 +168,10 @@ function EarningsBody({ earnings }: { earnings: SalesmanEarnings }) {
         )}
       </section>
 
-      <p className="ga-sales-muted">Payslip history is not available.</p>
+      <p className="ga-sales-muted">
+        Totals here use monthly salary and earned commission. Office payroll may
+        also include allowances and leave adjustments when paid.
+      </p>
     </>
   );
 }

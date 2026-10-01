@@ -1654,6 +1654,32 @@ export function createSupabaseSalesmanService(client: GroAurumSupabaseClient) {
       return parseSalesmanEarnings(data);
     },
 
+    /**
+     * Optional payroll status for the salesman's own month (RLS: own rows only).
+     * Does not change earnings totals — Admin payroll is the payment record.
+     */
+    async getPayrollStatusForMonth(
+      month?: string | null,
+    ): Promise<'DRAFT' | 'APPROVED' | 'PAID' | null> {
+      const profileId = await requireAuthUserId(client);
+      const now = new Date();
+      const monthStart = month
+        ? `${String(month).slice(0, 7)}-01`
+        : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const { data, error } = await client
+        .from('salesman_payroll')
+        .select('status')
+        .eq('salesman_profile_id', profileId)
+        .eq('payroll_month', monthStart)
+        .maybeSingle();
+      if (error) throw error;
+      const status = data?.status;
+      if (status === 'DRAFT' || status === 'APPROVED' || status === 'PAID') {
+        return status;
+      }
+      return null;
+    },
+
     async listExpenses(): Promise<SalesmanExpense[]> {
       const { data, error } = await client
         .from('salesman_expenses')

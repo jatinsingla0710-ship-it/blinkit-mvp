@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
 import { SalesmanReassignModal } from '@/components/customers/SalesmanReassignModal';
 import { SalesmanAttendanceTab } from '@/components/salesmen/SalesmanAttendanceTab';
 import { SalesmanOrdersTab } from '@/components/salesmen/SalesmanOrdersTab';
 import { SalesmanOverviewTab } from '@/components/salesmen/SalesmanOverviewTab';
 import { SalesmanPerformanceTab } from '@/components/salesmen/SalesmanPerformanceTab';
+import { SalesmanPayrollTab } from '@/components/salesmen/SalesmanPayrollTab';
 import { SalesmanSalaryTab } from '@/components/salesmen/SalesmanSalaryTab';
 import { SalesmanClaimsPanel } from '@/components/salesmen/SalesmanClaimsPanel';
 import { SalesmanMessagesPanel } from '@/components/salesmen/SalesmanMessagesPanel';
@@ -30,29 +31,54 @@ type SalesmanTab =
   | 'attendance'
   | 'visits'
   | 'orders'
-  | 'salary'
+  | 'earnings'
+  | 'payroll'
   | 'performance'
   | 'claims'
   | 'messages';
 
 const TABS: TabItem<SalesmanTab>[] = [
-  { id: 'profile', label: 'Profile' },
+  { id: 'profile', label: 'Overview' },
   { id: 'work', label: 'Work' },
   { id: 'attendance', label: 'Attendance' },
   { id: 'visits', label: 'Visits' },
   { id: 'orders', label: 'Orders' },
-  { id: 'salary', label: 'Salary' },
   { id: 'performance', label: 'Performance' },
+  { id: 'earnings', label: 'Earnings' },
+  { id: 'payroll', label: 'Payroll' },
   { id: 'claims', label: 'Claims' },
   { id: 'messages', label: 'Messages' },
 ];
+
+const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
+
+function parseTab(raw: string | null): SalesmanTab {
+  if (raw === 'salary') return 'earnings';
+  if (raw && TAB_IDS.has(raw)) return raw as SalesmanTab;
+  return 'profile';
+}
 
 /**
  * Salesman Management — field salesman detail (H2–H4).
  */
 export function SalesmanDetailPage() {
   const { salesmanId } = useParams<{ salesmanId: string }>();
-  const [tab, setTab] = useState<SalesmanTab>('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = useMemo(
+    () => parseTab(searchParams.get('tab')),
+    [searchParams],
+  );
+  const setTab = (next: SalesmanTab) => {
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (next === 'profile') p.delete('tab');
+        else p.set('tab', next);
+        return p;
+      },
+      { replace: true },
+    );
+  };
   const [reassignShopId, setReassignShopId] = useState<string | null>(null);
   const { state } = useSalesmanDetailQuery(salesmanId);
   const { hasPermission } = usePermissions();
@@ -94,6 +120,9 @@ export function SalesmanDetailPage() {
           <div className="ga-sm-detail__toolbar">
             <Link to="/salesmen" className="ga-sm-detail__back">
               ← Salesmen
+            </Link>
+            <Link to="/salesmen/payroll" className="ga-sm-detail__back">
+              Payroll overview
             </Link>
             <SalesmenQuickActions
               canManageCustomers={canManageCustomers}
@@ -144,13 +173,19 @@ export function SalesmanDetailPage() {
                   </p>
                 </>
               ) : null}
-              {tab === 'salary' ? (
+              {tab === 'earnings' ? (
                 <SalesmanSalaryTab
                   profileId={salesman.id}
                   earningModel={salesman.employment?.earningModel ?? 'SALARY'}
                   salaryMonth={salesman.salaryMonth}
                   currentSalary={salesman.currentSalary}
                   salaryHistory={salesman.salaryHistory}
+                  canManage={canManageSalesmen}
+                />
+              ) : null}
+              {tab === 'payroll' ? (
+                <SalesmanPayrollTab
+                  profileId={salesman.id}
                   canManage={canManageSalesmen}
                 />
               ) : null}

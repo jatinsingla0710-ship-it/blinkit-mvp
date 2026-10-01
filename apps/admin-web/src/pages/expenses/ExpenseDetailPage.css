@@ -1,0 +1,36 @@
+.ga-expense-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.ga-expense-detail__back {
+  text-decoration: none;
+  color: var(--ga-color-text-muted, #667085);
+}
+
+.ga-expense-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.ga-expense-detail__grid dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ga-color-text-muted, #667085);
+  text-transform: uppercase;
+}
+
+.ga-expense-detail__grid dd {
+  margin: 4px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ga-expense-detail__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+}

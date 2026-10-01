@@ -1,0 +1,147 @@
+.ga-sm-payroll {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ga-sm-payroll__month {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 220px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ga-sm-payroll__month input,
+.ga-sm-payroll__pay select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-border, #d0d5dd);
+  border-radius: var(--ga-radius-sm, 6px);
+  font: inherit;
+  font-weight: 500;
+}
+
+.ga-sm-payroll__heading {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ga-text);
+}
+
+.ga-sm-payroll__status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.ga-sm-payroll__status-row .ga-sm-payroll__heading {
+  margin: 0;
+}
+
+.ga-sm-payroll__badge {
+  display: inline-flex;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: var(--ga-surface-muted, #f2f4f7);
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-sm-payroll__badge--approved {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.ga-sm-payroll__badge--paid {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.ga-sm-payroll__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.ga-sm-payroll__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ga-text-muted);
+}
+
+.ga-sm-payroll__value {
+  margin: 8px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ga-text);
+}
+
+.ga-sm-payroll__value--total {
+  font-size: 22px;
+}
+
+.ga-sm-payroll__hint {
+  margin: 0.65rem 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ga-text-muted);
+}
+
+.ga-sm-payroll__form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ga-sm-payroll__select-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ga-sm-payroll__form,
+.ga-sm-payroll__pay {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm, 6px);
+}
+
+.ga-sm-payroll__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.ga-sm-payroll__error {
+  margin: 0;
+  color: var(--ga-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-sm-payroll__ok {
+  margin: 0;
+  color: var(--ga-success, #027a48);
+  font-size: 0.875rem;
+}
+
+.ga-sm-payroll__row--active {
+  background: var(--ga-surface-muted, #f9fafb);
+}
+
+.ga-sm-payroll table tbody tr {
+  cursor: pointer;
+}

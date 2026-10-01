@@ -4,6 +4,7 @@
  */
 
 import type { CustomerDigitalAccessVm } from '@/data/customer-digital-access';
+import type { CustomerLedgerVm } from '@/data/customer-ledger';
 
 export type CustomerAccountStatus = 'active' | 'inactive';
 
@@ -183,6 +184,8 @@ export interface CustomerDetail {
   updatedAtLabel: string;
   health: CustomerHealth;
   summary: CustomerAccountSummary;
+  /** Derived ledger from orders + payments (no separate journal table). */
+  ledger: CustomerLedgerVm;
   attentionItems: CustomerAttentionItem[];
   timeline: CustomerTimelineEvent[];
   activation: ActivationStage[];

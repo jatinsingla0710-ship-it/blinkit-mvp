@@ -49,6 +49,32 @@ import {
   buildCustomerTimeline,
 } from '../customer-account-dashboard';
 import {
+  buildCustomerLedger,
+  buildReceivablesSnapshot,
+  type ReceivablesSnapshot,
+} from '../customer-ledger';
+import {
+  buildCompanyExpensesSnapshot,
+  mapCompanyExpenseRow,
+  type CompanyExpenseInput,
+  type CompanyExpenseRow,
+  type CompanyExpensesSnapshot,
+} from '../company-expenses';
+import {
+  buildDayBookSnapshot,
+  type DayBookEntryType,
+  type DayBookSnapshot,
+} from '../day-book';
+import {
+  buildPayrollMonthSummary,
+  mapPayrollRow,
+  PAYROLL_PAYMENT_METHOD_LABELS,
+  payrollMonthStart,
+  type PayrollMonthSummary,
+  type PayrollPaymentMethod,
+  type PayrollRow,
+} from '../salesman-payroll';
+import {
   buildInventoryOverview,
   formatAvailableStockLabel,
   formatPackagingLabel,
@@ -2592,7 +2618,9 @@ export class LiveAdminApi {
     const { data: allPaymentsData } = allOrderIds.length
       ? await this.sb
           .from('payments')
-          .select('order_id, status, amount')
+          .select(
+            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+          )
           .in('order_id', allOrderIds)
       : { data: [] as Row[] };
 
@@ -2601,12 +2629,32 @@ export class LiveAdminApi {
       status: str(o['status']),
       total: num(o['total']),
       created_at: str(o['created_at']),
+      order_code: shortCode(str(o['id']), 'GA'),
     }));
-    const paymentAggregates = ((allPaymentsData ?? []) as Row[]).map((p) => ({
-      order_id: str(p['order_id']),
-      status: str(p['status']),
-      amount: num(p['amount']),
-    }));
+    const paymentAggregates = ((allPaymentsData ?? []) as Row[]).map((p) => {
+      const collectionMethod = p['collection_method']
+        ? str(p['collection_method'])
+        : '';
+      const methodIntent = p['method_intent'] ? str(p['method_intent']) : '';
+      const methodLabel = collectionMethod
+        ? collectionMethodLabel(collectionMethod)
+        : methodIntent === 'PAY_ONLINE_NOW'
+          ? 'Online'
+          : methodIntent === 'PAY_ON_DELIVERY'
+            ? 'Pay on delivery'
+            : null;
+      return {
+        id: str(p['id']),
+        order_id: str(p['order_id']),
+        status: str(p['status']),
+        amount: num(p['amount']),
+        cash_collected_amount: num(p['cash_collected_amount']),
+        online_collected_amount: num(p['online_collected_amount']),
+        paid_at: p['paid_at'] ? str(p['paid_at']) : null,
+        created_at: p['created_at'] ? str(p['created_at']) : null,
+        method_label: methodLabel,
+      };
+    });
 
     const attentionItems = buildCustomerAttentionItems(customerOrders);
     const summary = attachAttentionCount(
@@ -2616,6 +2664,10 @@ export class LiveAdminApi {
       }),
       attentionItems,
     );
+    const ledger = buildCustomerLedger({
+      orders: orderAggregates,
+      payments: paymentAggregates,
+    });
 
     const location = mapShopLocation({
       delivery_lat: s['delivery_lat'],
@@ -2668,6 +2720,7 @@ export class LiveAdminApi {
           : 'UNKNOWN',
       },
       summary,
+      ledger,
       attentionItems,
       timeline: [],
       activation,
@@ -2682,6 +2735,668 @@ export class LiveAdminApi {
       ...detail,
       timeline: buildCustomerTimeline(detail),
     };
+  }
+
+  /**
+   * Customer receivables derived from orders ⨝ payments residual.
+   * No separate ledger / balance table.
+   */
+  async receivablesSnapshot(): Promise<ReceivablesSnapshot> {
+    const { data: shops } = await this.sb
+      .from('shops')
+      .select('id, trade_name, service_area_id')
+      .is('deleted_at', null);
+
+    if (!shops?.length) {
+      return buildReceivablesSnapshot({
+        generatedAtIso: new Date().toISOString(),
+        customers: [],
+      });
+    }
+
+    const shopRows = shops as unknown as Row[];
+    const shopIds = shopRows.map((s) => str(s['id']));
+
+    const { data: contacts } = await this.sb
+      .from('shop_contacts')
+      .select('shop_id, mobile, is_primary')
+      .in('shop_id', shopIds);
+    const phoneMap = new Map<string, string>();
+    for (const c of (contacts ?? []) as Row[]) {
+      if (c['is_primary'] === true) {
+        phoneMap.set(str(c['shop_id']), str(c['mobile']));
+      }
+    }
+
+    const { data: areas } = await this.sb.from('service_areas').select('id, name');
+    const areaMap = new Map(
+      (areas ?? []).map((a) => [
+        str((a as unknown as Row)['id']),
+        str((a as unknown as Row)['name']),
+      ]),
+    );
+
+    const { data: ordersData } = await this.sb
+      .from('orders')
+      .select('id, shop_id, status, total, created_at')
+      .in('shop_id', shopIds);
+
+    const orderRows = ((ordersData ?? []) as Row[]).filter(
+      (o) => str(o['status']) !== 'CANCELLED',
+    );
+    const orderIds = orderRows.map((o) => str(o['id']));
+
+    const { data: paymentsData } = orderIds.length
+      ? await this.sb
+          .from('payments')
+          .select(
+            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+          )
+          .in('order_id', orderIds)
+      : { data: [] as Row[] };
+
+    const paymentsByShop = new Map<
+      string,
+      {
+        orders: {
+          id: string;
+          status: string;
+          total: number;
+          created_at: string;
+          order_code: string;
+        }[];
+        payments: {
+          id: string;
+          order_id: string;
+          status: string;
+          amount: number;
+          cash_collected_amount: number;
+          online_collected_amount: number;
+          paid_at: string | null;
+          created_at: string | null;
+          method_label: string | null;
+        }[];
+      }
+    >();
+
+    for (const sid of shopIds) {
+      paymentsByShop.set(sid, { orders: [], payments: [] });
+    }
+
+    const orderShop = new Map<string, string>();
+    for (const o of orderRows) {
+      const oid = str(o['id']);
+      const sid = str(o['shop_id']);
+      orderShop.set(oid, sid);
+      const bucket = paymentsByShop.get(sid);
+      if (!bucket) continue;
+      bucket.orders.push({
+        id: oid,
+        status: str(o['status']),
+        total: num(o['total']),
+        created_at: str(o['created_at']),
+        order_code: shortCode(oid, 'GA'),
+      });
+    }
+
+    for (const p of (paymentsData ?? []) as Row[]) {
+      const oid = str(p['order_id']);
+      const sid = orderShop.get(oid);
+      if (!sid) continue;
+      const bucket = paymentsByShop.get(sid);
+      if (!bucket) continue;
+      const collectionMethod = p['collection_method']
+        ? str(p['collection_method'])
+        : '';
+      const methodIntent = p['method_intent'] ? str(p['method_intent']) : '';
+      bucket.payments.push({
+        id: str(p['id']),
+        order_id: oid,
+        status: str(p['status']),
+        amount: num(p['amount']),
+        cash_collected_amount: num(p['cash_collected_amount']),
+        online_collected_amount: num(p['online_collected_amount']),
+        paid_at: p['paid_at'] ? str(p['paid_at']) : null,
+        created_at: p['created_at'] ? str(p['created_at']) : null,
+        method_label: collectionMethod
+          ? collectionMethodLabel(collectionMethod)
+          : methodIntent === 'PAY_ONLINE_NOW'
+            ? 'Online'
+            : methodIntent === 'PAY_ON_DELIVERY'
+              ? 'Pay on delivery'
+              : null,
+      });
+    }
+
+    return buildReceivablesSnapshot({
+      generatedAtIso: new Date().toISOString(),
+      customers: shopRows.map((s) => {
+        const sid = str(s['id']);
+        const bucket = paymentsByShop.get(sid) ?? { orders: [], payments: [] };
+        return {
+          customerId: sid,
+          shopName: str(s['trade_name']),
+          phoneLabel: phoneMap.get(sid) ?? '—',
+          areaLabel: areaMap.get(str(s['service_area_id'])) ?? '—',
+          orders: bucket.orders,
+          payments: bucket.payments,
+        };
+      }),
+    });
+  }
+
+  async companyExpensesSnapshot(): Promise<CompanyExpensesSnapshot> {
+    const { data, error } = await this.sb
+      .from('company_expenses')
+      .select('*')
+      .order('expense_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load expenses');
+    const rows = ((data ?? []) as Row[]).map((row) =>
+      mapCompanyExpenseRow({
+        id: str(row['id']),
+        expense_date: str(row['expense_date']),
+        category: str(row['category']),
+        amount: num(row['amount']),
+        description: str(row['description']),
+        payment_method: str(row['payment_method']),
+        reference_number: row['reference_number']
+          ? str(row['reference_number'])
+          : null,
+        receipt_path: row['receipt_path'] ? str(row['receipt_path']) : null,
+        created_at: str(row['created_at']),
+        updated_at: str(row['updated_at']),
+      }),
+    );
+    return buildCompanyExpensesSnapshot({
+      generatedAtIso: new Date().toISOString(),
+      rows,
+    });
+  }
+
+  async companyExpenseDetail(id: string): Promise<CompanyExpenseRow | null> {
+    const { data, error } = await this.sb
+      .from('company_expenses')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throwRpcError(error, 'Could not load expense');
+    if (!data) return null;
+    const row = data as unknown as Row;
+    return mapCompanyExpenseRow({
+      id: str(row['id']),
+      expense_date: str(row['expense_date']),
+      category: str(row['category']),
+      amount: num(row['amount']),
+      description: str(row['description']),
+      payment_method: str(row['payment_method']),
+      reference_number: row['reference_number']
+        ? str(row['reference_number'])
+        : null,
+      receipt_path: row['receipt_path'] ? str(row['receipt_path']) : null,
+      created_at: str(row['created_at']),
+      updated_at: str(row['updated_at']),
+    });
+  }
+
+  async createCompanyExpense(input: CompanyExpenseInput): Promise<CompanyExpenseRow> {
+    const { data, error } = await this.sb.rpc('admin_create_company_expense', {
+      p_expense_date: input.expenseDate,
+      p_category: input.category,
+      p_amount: input.amount,
+      p_description: input.description.trim(),
+      p_payment_method: input.paymentMethod,
+      p_reference_number: input.referenceNumber?.trim() || null,
+      p_receipt_path: input.receiptPath?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not save expense');
+    const row = data as unknown as Row;
+    return mapCompanyExpenseRow({
+      id: str(row['id']),
+      expense_date: str(row['expense_date']),
+      category: str(row['category']),
+      amount: num(row['amount']),
+      description: str(row['description']),
+      payment_method: str(row['payment_method']),
+      reference_number: row['reference_number']
+        ? str(row['reference_number'])
+        : null,
+      receipt_path: row['receipt_path'] ? str(row['receipt_path']) : null,
+      created_at: str(row['created_at']),
+      updated_at: str(row['updated_at']),
+    });
+  }
+
+  async updateCompanyExpense(
+    id: string,
+    input: CompanyExpenseInput,
+  ): Promise<CompanyExpenseRow> {
+    const { data, error } = await this.sb.rpc('admin_update_company_expense', {
+      p_expense_id: id,
+      p_expense_date: input.expenseDate,
+      p_category: input.category,
+      p_amount: input.amount,
+      p_description: input.description.trim(),
+      p_payment_method: input.paymentMethod,
+      p_reference_number: input.referenceNumber?.trim() || null,
+      p_receipt_path: input.receiptPath?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not update expense');
+    const row = data as unknown as Row;
+    return mapCompanyExpenseRow({
+      id: str(row['id']),
+      expense_date: str(row['expense_date']),
+      category: str(row['category']),
+      amount: num(row['amount']),
+      description: str(row['description']),
+      payment_method: str(row['payment_method']),
+      reference_number: row['reference_number']
+        ? str(row['reference_number'])
+        : null,
+      receipt_path: row['receipt_path'] ? str(row['receipt_path']) : null,
+      created_at: str(row['created_at']),
+      updated_at: str(row['updated_at']),
+    });
+  }
+
+  async deleteCompanyExpense(id: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_delete_company_expense', {
+      p_expense_id: id,
+    });
+    if (error) throwRpcError(error, 'Could not delete expense');
+  }
+
+  async dayBookSnapshot(opts: {
+    dateFrom: string;
+    dateTo: string;
+    type?: DayBookEntryType | 'all';
+    paymentMethod?: string;
+  }): Promise<DayBookSnapshot> {
+    const fromTs = `${opts.dateFrom}T00:00:00+05:30`;
+    const toTs = `${opts.dateTo}T23:59:59.999+05:30`;
+
+    const [ordersRes, paymentsByPaid, paymentsByCreated, expensesRes, payrollRes] =
+      await Promise.all([
+        this.sb
+          .from('orders')
+          .select('id, shop_id, status, total, created_at')
+          .gte('created_at', fromTs)
+          .lte('created_at', toTs),
+        this.sb
+          .from('payments')
+          .select(
+            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+          )
+          .gte('paid_at', fromTs)
+          .lte('paid_at', toTs),
+        this.sb
+          .from('payments')
+          .select(
+            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+          )
+          .gte('created_at', fromTs)
+          .lte('created_at', toTs),
+        this.sb
+          .from('company_expenses')
+          .select('*')
+          .gte('expense_date', opts.dateFrom)
+          .lte('expense_date', opts.dateTo),
+        this.sb
+          .from('salesman_payroll')
+          .select(
+            'id, salesman_profile_id, payroll_month, total_amount, paid_at, payment_method, status',
+          )
+          .eq('status', 'PAID')
+          .gte('paid_at', fromTs)
+          .lte('paid_at', toTs),
+      ]);
+
+    if (ordersRes.error) throwRpcError(ordersRes.error, 'Could not load day book sales');
+    if (paymentsByPaid.error) {
+      throwRpcError(paymentsByPaid.error, 'Could not load day book collections');
+    }
+    if (paymentsByCreated.error) {
+      throwRpcError(paymentsByCreated.error, 'Could not load day book collections');
+    }
+    if (expensesRes.error) {
+      throwRpcError(expensesRes.error, 'Could not load day book expenses');
+    }
+    if (payrollRes.error) {
+      throwRpcError(payrollRes.error, 'Could not load day book payroll');
+    }
+
+    const paymentMap = new Map<string, Row>();
+    for (const p of [
+      ...((paymentsByPaid.data ?? []) as Row[]),
+      ...((paymentsByCreated.data ?? []) as Row[]),
+    ]) {
+      paymentMap.set(str(p['id']), p);
+    }
+    const paymentRows = [...paymentMap.values()];
+
+    const orderMap = new Map<string, Row>();
+    for (const o of (ordersRes.data ?? []) as Row[]) {
+      orderMap.set(str(o['id']), o);
+    }
+    const missingOrderIds = paymentRows
+      .map((p) => str(p['order_id']))
+      .filter((id) => !orderMap.has(id));
+    if (missingOrderIds.length) {
+      const { data: extraOrders, error: extraErr } = await this.sb
+        .from('orders')
+        .select('id, shop_id, status, total, created_at')
+        .in('id', missingOrderIds);
+      if (extraErr) throwRpcError(extraErr, 'Could not load day book orders');
+      for (const o of (extraOrders ?? []) as Row[]) {
+        orderMap.set(str(o['id']), o);
+      }
+    }
+
+    const allOrders = [...orderMap.values()];
+    const allOrderIds = allOrders.map((o) => str(o['id']));
+
+    // Prefer full payment rows for those orders so residual/paid logic is complete.
+    const { data: paymentsData, error: paymentsError } = allOrderIds.length
+      ? await this.sb
+          .from('payments')
+          .select(
+            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+          )
+          .in('order_id', allOrderIds)
+      : { data: [] as Row[], error: null };
+    if (paymentsError) throwRpcError(paymentsError, 'Could not load day book payments');
+
+    const shopIds = [...new Set(allOrders.map((o) => str(o['shop_id'])))];
+    const { data: shops } = shopIds.length
+      ? await this.sb.from('shops').select('id, trade_name').in('id', shopIds)
+      : { data: [] as Row[] };
+    const shopMap = new Map(
+      ((shops ?? []) as Row[]).map((s) => [str(s['id']), str(s['trade_name'])]),
+    );
+
+    const expenses = ((expensesRes.data ?? []) as Row[]).map((row) =>
+      mapCompanyExpenseRow({
+        id: str(row['id']),
+        expense_date: str(row['expense_date']),
+        category: str(row['category']),
+        amount: num(row['amount']),
+        description: str(row['description']),
+        payment_method: str(row['payment_method']),
+        reference_number: row['reference_number']
+          ? str(row['reference_number'])
+          : null,
+        receipt_path: row['receipt_path'] ? str(row['receipt_path']) : null,
+        created_at: str(row['created_at']),
+        updated_at: str(row['updated_at']),
+      }),
+    );
+
+    const payments = ((paymentsData ?? []) as Row[]).map((p) => {
+      const collectionMethod = p['collection_method']
+        ? str(p['collection_method'])
+        : '';
+      const methodIntent = p['method_intent'] ? str(p['method_intent']) : '';
+      return {
+        id: str(p['id']),
+        order_id: str(p['order_id']),
+        status: str(p['status']),
+        amount: num(p['amount']),
+        cash_collected_amount: num(p['cash_collected_amount']),
+        online_collected_amount: num(p['online_collected_amount']),
+        paid_at: p['paid_at'] ? str(p['paid_at']) : null,
+        created_at: p['created_at'] ? str(p['created_at']) : null,
+        method_label: collectionMethod
+          ? collectionMethodLabel(collectionMethod)
+          : methodIntent === 'PAY_ONLINE_NOW'
+            ? 'Online'
+            : methodIntent === 'PAY_ON_DELIVERY'
+              ? 'Pay on delivery'
+              : null,
+      };
+    });
+
+    const payrollRows = (payrollRes.data ?? []) as Row[];
+    const payrollSalesmanIds = [
+      ...new Set(payrollRows.map((r) => str(r['salesman_profile_id']))),
+    ];
+    const { data: payrollProfiles } = payrollSalesmanIds.length
+      ? await this.sb
+          .from('profiles')
+          .select('id, display_name')
+          .in('id', payrollSalesmanIds)
+      : { data: [] as Row[] };
+    const payrollNameMap = new Map(
+      ((payrollProfiles ?? []) as Row[]).map((p) => [
+        str(p['id']),
+        str(p['display_name']),
+      ]),
+    );
+    const paidPayroll = payrollRows.map((row) => {
+      const method = row['payment_method'] ? str(row['payment_method']) : 'OTHER';
+      return {
+        id: str(row['id']),
+        salesmanId: str(row['salesman_profile_id']),
+        salesmanName:
+          payrollNameMap.get(str(row['salesman_profile_id'])) ?? 'Salesman',
+        payrollMonth: str(row['payroll_month']),
+        totalAmount: num(row['total_amount']),
+        paidAt: str(row['paid_at']),
+        paymentMethodLabel:
+          PAYROLL_PAYMENT_METHOD_LABELS[
+            method as keyof typeof PAYROLL_PAYMENT_METHOD_LABELS
+          ] ?? method,
+      };
+    });
+
+    return buildDayBookSnapshot({
+      generatedAtIso: new Date().toISOString(),
+      dateFrom: opts.dateFrom,
+      dateTo: opts.dateTo,
+      type: opts.type,
+      paymentMethod: opts.paymentMethod,
+      orders: allOrders.map((o) => ({
+        id: str(o['id']),
+        status: str(o['status']),
+        total: num(o['total']),
+        created_at: str(o['created_at']),
+        order_code: shortCode(str(o['id']), 'GA'),
+        shop_name: shopMap.get(str(o['shop_id'])) ?? 'Customer',
+      })),
+      payments,
+      expenses,
+      paidPayroll,
+    });
+  }
+
+  async payrollMonthSnapshot(month: string): Promise<PayrollMonthSummary> {
+    const monthStart = payrollMonthStart(month);
+    const { data, error } = await this.sb
+      .from('salesman_payroll')
+      .select('*')
+      .eq('payroll_month', monthStart)
+      .order('updated_at', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load payroll');
+    const rows = (data ?? []) as Row[];
+    const ids = [...new Set(rows.map((r) => str(r['salesman_profile_id'])))];
+    const { data: profiles } = ids.length
+      ? await this.sb.from('profiles').select('id, display_name').in('id', ids)
+      : { data: [] as Row[] };
+    const nameMap = new Map(
+      ((profiles ?? []) as Row[]).map((p) => [
+        str(p['id']),
+        str(p['display_name']),
+      ]),
+    );
+    return buildPayrollMonthSummary({
+      month: monthStart,
+      rows: rows.map((row) =>
+        mapPayrollRow({
+          id: str(row['id']),
+          salesman_profile_id: str(row['salesman_profile_id']),
+          salesman_name: nameMap.get(str(row['salesman_profile_id'])),
+          payroll_month: str(row['payroll_month']),
+          earning_model: str(row['earning_model']),
+          base_salary: num(row['base_salary']),
+          unpaid_leave_days: num(row['unpaid_leave_days']),
+          unpaid_deduction: num(row['unpaid_deduction']),
+          earned_commission: num(row['earned_commission']),
+          daily_allowance: num(row['daily_allowance']),
+          other_allowance: num(row['other_allowance']),
+          adjustments: num(row['adjustments']),
+          total_amount: num(row['total_amount']),
+          status: str(row['status']),
+          paid_at: row['paid_at'] ? str(row['paid_at']) : null,
+          payment_method: row['payment_method']
+            ? str(row['payment_method'])
+            : null,
+          payment_reference: row['payment_reference']
+            ? str(row['payment_reference'])
+            : null,
+          notes: row['notes'] ? str(row['notes']) : null,
+          calculated_at: str(row['calculated_at']),
+        }),
+      ),
+    });
+  }
+
+  async listSalesmanPayroll(salesmanId: string): Promise<PayrollRow[]> {
+    const { data, error } = await this.sb
+      .from('salesman_payroll')
+      .select('*')
+      .eq('salesman_profile_id', salesmanId)
+      .order('payroll_month', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load salesman payroll');
+    const { data: profile } = await this.sb
+      .from('profiles')
+      .select('display_name')
+      .eq('id', salesmanId)
+      .maybeSingle();
+    const name = profile?.display_name ? str(profile.display_name) : 'Salesman';
+    return ((data ?? []) as Row[]).map((row) =>
+      mapPayrollRow({
+        id: str(row['id']),
+        salesman_profile_id: str(row['salesman_profile_id']),
+        salesman_name: name,
+        payroll_month: str(row['payroll_month']),
+        earning_model: str(row['earning_model']),
+        base_salary: num(row['base_salary']),
+        unpaid_leave_days: num(row['unpaid_leave_days']),
+        unpaid_deduction: num(row['unpaid_deduction']),
+        earned_commission: num(row['earned_commission']),
+        daily_allowance: num(row['daily_allowance']),
+        other_allowance: num(row['other_allowance']),
+        adjustments: num(row['adjustments']),
+        total_amount: num(row['total_amount']),
+        status: str(row['status']),
+        paid_at: row['paid_at'] ? str(row['paid_at']) : null,
+        payment_method: row['payment_method']
+          ? str(row['payment_method'])
+          : null,
+        payment_reference: row['payment_reference']
+          ? str(row['payment_reference'])
+          : null,
+        notes: row['notes'] ? str(row['notes']) : null,
+        calculated_at: str(row['calculated_at']),
+      }),
+    );
+  }
+
+  async calculateSalesmanPayroll(input: {
+    salesmanId: string;
+    month: string;
+    adjustments?: number;
+    notes?: string | null;
+  }): Promise<PayrollRow> {
+    const { data, error } = await this.sb.rpc('admin_calculate_salesman_payroll', {
+      p_salesman_profile_id: input.salesmanId,
+      p_month: payrollMonthStart(input.month),
+      p_adjustments: input.adjustments ?? 0,
+      p_notes: input.notes ?? null,
+    });
+    if (error) throwRpcError(error, 'Could not calculate payroll');
+    return this.mapPayrollRpcRow(data as unknown as Row, input.salesmanId);
+  }
+
+  async approveSalesmanPayroll(payrollId: string): Promise<PayrollRow> {
+    const { data, error } = await this.sb.rpc('admin_approve_salesman_payroll', {
+      p_payroll_id: payrollId,
+    });
+    if (error) throwRpcError(error, 'Could not approve payroll');
+    const row = data as unknown as Row;
+    return this.mapPayrollRpcRow(row, str(row['salesman_profile_id']));
+  }
+
+  async markSalesmanPayrollPaid(input: {
+    payrollId: string;
+    paymentMethod: PayrollPaymentMethod;
+    paymentReference?: string | null;
+  }): Promise<PayrollRow> {
+    const { data, error } = await this.sb.rpc(
+      'admin_mark_salesman_payroll_paid',
+      {
+        p_payroll_id: input.payrollId,
+        p_payment_method: input.paymentMethod,
+        p_payment_reference: input.paymentReference ?? null,
+        p_paid_at: null,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not mark payroll paid');
+    const row = data as unknown as Row;
+    return this.mapPayrollRpcRow(row, str(row['salesman_profile_id']));
+  }
+
+  async setSalesmanPayrollAdjustments(input: {
+    payrollId: string;
+    adjustments: number;
+    notes?: string | null;
+  }): Promise<PayrollRow> {
+    const { data, error } = await this.sb.rpc(
+      'admin_set_salesman_payroll_adjustments',
+      {
+        p_payroll_id: input.payrollId,
+        p_adjustments: input.adjustments,
+        p_notes: input.notes ?? null,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not update payroll adjustments');
+    const row = data as unknown as Row;
+    return this.mapPayrollRpcRow(row, str(row['salesman_profile_id']));
+  }
+
+  private async mapPayrollRpcRow(
+    row: Row,
+    salesmanId: string,
+  ): Promise<PayrollRow> {
+    const { data: profile } = await this.sb
+      .from('profiles')
+      .select('display_name')
+      .eq('id', salesmanId)
+      .maybeSingle();
+    return mapPayrollRow({
+      id: str(row['id']),
+      salesman_profile_id: str(row['salesman_profile_id']),
+      salesman_name: profile?.display_name
+        ? str(profile.display_name)
+        : 'Salesman',
+      payroll_month: str(row['payroll_month']),
+      earning_model: str(row['earning_model']),
+      base_salary: num(row['base_salary']),
+      unpaid_leave_days: num(row['unpaid_leave_days']),
+      unpaid_deduction: num(row['unpaid_deduction']),
+      earned_commission: num(row['earned_commission']),
+      daily_allowance: num(row['daily_allowance']),
+      other_allowance: num(row['other_allowance']),
+      adjustments: num(row['adjustments']),
+      total_amount: num(row['total_amount']),
+      status: str(row['status']),
+      paid_at: row['paid_at'] ? str(row['paid_at']) : null,
+      payment_method: row['payment_method'] ? str(row['payment_method']) : null,
+      payment_reference: row['payment_reference']
+        ? str(row['payment_reference'])
+        : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      calculated_at: str(row['calculated_at']),
+    });
   }
 
   /**

@@ -131,6 +131,26 @@ const PaymentsPage = lazy(() =>
     default: m.PaymentsPage,
   })),
 );
+const ReceivablesPage = lazy(() =>
+  import('@/pages/receivables/ReceivablesPage').then((m) => ({
+    default: m.ReceivablesPage,
+  })),
+);
+const ExpensesPage = lazy(() =>
+  import('@/pages/expenses/ExpensesPage').then((m) => ({
+    default: m.ExpensesPage,
+  })),
+);
+const ExpenseDetailPage = lazy(() =>
+  import('@/pages/expenses/ExpenseDetailPage').then((m) => ({
+    default: m.ExpenseDetailPage,
+  })),
+);
+const DayBookPage = lazy(() =>
+  import('@/pages/day-book/DayBookPage').then((m) => ({
+    default: m.DayBookPage,
+  })),
+);
 const ReportsPage = lazy(() =>
   import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
@@ -142,6 +162,11 @@ const SalesmanDetailPage = lazy(() =>
 const SalesmenListPage = lazy(() =>
   import('@/pages/salesmen/SalesmenListPage').then((m) => ({
     default: m.SalesmenListPage,
+  })),
+);
+const SalesmenPayrollPage = lazy(() =>
+  import('@/pages/salesmen/SalesmenPayrollPage').then((m) => ({
+    default: m.SalesmenPayrollPage,
   })),
 );
 
@@ -217,6 +242,10 @@ export function AppRoutes() {
           element={guard('salesmen', <SalesmenListPage />)}
         />
         <Route
+          path="salesmen/payroll"
+          element={guard('salesmen', <SalesmenPayrollPage />)}
+        />
+        <Route
           path="salesmen/:salesmanId"
           element={guard('salesmen', <SalesmanDetailPage />)}
         />
@@ -241,6 +270,16 @@ export function AppRoutes() {
           element={guard('delivery', <DeliveryDetailPage />)}
         />
         <Route path="payments" element={guard('payments', <PaymentsPage />)} />
+        <Route
+          path="receivables"
+          element={guard('payments', <ReceivablesPage />)}
+        />
+        <Route path="expenses" element={guard('payments', <ExpensesPage />)} />
+        <Route
+          path="expenses/:expenseId"
+          element={guard('payments', <ExpenseDetailPage />)}
+        />
+        <Route path="day-book" element={guard('payments', <DayBookPage />)} />
         <Route
           path="service-areas"
           element={guard('service_areas', <ServiceAreasListPage />)}

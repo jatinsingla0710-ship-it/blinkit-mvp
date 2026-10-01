@@ -112,7 +112,7 @@ describe('My Earnings', () => {
     const html = render();
     expect(html).toContain('No commission earned this month.');
     expect(html).toContain('No orders are waiting.');
-    expect(html).toContain('Payslip history is not available.');
+    expect(html).toContain('Office payroll may');
     expect(html).not.toContain('Estimated');
   });
 
@@ -131,6 +131,6 @@ describe('My Earnings', () => {
     expect(awaiting).toContain('Commission not earned');
     expect(awaiting).not.toContain(formatRupees(80));
     expect(html).toContain('Gupta Traders');
-    expect(html).toContain('Payslip history is not available.');
+    expect(html).toContain('Office payroll may');
   });
 });

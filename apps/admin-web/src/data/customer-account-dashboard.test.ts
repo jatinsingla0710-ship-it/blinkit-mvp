@@ -47,6 +47,30 @@ describe('customer account dashboard', () => {
     expect(summary.currentOrders).toBe(1);
     expect(summary.completedSalesCount).toBe(1);
     expect(summary.totalSalesLabel).toContain('1,000');
+    expect(summary.outstandingLabel).toContain('1,500');
+  });
+
+  it('uses residual collected amounts for outstanding, not unpaid payment.amount', () => {
+    const summary = buildCustomerAccountSummary({
+      orders: [
+        {
+          id: '1',
+          status: 'DELIVERED',
+          total: 5000,
+          created_at: '2026-07-01T10:00:00.000Z',
+        },
+      ],
+      payments: [
+        {
+          order_id: '1',
+          status: 'PAYMENT_PENDING',
+          amount: 5000,
+          cash_collected_amount: 2000,
+          online_collected_amount: 0,
+        },
+      ],
+    });
+    expect(summary.outstandingLabel).toContain('3,000');
   });
 
   it('flags ready-for-dispatch and unpaid delivered orders', () => {

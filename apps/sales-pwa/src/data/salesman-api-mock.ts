@@ -684,6 +684,10 @@ export function createMockSalesmanService(): SalesmanApi {
       };
     },
 
+    async getPayrollStatusForMonth(): Promise<'DRAFT' | 'APPROVED' | 'PAID' | null> {
+      return null;
+    },
+
     async listExpenses(): Promise<SalesmanExpense[]> {
       return [];
     },

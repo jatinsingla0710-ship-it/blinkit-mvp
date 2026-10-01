@@ -1,0 +1,52 @@
+.ga-payroll-month {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.ga-payroll-month__month {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 220px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ga-text, #101828);
+}
+
+.ga-payroll-month__month input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 500;
+}
+
+.ga-payroll-month__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px 20px;
+}
+
+.ga-payroll-month__label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ga-color-text-muted, #667085);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ga-payroll-month__value {
+  margin: 4px 0 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.ga-payroll-month__row {
+  cursor: pointer;
+}
+
+.ga-payroll-month__row:hover {
+  background: var(--ga-color-surface-muted, #f9fafb);
+}

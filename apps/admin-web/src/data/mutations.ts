@@ -1529,3 +1529,114 @@ export function useUpdateWarehouseMutation() {
     onSuccess: async () => invalidateWarehouseQueries(queryClient),
   });
 }
+
+function invalidateCompanyExpenseQueries(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ['groaurum', 'company-expenses'],
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ['groaurum', 'day-book'],
+    }),
+  ]);
+}
+
+export function useCreateCompanyExpenseMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'company-expenses', 'create'],
+    mutationFn: (input: Parameters<LiveAdminApi['createCompanyExpense']>[0]) =>
+      requireLiveAdminApi().createCompanyExpense(input),
+    onSuccess: async () => invalidateCompanyExpenseQueries(queryClient),
+  });
+}
+
+export function useUpdateCompanyExpenseMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'company-expenses', 'update'],
+    mutationFn: (vars: {
+      id: string;
+      input: Parameters<LiveAdminApi['createCompanyExpense']>[0];
+    }) => requireLiveAdminApi().updateCompanyExpense(vars.id, vars.input),
+    onSuccess: async (_data, vars) => {
+      await invalidateCompanyExpenseQueries(queryClient);
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'company-expenses', 'detail', vars.id],
+      });
+    },
+  });
+}
+
+export function useDeleteCompanyExpenseMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'company-expenses', 'delete'],
+    mutationFn: (id: string) => requireLiveAdminApi().deleteCompanyExpense(id),
+    onSuccess: async () => invalidateCompanyExpenseQueries(queryClient),
+  });
+}
+
+function invalidatePayrollQueries(
+  queryClient: QueryClient,
+  salesmanId?: string,
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'payroll'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'day-book'] }),
+    salesmanId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'salesmen', 'detail', salesmanId],
+        })
+      : Promise.resolve(),
+  ]);
+}
+
+export function useCalculateSalesmanPayrollMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payroll', 'calculate'],
+    mutationFn: (input: Parameters<LiveAdminApi['calculateSalesmanPayroll']>[0]) =>
+      requireLiveAdminApi().calculateSalesmanPayroll(input),
+    onSuccess: async (row) => {
+      await invalidatePayrollQueries(queryClient, row.salesmanId);
+    },
+  });
+}
+
+export function useApproveSalesmanPayrollMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payroll', 'approve'],
+    mutationFn: (payrollId: string) =>
+      requireLiveAdminApi().approveSalesmanPayroll(payrollId),
+    onSuccess: async (row) => {
+      await invalidatePayrollQueries(queryClient, row.salesmanId);
+    },
+  });
+}
+
+export function useMarkSalesmanPayrollPaidMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payroll', 'mark-paid'],
+    mutationFn: (input: Parameters<LiveAdminApi['markSalesmanPayrollPaid']>[0]) =>
+      requireLiveAdminApi().markSalesmanPayrollPaid(input),
+    onSuccess: async (row) => {
+      await invalidatePayrollQueries(queryClient, row.salesmanId);
+    },
+  });
+}
+
+export function useSetSalesmanPayrollAdjustmentsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payroll', 'adjustments'],
+    mutationFn: (
+      input: Parameters<LiveAdminApi['setSalesmanPayrollAdjustments']>[0],
+    ) => requireLiveAdminApi().setSalesmanPayrollAdjustments(input),
+    onSuccess: async (row) => {
+      await invalidatePayrollQueries(queryClient, row.salesmanId);
+    },
+  });
+}

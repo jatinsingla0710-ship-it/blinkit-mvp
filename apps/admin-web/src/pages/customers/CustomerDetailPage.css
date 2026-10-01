@@ -28,10 +28,10 @@
   gap: var(--ga-space-2);
 }
 
-.ga-cust-account-card .ga-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.ga-cust-account__ledger-intro {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
 }
 
 @media (max-width: 1100px) {

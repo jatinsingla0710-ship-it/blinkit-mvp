@@ -72,8 +72,8 @@ export function CustomerAccountSummaryCards({ summary, shopName }: Props) {
       icon: '💳',
       label: 'Outstanding',
       value: summary.outstandingLabel,
-      hint: 'Pending payment',
-      href: `#payments`,
+      hint: 'Amount still due',
+      href: `#ledger`,
       tone: 'warning',
     });
   }

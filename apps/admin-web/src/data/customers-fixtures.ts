@@ -13,11 +13,12 @@ import {
   buildCustomerAttentionItems,
   buildCustomerTimeline,
 } from './customer-account-dashboard';
+import { buildCustomerLedger } from './customer-ledger';
 import { SERVICE_AREA_LIST_FIXTURE } from './service-area-fixtures';
 
 type CustomerDetailFixtureInput = Omit<
   CustomerDetail,
-  'summary' | 'attentionItems' | 'timeline'
+  'summary' | 'attentionItems' | 'timeline' | 'ledger'
 > & {
   orders: Array<
     Omit<CustomerOrderRow, 'fulfillmentStatus' | 'totalAmount'> &
@@ -71,11 +72,19 @@ function enrichCustomerDetail(input: CustomerDetailFixtureInput): CustomerDetail
     }),
     attentionItems,
   );
+  const ledger = buildCustomerLedger({
+    orders: orderAggregates.map((order) => ({
+      ...order,
+      order_code: orders.find((row) => row.id === order.id)?.orderCode,
+    })),
+    payments: paymentAggregates,
+  });
 
   const detail: CustomerDetail = {
     ...input,
     orders,
     summary,
+    ledger,
     attentionItems,
     timeline: [],
   };

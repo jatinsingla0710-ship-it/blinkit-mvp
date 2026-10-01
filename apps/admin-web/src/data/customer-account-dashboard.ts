@@ -4,6 +4,10 @@ import type {
   CustomerOrderRow,
   CustomerTimelineEvent,
 } from '@/data/customers-types';
+import {
+  customerOutstandingTotal,
+  type LedgerPaymentInput,
+} from '@/data/customer-ledger';
 import { currentFinancialYear } from '@/data/sales-fiscal';
 import { formatInr } from '@/data/live/format';
 
@@ -16,11 +20,7 @@ export type OrderAggregateRow = {
   created_at: string;
 };
 
-export type PaymentAggregateRow = {
-  order_id: string;
-  status: string;
-  amount: number;
-};
+export type PaymentAggregateRow = LedgerPaymentInput;
 
 export function isActiveOrderStatus(status: string): boolean {
   const normalized = status.toUpperCase();
@@ -65,12 +65,15 @@ export function buildCustomerAccountSummary(input: {
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   )[0];
 
-  const outstanding = input.payments
-    .filter((p) => {
-      const s = p.status.toUpperCase();
-      return s === 'UNPAID' || s === 'PENDING' || s === 'PAYMENT_PENDING';
-    })
-    .reduce((sum, p) => sum + p.amount, 0);
+  const outstanding = customerOutstandingTotal(
+    input.orders.map((o) => ({
+      id: o.id,
+      status: o.status,
+      total: o.total,
+      created_at: o.created_at,
+    })),
+    input.payments,
+  );
 
   return {
     totalOrders: nonCancelled.length,

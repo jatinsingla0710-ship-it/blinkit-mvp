@@ -1,0 +1,58 @@
+.ga-daybook {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.ga-daybook__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ga-daybook__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--ga-color-text-muted, #667085);
+}
+
+.ga-daybook__filters input,
+.ga-daybook__filters select {
+  min-width: 140px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--ga-color-text, #101828);
+}
+
+.ga-daybook__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px 20px;
+}
+
+.ga-daybook__label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ga-color-text-muted, #667085);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.ga-daybook__value {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.ga-daybook__value--in {
+  color: var(--ga-color-success, #067647);
+}
+
+.ga-daybook__value--out {
+  color: var(--ga-color-warning, #b54708);
+}

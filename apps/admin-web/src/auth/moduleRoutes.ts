@@ -13,6 +13,9 @@ export function moduleForPath(pathname: string): AdminModule | null {
   if (pathname.startsWith('/salesmen')) return 'salesmen';
   if (pathname.startsWith('/delivery')) return 'delivery';
   if (pathname.startsWith('/payments')) return 'payments';
+  if (pathname.startsWith('/receivables')) return 'payments';
+  if (pathname.startsWith('/expenses')) return 'payments';
+  if (pathname.startsWith('/day-book')) return 'payments';
   if (pathname.startsWith('/service-areas')) return 'service_areas';
   if (pathname.startsWith('/warehouses')) return 'warehouses';
   if (pathname.startsWith('/reports')) return 'reports';
@@ -33,6 +36,9 @@ export const PATH_MODULE: Record<string, AdminModule> = {
   '/salesmen': 'salesmen',
   '/delivery': 'delivery',
   '/payments': 'payments',
+  '/receivables': 'payments',
+  '/expenses': 'payments',
+  '/day-book': 'payments',
   '/service-areas': 'service_areas',
   '/warehouses': 'warehouses',
   '/reports': 'reports',

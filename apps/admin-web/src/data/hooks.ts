@@ -775,6 +775,153 @@ export function usePaymentsListQuery(opts?: {
   return query;
 }
 
+export function useReceivablesSnapshotQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'receivables', 'snapshot'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.receivablesSnapshot();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => !data || data.rows.length === 0,
+    }),
+  };
+}
+
+export function useCompanyExpensesSnapshotQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'company-expenses', 'snapshot'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.companyExpensesSnapshot();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      // Allow empty list + Add expense CTA on first visit.
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useCompanyExpenseDetailQuery(expenseId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'company-expenses', 'detail', expenseId ?? ''],
+    enabled: Boolean(expenseId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !expenseId) throw new Error('Live API required');
+      return client.liveApi.companyExpenseDetail(expenseId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data === null,
+    }),
+  };
+}
+
+export function usePayrollMonthSnapshotQuery(month: string) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'payroll', 'month', month],
+    enabled: Boolean(client.liveApi && month),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.payrollMonthSnapshot(month);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      // Keep month selector visible when no rows yet.
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useSalesmanPayrollQuery(salesmanId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'payroll', 'salesman', salesmanId ?? ''],
+    enabled: Boolean(salesmanId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !salesmanId) throw new Error('Live API required');
+      return client.liveApi.listSalesmanPayroll(salesmanId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useDayBookSnapshotQuery(opts: {
+  dateFrom: string;
+  dateTo: string;
+  type?: 'all' | 'sale' | 'collection' | 'expense' | 'refund' | 'payroll';
+  paymentMethod?: string;
+}) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: [
+      'groaurum',
+      'day-book',
+      opts.dateFrom,
+      opts.dateTo,
+      opts.type ?? 'all',
+      opts.paymentMethod ?? 'all',
+    ],
+    enabled: Boolean(client.liveApi && opts.dateFrom && opts.dateTo),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.dayBookSnapshot(opts);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      // Keep filters visible even when the range has no rows.
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
 export function useOrderDeliveryExtrasQuery(orderId: string | undefined) {
   const client = useAdminDataClient();
   const query = useQuery({

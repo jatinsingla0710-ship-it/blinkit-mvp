@@ -5,6 +5,7 @@ import {
   isSidebarItemActive,
 } from './nav';
 import {
+  ACCOUNTING_SECTION_LINKS,
   INVENTORY_SECTION_LINKS,
   PRODUCTS_SECTION_LINKS,
   SALES_SECTION_LINKS,
@@ -23,6 +24,9 @@ describe('Phase 1 Admin navigation', () => {
       'Inventory',
       'Delivery',
       'Salesmen',
+      'Receivables',
+      'Expenses',
+      'Day Book',
       'Reports',
       'Settings',
     ]);
@@ -32,11 +36,13 @@ describe('Phase 1 Admin navigation', () => {
     expect(labels).not.toContain('Service Areas');
     expect(labels).not.toContain('Warehouses');
     expect(labels).not.toContain('Categories');
+    expect(labels).not.toContain('Ledger');
   });
 
-  it('groups nav into Business and Team sections', () => {
+  it('groups nav into Business, Team, and Accounting sections', () => {
     const business = SIDEBAR_NAV_GROUPS.find((g) => g.id === 'business');
     const team = SIDEBAR_NAV_GROUPS.find((g) => g.id === 'team');
+    const accounting = SIDEBAR_NAV_GROUPS.find((g) => g.id === 'accounting');
     expect(business?.label).toBe('Business');
     expect(business?.items.map((i) => i.id)).toEqual([
       'customers',
@@ -46,6 +52,11 @@ describe('Phase 1 Admin navigation', () => {
       'delivery',
     ]);
     expect(team?.items.map((i) => i.id)).toEqual(['salesmen']);
+    expect(accounting?.items.map((i) => i.id)).toEqual([
+      'receivables',
+      'expenses',
+      'day-book',
+    ]);
   });
 
   it('highlights Sales for orders, invoices, and collections', () => {
@@ -78,6 +89,13 @@ describe('Phase 1 Admin navigation', () => {
       '/orders',
       '/sales',
       '/payments',
+      '/receivables',
+    ]);
+    expect(ACCOUNTING_SECTION_LINKS.map((l) => l.to)).toEqual([
+      '/receivables',
+      '/expenses',
+      '/day-book',
+      '/payments',
     ]);
     expect(PRODUCTS_SECTION_LINKS.map((l) => l.to)).toEqual([
       '/products',
@@ -86,6 +104,10 @@ describe('Phase 1 Admin navigation', () => {
     ]);
     expect(INVENTORY_SECTION_LINKS.map((l) => l.to)).toContain('/warehouses');
     expect(TEAM_SECTION_LINKS.map((l) => l.to)).toContain('/pricing/commission');
+    expect(TEAM_SECTION_LINKS.map((l) => l.to)).toContain('/salesmen/payroll');
+    expect(TEAM_SECTION_LINKS.find((l) => l.to === '/salesmen/payroll')?.label).toBe(
+      'Payroll',
+    );
     expect(SETTINGS_SECTION_LINKS.map((l) => l.to)).toEqual([
       '/settings',
       '/service-areas',

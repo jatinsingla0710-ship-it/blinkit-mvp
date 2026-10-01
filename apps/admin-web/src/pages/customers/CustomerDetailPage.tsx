@@ -11,6 +11,7 @@ import { CustomerAccountTimeline } from '@/components/customers/account/Customer
 import { CustomerActivityTab } from '@/components/customers/CustomerActivityTab';
 import { CustomerAddressesTab } from '@/components/customers/CustomerAddressesTab';
 import { CustomerDocumentsTab } from '@/components/customers/CustomerDocumentsTab';
+import { CustomerLedgerPanel } from '@/components/customers/CustomerLedgerPanel';
 import { CustomerOrdersTab } from '@/components/customers/CustomerOrdersTab';
 import { CustomerPaymentsTab } from '@/components/customers/CustomerPaymentsTab';
 import { SalesmanReassignModal } from '@/components/customers/SalesmanReassignModal';
@@ -53,6 +54,19 @@ export function CustomerDetailPage() {
 
           <div className="ga-cust-account__layout">
             <div className="ga-cust-account__main">
+              <Card
+                title="Account ledger"
+                className="ga-cust-account-card"
+              >
+                <p className="ga-cust-account__ledger-intro">
+                  Sales and payments for {customer.shopName}, newest first.
+                </p>
+                <CustomerLedgerPanel
+                  ledger={customer.ledger}
+                  shopName={customer.shopName}
+                />
+              </Card>
+
               <CustomerAccountCurrentActivity
                 orders={customer.orders}
                 shopName={customer.shopName}

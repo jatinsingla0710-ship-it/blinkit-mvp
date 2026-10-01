@@ -55,6 +55,30 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: 'accounting',
+    label: 'Accounting',
+    items: [
+      {
+        id: 'receivables',
+        label: 'Receivables',
+        path: '/receivables',
+        matchPrefixes: ['/receivables'],
+      },
+      {
+        id: 'expenses',
+        label: 'Expenses',
+        path: '/expenses',
+        matchPrefixes: ['/expenses'],
+      },
+      {
+        id: 'day-book',
+        label: 'Day Book',
+        path: '/day-book',
+        matchPrefixes: ['/day-book'],
+      },
+    ],
+  },
+  {
     id: 'system',
     label: null,
     items: [

@@ -1,0 +1,68 @@
+.ga-receivables {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1200px;
+}
+
+.ga-receivables__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ga-receivables__search input {
+  min-width: min(280px, 100%);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.ga-receivables__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-receivables__chip {
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ga-receivables__chip--active {
+  border-color: var(--ga-color-text, #101828);
+  background: var(--ga-color-surface-muted, #f2f4f7);
+  font-weight: 600;
+}
+
+.ga-receivables__meta {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--ga-color-text-muted, #667085);
+}
+
+.ga-receivables__due {
+  color: var(--ga-color-warning, #b54708);
+}
+
+.ga-receivables__actions {
+  white-space: nowrap;
+}
+
+.ga-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

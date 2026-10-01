@@ -484,6 +484,65 @@ type Sprint7Functions = {
     };
     Returns: Json;
   };
+  admin_create_company_expense: {
+    Args: {
+      p_expense_date: string;
+      p_category: string;
+      p_amount: number;
+      p_description: string;
+      p_payment_method?: string;
+      p_reference_number?: string | null;
+      p_receipt_path?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_update_company_expense: {
+    Args: {
+      p_expense_id: string;
+      p_expense_date: string;
+      p_category: string;
+      p_amount: number;
+      p_description: string;
+      p_payment_method?: string;
+      p_reference_number?: string | null;
+      p_receipt_path?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_delete_company_expense: {
+    Args: { p_expense_id: string };
+    Returns: undefined;
+  };
+  admin_calculate_salesman_payroll: {
+    Args: {
+      p_salesman_profile_id: string;
+      p_month: string;
+      p_adjustments?: number;
+      p_notes?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_approve_salesman_payroll: {
+    Args: { p_payroll_id: string };
+    Returns: Json;
+  };
+  admin_mark_salesman_payroll_paid: {
+    Args: {
+      p_payroll_id: string;
+      p_payment_method: string;
+      p_payment_reference?: string | null;
+      p_paid_at?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_set_salesman_payroll_adjustments: {
+    Args: {
+      p_payroll_id: string;
+      p_adjustments: number;
+      p_notes?: string | null;
+    };
+    Returns: Json;
+  };
   salesman_create_return_request: {
     Args: {
       p_order_id: string;
@@ -1696,6 +1755,143 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
             review_note: string | null;
             reviewed_by_profile_id: string | null;
             reviewed_at: string | null;
+          }>;
+          Relationships: [];
+        };
+        company_expenses: {
+          Row: {
+            id: string;
+            expense_date: string;
+            category:
+              | 'PURCHASE'
+              | 'TRANSPORT'
+              | 'RENT'
+              | 'SALARY'
+              | 'UTILITIES'
+              | 'MARKETING'
+              | 'OFFICE'
+              | 'MAINTENANCE'
+              | 'OTHER';
+            amount: number;
+            description: string;
+            payment_method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+            reference_number: string | null;
+            receipt_path: string | null;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            expense_date: string;
+            category:
+              | 'PURCHASE'
+              | 'TRANSPORT'
+              | 'RENT'
+              | 'SALARY'
+              | 'UTILITIES'
+              | 'MARKETING'
+              | 'OFFICE'
+              | 'MAINTENANCE'
+              | 'OTHER';
+            amount: number;
+            description: string;
+            payment_method?: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+            reference_number?: string | null;
+            receipt_path?: string | null;
+            created_by_profile_id?: string | null;
+            created_at?: string;
+            updated_at?: string;
+          };
+          Update: Partial<{
+            expense_date: string;
+            category:
+              | 'PURCHASE'
+              | 'TRANSPORT'
+              | 'RENT'
+              | 'SALARY'
+              | 'UTILITIES'
+              | 'MARKETING'
+              | 'OFFICE'
+              | 'MAINTENANCE'
+              | 'OTHER';
+            amount: number;
+            description: string;
+            payment_method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+            reference_number: string | null;
+            receipt_path: string | null;
+            created_by_profile_id: string | null;
+          }>;
+          Relationships: [];
+        };
+        salesman_payroll: {
+          Row: {
+            id: string;
+            salesman_profile_id: string;
+            payroll_month: string;
+            earning_model: string;
+            base_salary: number;
+            unpaid_leave_days: number;
+            unpaid_deduction: number;
+            earned_commission: number;
+            daily_allowance: number;
+            other_allowance: number;
+            adjustments: number;
+            total_amount: number;
+            status: 'DRAFT' | 'APPROVED' | 'PAID';
+            paid_at: string | null;
+            payment_method: 'CASH' | 'BANK' | 'UPI' | 'OTHER' | null;
+            payment_reference: string | null;
+            notes: string | null;
+            calculated_at: string;
+            calculated_by_profile_id: string | null;
+            approved_at: string | null;
+            approved_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            salesman_profile_id: string;
+            payroll_month: string;
+            earning_model: string;
+            base_salary?: number;
+            unpaid_leave_days?: number;
+            unpaid_deduction?: number;
+            earned_commission?: number;
+            daily_allowance?: number;
+            other_allowance?: number;
+            adjustments?: number;
+            total_amount: number;
+            status?: 'DRAFT' | 'APPROVED' | 'PAID';
+            paid_at?: string | null;
+            payment_method?: 'CASH' | 'BANK' | 'UPI' | 'OTHER' | null;
+            payment_reference?: string | null;
+            notes?: string | null;
+            calculated_at?: string;
+            calculated_by_profile_id?: string | null;
+            approved_at?: string | null;
+            approved_by_profile_id?: string | null;
+          };
+          Update: Partial<{
+            earning_model: string;
+            base_salary: number;
+            unpaid_leave_days: number;
+            unpaid_deduction: number;
+            earned_commission: number;
+            daily_allowance: number;
+            other_allowance: number;
+            adjustments: number;
+            total_amount: number;
+            status: 'DRAFT' | 'APPROVED' | 'PAID';
+            paid_at: string | null;
+            payment_method: 'CASH' | 'BANK' | 'UPI' | 'OTHER' | null;
+            payment_reference: string | null;
+            notes: string | null;
+            calculated_at: string;
+            calculated_by_profile_id: string | null;
+            approved_at: string | null;
+            approved_by_profile_id: string | null;
           }>;
           Relationships: [];
         };

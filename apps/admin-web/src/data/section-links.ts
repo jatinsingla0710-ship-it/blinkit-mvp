@@ -16,6 +16,34 @@ export const SALES_SECTION_LINKS = [
     label: 'Collections',
     description: 'Payments and COD custody',
   },
+  {
+    to: '/receivables',
+    label: 'Receivables',
+    description: 'Who still owes money',
+  },
+] as const;
+
+export const ACCOUNTING_SECTION_LINKS = [
+  {
+    to: '/receivables',
+    label: 'Receivables',
+    description: 'Customer balances due',
+  },
+  {
+    to: '/expenses',
+    label: 'Expenses',
+    description: 'Business money out',
+  },
+  {
+    to: '/day-book',
+    label: 'Day Book',
+    description: 'Daily money in and out',
+  },
+  {
+    to: '/payments',
+    label: 'Collections',
+    description: 'Record and settle payments',
+  },
 ] as const;
 
 export const PRODUCTS_SECTION_LINKS = [
@@ -59,6 +87,11 @@ export const TEAM_SECTION_LINKS = [
     to: '/salesmen',
     label: 'Salesmen',
     description: 'Field team',
+  },
+  {
+    to: '/salesmen/payroll',
+    label: 'Payroll',
+    description: 'Monthly salary and commission',
   },
   {
     to: '/pricing/commission',
