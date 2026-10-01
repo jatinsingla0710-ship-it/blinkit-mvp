@@ -5,6 +5,13 @@
   max-width: 1440px;
 }
 
+.ga-sales-list__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
 .ga-sales-list__search {
   display: flex;
   align-items: center;

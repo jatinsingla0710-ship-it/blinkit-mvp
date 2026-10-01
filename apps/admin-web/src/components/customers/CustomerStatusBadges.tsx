@@ -1,5 +1,4 @@
 import type {
-  DigitalAccessStatus,
   PaymentStatusVm,
   PreferredPaymentVm,
 } from '@/data/customers-types';
@@ -17,25 +16,6 @@ export function CustomerStatusBadge({
       return <Badge tone="neutral">Inactive</Badge>;
     default:
       return <Badge tone="neutral">{status}</Badge>;
-  }
-}
-
-export function DigitalAccessBadge({
-  status,
-  label,
-}: {
-  status: DigitalAccessStatus;
-  label?: string;
-}) {
-  switch (status) {
-    case 'activated':
-      return <Badge tone="success">{label ?? 'Activated'}</Badge>;
-    case 'app_link_sent':
-      return <Badge tone="info">{label ?? 'App Link Sent'}</Badge>;
-    case 'access_disabled':
-      return <Badge tone="danger">{label ?? 'Access Disabled'}</Badge>;
-    default:
-      return <Badge tone="neutral">{label ?? 'Not Activated'}</Badge>;
   }
 }
 

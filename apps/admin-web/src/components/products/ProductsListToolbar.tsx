@@ -7,6 +7,7 @@ type Props = {
   filters: ProductsFilterState;
   categories: readonly { value: string; label: string }[];
   onChange: (next: ProductsFilterState) => void;
+  onReset?: () => void;
   onAdd?: () => void;
 };
 
@@ -14,6 +15,7 @@ export function ProductsListToolbar({
   filters,
   categories,
   onChange,
+  onReset,
   onAdd,
 }: Props) {
   const [draft, setDraft] = useState(filters.search);
@@ -42,19 +44,6 @@ export function ProductsListToolbar({
           placeholder="Search products…"
           aria-label="Search products"
         />
-        {draft ? (
-          <button
-            type="button"
-            className="ga-list-toolbar__clear"
-            onClick={() => {
-              setDraft('');
-              onChange({ ...filters, search: '' });
-            }}
-            aria-label="Clear search"
-          >
-            Clear
-          </button>
-        ) : null}
       </div>
       <select
         className="ga-list-toolbar__select"
@@ -85,6 +74,17 @@ export function ProductsListToolbar({
         <option value="low_stock">Low stock</option>
         <option value="out_of_stock">Out of stock</option>
       </select>
+      {onReset ? (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setDraft('');
+            onReset();
+          }}
+        >
+          Reset filters
+        </Button>
+      ) : null}
       {onAdd ? (
         <Button variant="primary" onClick={onAdd}>
           Add Product

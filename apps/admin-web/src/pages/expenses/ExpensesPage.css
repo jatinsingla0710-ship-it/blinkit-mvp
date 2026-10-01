@@ -33,6 +33,13 @@
   font: inherit;
 }
 
+.ga-expenses__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
 .ga-expenses__row {
   cursor: pointer;
 }

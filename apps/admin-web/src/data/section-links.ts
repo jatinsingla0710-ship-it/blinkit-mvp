@@ -16,11 +16,6 @@ export const SALES_SECTION_LINKS = [
     label: 'Collections',
     description: 'Payments and COD custody',
   },
-  {
-    to: '/receivables',
-    label: 'Receivables',
-    description: 'Who still owes money',
-  },
 ] as const;
 
 export const ACCOUNTING_SECTION_LINKS = [

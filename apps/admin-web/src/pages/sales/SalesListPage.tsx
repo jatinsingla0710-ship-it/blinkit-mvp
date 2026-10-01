@@ -13,6 +13,7 @@ import { SalesDateFilter } from '@/components/sales/SalesDateFilter';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@groaurum/ui';
 import {
   useSalesDashboardQuery,
   useSalesRegisterQuery,
@@ -76,16 +77,29 @@ export function SalesListPage() {
             : undefined
         }
         actions={
-          <label className="ga-sales-list__search">
-            <span aria-hidden>⌕</span>
-            <input
-              type="search"
-              placeholder="Invoice, customer…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search sales register"
-            />
-          </label>
+          <div className="ga-sales-list__toolbar">
+            <label className="ga-sales-list__search">
+              <span aria-hidden>⌕</span>
+              <input
+                type="search"
+                placeholder="Invoice, customer…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search sales register"
+              />
+            </label>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSearch('');
+                setPreset('all_time');
+                setCustomFrom('');
+                setCustomTo('');
+              }}
+            >
+              Reset filters
+            </Button>
+          </div>
         }
       />
 

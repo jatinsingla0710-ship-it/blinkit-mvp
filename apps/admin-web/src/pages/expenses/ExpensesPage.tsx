@@ -72,15 +72,20 @@ export function ExpensesPage() {
             </div>
           </div>
 
-          <label className="ga-expenses__search">
-            <span className="ga-sr-only">Search expenses</span>
-            <input
-              type="search"
-              placeholder="Search description or category"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </label>
+          <div className="ga-expenses__toolbar">
+            <label className="ga-expenses__search">
+              <span className="ga-sr-only">Search expenses</span>
+              <input
+                type="search"
+                placeholder="Search description or category"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+            <Button variant="secondary" onClick={() => setSearch('')}>
+              Reset filters
+            </Button>
+          </div>
 
           {rows.length === 0 ? (
             <EmptyState

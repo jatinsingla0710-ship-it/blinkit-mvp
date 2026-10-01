@@ -51,6 +51,10 @@ export function CustomersListPage() {
             status={statusFilter}
             onSearchChange={setSearch}
             onStatusChange={setStatusFilter}
+            onReset={() => {
+              setSearch('');
+              setStatusFilter('all');
+            }}
             onAdd={
               canManageCustomers ? () => setCreateOpen(true) : undefined
             }

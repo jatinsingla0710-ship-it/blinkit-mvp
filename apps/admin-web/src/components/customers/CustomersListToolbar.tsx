@@ -8,6 +8,7 @@ type Props = {
   status: CustomerListStatusFilter;
   onSearchChange: (value: string) => void;
   onStatusChange: (value: CustomerListStatusFilter) => void;
+  onReset?: () => void;
   onAdd?: () => void;
   addLabel?: string;
 };
@@ -17,6 +18,7 @@ export function CustomersListToolbar({
   status,
   onSearchChange,
   onStatusChange,
+  onReset,
   onAdd,
   addLabel = 'Add Customer',
 }: Props) {
@@ -44,19 +46,6 @@ export function CustomersListToolbar({
           placeholder="Search customers…"
           aria-label="Search customers"
         />
-        {draft ? (
-          <button
-            type="button"
-            className="ga-list-toolbar__clear"
-            onClick={() => {
-              setDraft('');
-              onSearchChange('');
-            }}
-            aria-label="Clear search"
-          >
-            Clear
-          </button>
-        ) : null}
       </div>
       <select
         className="ga-list-toolbar__select"
@@ -70,6 +59,17 @@ export function CustomersListToolbar({
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
       </select>
+      {onReset ? (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setDraft('');
+            onReset();
+          }}
+        >
+          Reset filters
+        </Button>
+      ) : null}
       {onAdd ? (
         <Button variant="primary" onClick={onAdd}>
           {addLabel}

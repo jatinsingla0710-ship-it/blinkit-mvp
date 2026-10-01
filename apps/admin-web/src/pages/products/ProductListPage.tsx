@@ -87,6 +87,10 @@ export function ProductListPage() {
               filters={filters}
               categories={categories}
               onChange={setFilters}
+              onReset={() => {
+                setFilters(EMPTY_PRODUCTS_FILTERS);
+                setKpiFilter('all');
+              }}
               onAdd={canManageProducts ? () => setCreateOpen(true) : undefined}
             />
 

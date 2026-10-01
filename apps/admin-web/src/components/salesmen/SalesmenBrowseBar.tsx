@@ -1,5 +1,7 @@
 import type { SalesmanBrowseState, SalesmanSortId } from '@/data/salesmen-types';
+import { EMPTY_SALESMAN_BROWSE } from '@/data/browse-helpers';
 import {
+  Button,
   Card,
   ChipGroup,
   FilterBar,
@@ -21,7 +23,17 @@ const SORT_OPTIONS: { id: SalesmanSortId; label: string }[] = [
 
 export function SalesmenBrowseBar({ state, onChange }: Props) {
   return (
-    <Card title="Search · Filter · Sort">
+    <Card
+      title="Search · Filter · Sort"
+      action={
+        <Button
+          variant="secondary"
+          onClick={() => onChange({ ...EMPTY_SALESMAN_BROWSE })}
+        >
+          Reset filters
+        </Button>
+      }
+    >
       <FilterBar>
         <TextField
           label="Search"

@@ -1,4 +1,7 @@
-import { Button, Card, FilterBar, SelectField, TextField } from '@groaurum/ui';
+/**
+ * Product list filter helpers — browse UI removed in Phase 4H;
+ * ProductsListToolbar is the production filter surface.
+ */
 import type { ProductPublishStatus } from '@/data/product-types';
 
 export type ProductsFilterState = {
@@ -14,82 +17,6 @@ export const EMPTY_PRODUCTS_FILTERS: ProductsFilterState = {
   category: 'all',
   stockStatus: 'all',
 };
-
-type Props = {
-  filters: ProductsFilterState;
-  categories: readonly { value: string; label: string }[];
-  onChange: (next: ProductsFilterState) => void;
-  onReset: () => void;
-};
-
-export function ProductsBrowseBar({
-  filters,
-  categories,
-  onChange,
-  onReset,
-}: Props) {
-  return (
-    <Card
-      title="Search & Filters"
-      action={
-        <Button variant="ghost" onClick={onReset}>
-          Reset
-        </Button>
-      }
-    >
-      <FilterBar columns="repeat(4, minmax(0, 1fr))">
-        <TextField
-          label="Search"
-          value={filters.search}
-          onChange={(e) => onChange({ ...filters, search: e.target.value })}
-          placeholder="Product name or SKU"
-        />
-        <SelectField
-          label="Category"
-          value={filters.category}
-          onChange={(category) => onChange({ ...filters, category })}
-        >
-          <option value="all">All categories</option>
-          {categories.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField
-          label="Stock Status"
-          value={filters.stockStatus}
-          onChange={(stockStatus) =>
-            onChange({
-              ...filters,
-              stockStatus: stockStatus as ProductsFilterState['stockStatus'],
-            })
-          }
-        >
-          <option value="all">All stock levels</option>
-          <option value="in_stock">In stock</option>
-          <option value="low_stock">Low stock</option>
-          <option value="out_of_stock">Out of stock</option>
-        </SelectField>
-        <SelectField
-          label="Publish Status"
-          value={filters.status}
-          onChange={(status) =>
-            onChange({
-              ...filters,
-              status: status as ProductsFilterState['status'],
-            })
-          }
-        >
-          <option value="all">All</option>
-          <option value="published">Published</option>
-          <option value="draft">Draft</option>
-          <option value="archived">Archived</option>
-        </SelectField>
-      </FilterBar>
-    </Card>
-  );
-}
 
 export function filterProductRows<
   T extends {

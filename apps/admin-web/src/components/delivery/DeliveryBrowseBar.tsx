@@ -1,5 +1,7 @@
 import type { DeliveryBrowseState, DeliverySortId } from '@/data/delivery-types';
+import { EMPTY_DELIVERY_BROWSE } from '@/data/browse-helpers';
 import {
+  Button,
   Card,
   ChipGroup,
   FilterBar,
@@ -21,7 +23,17 @@ const SORT_OPTIONS: { id: DeliverySortId; label: string }[] = [
 
 export function DeliveryBrowseBar({ state, onChange }: Props) {
   return (
-    <Card title="Search · Filter · Sort">
+    <Card
+      title="Search · Filter · Sort"
+      action={
+        <Button
+          variant="secondary"
+          onClick={() => onChange({ ...EMPTY_DELIVERY_BROWSE })}
+        >
+          Reset filters
+        </Button>
+      }
+    >
       <FilterBar>
         <TextField
           label="Search"

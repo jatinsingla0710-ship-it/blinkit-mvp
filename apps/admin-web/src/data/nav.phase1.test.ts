@@ -89,7 +89,6 @@ describe('Phase 1 Admin navigation', () => {
       '/orders',
       '/sales',
       '/payments',
-      '/receivables',
     ]);
     expect(ACCOUNTING_SECTION_LINKS.map((l) => l.to)).toEqual([
       '/receivables',
