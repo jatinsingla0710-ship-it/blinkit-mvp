@@ -1,0 +1,142 @@
+.ga-purchasing {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.ga-purchasing__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.ga-purchasing__toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-purchasing__toolbar select,
+.ga-purchasing__search input,
+.ga-purchasing__form input,
+.ga-purchasing__form select,
+.ga-purchasing__form textarea {
+  min-width: min(220px, 100%);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.ga-purchasing__search input {
+  min-width: min(320px, 100%);
+}
+
+.ga-purchasing__row {
+  cursor: pointer;
+}
+
+.ga-purchasing__card {
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.ga-purchasing__card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.ga-purchasing__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ga-purchasing__card-head h2 {
+  margin: 0;
+}
+
+.ga-purchasing__dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.ga-purchasing__dl dt {
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-purchasing__dl dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.ga-purchasing__note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-purchasing__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ga-purchasing__form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.ga-purchasing__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-purchasing__line-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+}
+
+.ga-purchasing__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-weight: 600;
+}
+
+.ga-purchasing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-purchasing__error {
+  color: var(--ga-color-danger, #b42318);
+  margin: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .ga-table-wrap {
+    overflow-x: auto;
+  }
+}

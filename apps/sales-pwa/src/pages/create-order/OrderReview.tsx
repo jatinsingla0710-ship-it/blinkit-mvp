@@ -6,8 +6,10 @@ import type {
 import { Button, Card, TextField } from '@groaurum/ui';
 import { ButtonLink } from '@/components/ButtonLink';
 import {
+  displayUnitPrice,
+  formatOrderQuantity,
   outerBreakdownLabel,
-  sellingQuantityLabel,
+  toOrderUnits,
 } from '@/data/order-quantity';
 import type { SubmitFailure } from '@/data/order-submit';
 import { formatMoney } from '@/lib/money';
@@ -55,7 +57,19 @@ export function OrderReview({
         <ul className="ga-sales-lines">
           {reviewed.lines.map((line) => {
             const row = rowsBySku.get(line.skuId);
-            const breakdown = row ? outerBreakdownLabel(row.sku, line.quantity) : null;
+            const qtyLabel = row
+              ? formatOrderQuantity(row.sku, line.quantity)
+              : String(line.quantity);
+            const breakdown = row
+              ? outerBreakdownLabel(row.sku, line.quantity)
+              : null;
+            const orderUnits = row ? toOrderUnits(row.sku, line.quantity) : line.quantity;
+            const unitDisplay =
+              line.lineTotal != null && orderUnits > 0
+                ? line.lineTotal / orderUnits
+                : row
+                  ? displayUnitPrice(row.sku, line.unitPrice ?? row.unitPrice).price
+                  : line.unitPrice;
             return (
               <li key={line.skuId} className="ga-sales-line">
                 <div className="ga-sales-line__main">
@@ -64,9 +78,9 @@ export function OrderReview({
                     {row ? `${row.sku.name} · ${row.sku.skuCode}` : line.skuId}
                   </p>
                   <p className="ga-sales-list-item__meta">
-                    {row ? sellingQuantityLabel(row.sku, line.quantity) : line.quantity}
+                    {qtyLabel}
                     {breakdown ? ` ${breakdown}` : ''}
-                    {line.unitPrice != null ? ` × ${formatMoney(line.unitPrice)}` : ''}
+                    {unitDisplay != null ? ` × ${formatMoney(unitDisplay)}` : ''}
                   </p>
                 </div>
                 <span className="ga-sales-line__total">

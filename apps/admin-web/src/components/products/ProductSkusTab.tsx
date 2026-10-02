@@ -7,7 +7,7 @@ import { formStateFromSkuRow, type MoqUnitValue } from '@/data/product-form-stat
 import {
   OUTER_PACKAGE_OPTIONS,
   OUTER_PACKAGES,
-  deriveSellingUnitCode,
+  deriveSellingUnitForOrder,
   formatPackLabel,
   isPriceBasisCompatible,
   minimumOrderSummary,
@@ -61,6 +61,7 @@ type SkuFormState = {
   outerType: OuterPackageKey;
   moq: string;
   moqUnit: MoqUnitValue;
+  orderStep: string;
   isActive: boolean;
   nameManual: boolean;
 };
@@ -77,6 +78,7 @@ function emptyForm(): SkuFormState {
     outerType: 'box',
     moq: '1',
     moqUnit: 'packs',
+    orderStep: '1',
     isActive: true,
     nameManual: false,
   };
@@ -230,6 +232,16 @@ export function ProductSkusTab({
     });
   }, [form.moq, form.moqUnit, live.packsPerOuter]);
 
+  const stepConverted = useMemo(() => {
+    const qty = Number(form.orderStep);
+    if (!Number.isFinite(qty) || qty <= 0) return null;
+    return moqToBasePacks({
+      quantity: qty,
+      moqUnit: form.moqUnit,
+      packsPerOuter: live.packsPerOuter,
+    });
+  }, [form.orderStep, form.moqUnit, live.packsPerOuter]);
+
   const applyPackQuantityChange = (packQuantity: string) => {
     const qty = Number(packQuantity);
     setForm((f) => {
@@ -356,13 +368,20 @@ export function ProductSkusTab({
       skuCode,
       name,
       productType: 'PACKED' as const,
-      sellingUnit: deriveSellingUnitCode(form.packUnit),
+      sellingUnit: deriveSellingUnitForOrder({
+        packUnit: form.packUnit,
+        moqUnit: form.moqUnit,
+        outerType: form.outerType,
+      }),
       netQuantity: packQty,
       netQuantityUnit: form.packUnit,
       packsPerCarton,
       outerType: form.outerPackQty.trim() !== '' ? form.outerType : undefined,
       moq: moqConverted.packs,
-      quantityStep: 1,
+      quantityStep:
+        stepConverted && !('error' in stepConverted)
+          ? stepConverted.packs
+          : 1,
       isActive: form.isActive,
     };
 
@@ -749,20 +768,20 @@ export function ProductSkusTab({
           </section>
 
           <section className="ga-sku-form__section">
-            <h3 className="ga-sku-form__section-title">Minimum order</h3>
+            <h3 className="ga-sku-form__section-title">Sales unit</h3>
             <div className="ga-sku-form__row">
               <TextField
-                label="MOQ"
+                label="Minimum order"
                 type="number"
                 min={0}
-                step={1}
+                step="any"
                 value={form.moq}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, moq: e.target.value }))
                 }
               />
               <SelectField
-                label="MOQ unit"
+                label="Order unit"
                 value={form.moqUnit}
                 onChange={(moqUnit) =>
                   setForm((f) => ({
@@ -778,6 +797,16 @@ export function ProductSkusTab({
                 ))}
               </SelectField>
             </div>
+            <TextField
+              label="Order step"
+              type="number"
+              min={0}
+              step="any"
+              value={form.orderStep}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, orderStep: e.target.value }))
+              }
+            />
             {moqConverted && !('error' in moqConverted) ? (
               <p className="ga-sku-form__section-hint">
                 {minimumOrderSummary({

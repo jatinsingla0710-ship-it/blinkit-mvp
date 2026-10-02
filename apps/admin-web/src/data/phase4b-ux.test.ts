@@ -14,6 +14,7 @@ describe('Phase 4B Admin UX navigation honesty', () => {
       'Delivery',
       'Salesmen',
       'Receivables',
+      'Purchases',
       'Expenses',
       'Day Book',
       'Reports',
@@ -25,6 +26,7 @@ describe('Phase 4B Admin UX navigation honesty', () => {
     expect(labels).not.toContain('Warehouses');
     expect(labels).not.toContain('Service Areas');
     expect(labels).not.toContain('Payroll');
+    expect(labels).not.toContain('Suppliers');
   });
 
   it('keeps Sales and Accounting related links without activation language', () => {
@@ -54,5 +56,13 @@ describe('Phase 4B Admin UX navigation honesty', () => {
     )!;
     expect(isSidebarItemActive('/warehouses', settings)).toBe(true);
     expect(isSidebarItemActive('/service-areas', settings)).toBe(true);
+
+    const purchases = SIDEBAR_NAV_GROUPS.flatMap((g) => g.items).find(
+      (i) => i.id === 'purchases',
+    )!;
+    expect(isSidebarItemActive('/purchases', purchases)).toBe(true);
+    expect(isSidebarItemActive('/purchases/new', purchases)).toBe(true);
+    expect(isSidebarItemActive('/suppliers', purchases)).toBe(true);
+    expect(isSidebarItemActive('/suppliers/abc', purchases)).toBe(true);
   });
 });

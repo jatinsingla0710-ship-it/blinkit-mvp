@@ -25,6 +25,16 @@ export const ACCOUNTING_SECTION_LINKS = [
     description: 'Customer balances due',
   },
   {
+    to: '/purchases',
+    label: 'Purchases',
+    description: 'Supplier bills and stock receipts',
+  },
+  {
+    to: '/suppliers',
+    label: 'Suppliers',
+    description: 'Vendor master',
+  },
+  {
     to: '/expenses',
     label: 'Expenses',
     description: 'Business money out',

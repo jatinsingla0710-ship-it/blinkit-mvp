@@ -440,6 +440,31 @@ export function deriveSellingUnitCode(
   return resolvePackUnit(packUnit)?.sellingUnitCode ?? 'PACK';
 }
 
+/** When Admin sells in outer units, persist outer as selling_unit for Sales labels. */
+export function deriveSellingUnitForOrder(input: {
+  packUnit: string | null | undefined;
+  moqUnit: string;
+  outerType?: string | null;
+}): string {
+  const unit = input.moqUnit.trim().toLowerCase();
+  if (unit === 'packs' || unit === 'pack') {
+    return deriveSellingUnitCode(input.packUnit);
+  }
+  const outer =
+    resolveOuterPackageKey(unit) ??
+    resolveOuterPackageKey(input.outerType ?? '');
+  if (!outer) return deriveSellingUnitCode(input.packUnit);
+  const map: Record<string, string> = {
+    box: 'BOX',
+    carton: 'CARTON',
+    case: 'Case',
+    crate: 'Crate',
+    bundle: 'BUNDLE',
+    bag: 'BAG',
+  };
+  return map[outer] ?? deriveSellingUnitCode(input.packUnit);
+}
+
 export function packUnitPluralLabel(
   packUnit: string | null | undefined,
   count = 2,

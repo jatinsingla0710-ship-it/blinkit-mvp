@@ -3,22 +3,35 @@ import type { Sku } from '@groaurum/shared-types';
 import {
   commitTypedQuantity,
   maxOrderQuantity,
+  minOrderQuantity,
   stepDown,
   stepUp,
+  toOrderUnits,
 } from '@/data/order-quantity';
 
 type Props = {
-  sku: Pick<Sku, 'id' | 'name' | 'moq' | 'quantityStep'>;
+  sku: Pick<
+    Sku,
+    | 'id'
+    | 'name'
+    | 'moq'
+    | 'quantityStep'
+    | 'packsPerCarton'
+    | 'outerType'
+    | 'sellingUnit'
+    | 'netQuantityUnit'
+  >;
+  /** Pack quantity stored in the cart. */
   quantity: number;
   available: number;
   disabled?: boolean;
-  onChange: (quantity: number) => void;
+  onChange: (packQuantity: number) => void;
   onAdjusted?: (reason: string) => void;
 };
 
 /**
- * − / + in valid steps with a typed field for fast entry. Only valid
- * quantities (or 0 = remove) ever leave this component.
+ * − / + in valid steps with a typed field for fast entry.
+ * The input shows salesman order units (Box/Kg/Pack); cart stores packs.
  */
 export function QuantityStepper({
   sku,
@@ -28,19 +41,23 @@ export function QuantityStepper({
   onChange,
   onAdjusted,
 }: Props) {
-  const [text, setText] = useState(quantity ? String(quantity) : '');
+  const orderQty = quantity > 0 ? toOrderUnits(sku, quantity) : 0;
+  const [text, setText] = useState(orderQty ? String(orderQty) : '');
   useEffect(() => {
-    setText(quantity ? String(quantity) : '');
-  }, [quantity]);
+    setText(orderQty ? String(orderQty) : '');
+  }, [orderQty]);
 
   const max = maxOrderQuantity(sku, available);
   const canAdd = !disabled && max > 0 && quantity < max;
   const canRemove = !disabled && quantity > 0;
+  const stepOrder = toOrderUnits(sku, sku.quantityStep > 0 ? sku.quantityStep : 1);
+  const allowsDecimal = stepOrder < 1 || Math.abs(stepOrder - Math.round(stepOrder)) > 1e-9;
 
   function commit() {
     const result = commitTypedQuantity(sku, text, available);
     if (result.adjustedReason) onAdjusted?.(result.adjustedReason);
-    setText(result.quantity ? String(result.quantity) : '');
+    const nextOrder = result.quantity ? toOrderUnits(sku, result.quantity) : 0;
+    setText(nextOrder ? String(nextOrder) : '');
     if (result.quantity !== quantity) onChange(result.quantity);
   }
 
@@ -58,9 +75,9 @@ export function QuantityStepper({
       <input
         className="ga-sales-stepper__input"
         type="number"
-        inputMode="numeric"
+        inputMode={allowsDecimal ? 'decimal' : 'numeric'}
         min={0}
-        step={sku.quantityStep}
+        step={stepOrder}
         aria-label={`${sku.name} quantity`}
         value={text}
         placeholder="0"
@@ -86,3 +103,5 @@ export function QuantityStepper({
     </div>
   );
 }
+
+export { minOrderQuantity };

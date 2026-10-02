@@ -51,7 +51,7 @@ describe('DashboardPage attendance — loading (F)', () => {
   it('shows loading and disables Start Day and End Day', () => {
     mocks.queries.attendance = { isLoading: true, isFetching: true };
     const html = render();
-    expect(html).toContain('Loading attendance…');
+    expect(html).toContain('Loading today&#x27;s work…');
     expect(html).not.toContain('Day not started yet');
     expect(isButtonDisabled(html, 'Start Day')).toBe(true);
     expect(isButtonDisabled(html, 'End Day')).toBe(true);
@@ -66,7 +66,7 @@ describe('DashboardPage attendance — error (G)', () => {
     };
     const html = render();
     expect(html).toContain('role="alert"');
-    expect(html).toContain('Could not load today&#x27;s attendance: JWT expired');
+    expect(html).toContain('Could not load today&#x27;s workday: JWT expired');
     expect(html).toContain('Start Day and End Day are paused until it loads.');
     expect(isButtonDisabled(html, 'Retry')).toBe(false);
     expect(isButtonDisabled(html, 'Start Day')).toBe(true);

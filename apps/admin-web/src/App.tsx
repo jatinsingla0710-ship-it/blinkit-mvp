@@ -209,6 +209,31 @@ const SalesmenPayrollPage = lazy(() =>
     default: m.SalesmenPayrollPage,
   })),
 );
+const PurchasesListPage = lazy(() =>
+  import('@/pages/purchases/PurchasesListPage').then((m) => ({
+    default: m.PurchasesListPage,
+  })),
+);
+const PurchaseDetailPage = lazy(() =>
+  import('@/pages/purchases/PurchaseDetailPage').then((m) => ({
+    default: m.PurchaseDetailPage,
+  })),
+);
+const PurchaseFormPage = lazy(() =>
+  import('@/pages/purchases/PurchaseFormPage').then((m) => ({
+    default: m.PurchaseFormPage,
+  })),
+);
+const SuppliersListPage = lazy(() =>
+  import('@/pages/suppliers/SuppliersListPage').then((m) => ({
+    default: m.SuppliersListPage,
+  })),
+);
+const SupplierDetailPage = lazy(() =>
+  import('@/pages/suppliers/SupplierDetailPage').then((m) => ({
+    default: m.SupplierDetailPage,
+  })),
+);
 
 function guard(module: AdminModule, page: ReactNode) {
   return <AdminModuleGuard module={module}>{page}</AdminModuleGuard>;
@@ -313,6 +338,30 @@ export function AppRoutes() {
         <Route
           path="receivables"
           element={guard('payments', <ReceivablesPage />)}
+        />
+        <Route
+          path="purchases"
+          element={guard('payments', <PurchasesListPage />)}
+        />
+        <Route
+          path="purchases/new"
+          element={guard('payments', <PurchaseFormPage />)}
+        />
+        <Route
+          path="purchases/:purchaseId/edit"
+          element={guard('payments', <PurchaseFormPage />)}
+        />
+        <Route
+          path="purchases/:purchaseId"
+          element={guard('payments', <PurchaseDetailPage />)}
+        />
+        <Route
+          path="suppliers"
+          element={guard('payments', <SuppliersListPage />)}
+        />
+        <Route
+          path="suppliers/:supplierId"
+          element={guard('payments', <SupplierDetailPage />)}
         />
         <Route path="expenses" element={guard('payments', <ExpensesPage />)} />
         <Route

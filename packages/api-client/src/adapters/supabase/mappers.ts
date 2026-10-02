@@ -51,6 +51,15 @@ export function mapProduct(row: ProductRow): Product {
 
 export function mapSku(row: SkuRow): Sku | null {
   try {
+    const extended = row as SkuRow & {
+      outer_type?: string | null;
+      pack_discount_type?: string | null;
+      pack_discount_value?: number | null;
+      container_price_mode?: string | null;
+      container_custom_price?: number | null;
+      container_discount_type?: string | null;
+      container_discount_value?: number | null;
+    };
     return {
       id: row.id,
       productId: row.product_id,
@@ -63,7 +72,26 @@ export function mapSku(row: SkuRow): Sku | null {
       netQuantity: row.net_quantity != null ? Number(row.net_quantity) : undefined,
       netQuantityUnit: row.net_quantity_unit ?? undefined,
       packsPerCarton: row.packs_per_carton ?? undefined,
-      outerType: (row as SkuRow & { outer_type?: string | null }).outer_type ?? undefined,
+      outerType: extended.outer_type ?? undefined,
+      packDiscountType:
+        (extended.pack_discount_type as Sku['packDiscountType']) ?? undefined,
+      packDiscountValue:
+        extended.pack_discount_value != null
+          ? Number(extended.pack_discount_value)
+          : undefined,
+      containerPriceMode:
+        (extended.container_price_mode as Sku['containerPriceMode']) ?? undefined,
+      containerCustomPrice:
+        extended.container_custom_price != null
+          ? Number(extended.container_custom_price)
+          : null,
+      containerDiscountType:
+        (extended.container_discount_type as Sku['containerDiscountType']) ??
+        undefined,
+      containerDiscountValue:
+        extended.container_discount_value != null
+          ? Number(extended.container_discount_value)
+          : undefined,
       moq: Number(row.moq),
       quantityStep: Number(row.quantity_step),
       isActive: row.is_active,

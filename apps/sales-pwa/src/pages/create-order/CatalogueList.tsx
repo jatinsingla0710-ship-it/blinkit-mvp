@@ -5,11 +5,14 @@ import { ProductThumb } from '@/components/order/ProductThumb';
 import { QuantityStepper } from '@/components/order/QuantityStepper';
 import type { OrderDraftLine } from '@/data/order-draft';
 import {
+  displayUnitPrice,
+  formatOrderQuantity,
   maxOrderQuantity,
   minOrderQuantity,
+  orderRulesLabel,
   outerBreakdownLabel,
   packInfoLabel,
-  sellingQuantityLabel,
+  toOrderUnits,
 } from '@/data/order-quantity';
 import { formatMoney } from '@/lib/money';
 
@@ -24,12 +27,6 @@ export function filterCatalogue(
       .filter(Boolean)
       .some((v) => String(v).toLowerCase().includes(q)),
   );
-}
-
-function stockLabel(row: CatalogueSkuRow): string {
-  const packs = sellingQuantityLabel(row.sku, row.availableQuantity);
-  const outer = outerBreakdownLabel(row.sku, row.availableQuantity);
-  return outer ? `${packs} (${outer.replace(/^=\s*/, '')})` : packs;
 }
 
 type Props = {
@@ -82,13 +79,16 @@ export function CatalogueList({
           const max = maxOrderQuantity(row.sku, row.availableQuantity);
           const outOfStock = row.availableQuantity <= 0;
           const cannotCoverMin = !outOfStock && max === 0;
-          const breakdown = outerBreakdownLabel(row.sku, qty);
           const packInfo = packInfoLabel(row.sku);
           const preview = qty > 0 ? previewBySku.get(row.sku.id) : undefined;
-          const rules =
-            row.sku.moq > 1 || row.sku.quantityStep > 1
-              ? `Min ${minOrderQuantity(row.sku)} · steps of ${row.sku.quantityStep}`
-              : null;
+          const rules = orderRulesLabel(row.sku);
+          const listPrice = displayUnitPrice(row.sku, row.unitPrice);
+          const orderUnits = qty > 0 ? toOrderUnits(row.sku, qty) : 0;
+          const breakdown = qty > 0 ? outerBreakdownLabel(row.sku, qty) : null;
+          const previewUnitPrice =
+            preview?.ok && preview.lineTotal != null && orderUnits > 0
+              ? preview.lineTotal / orderUnits
+              : listPrice.price;
           return (
             <li
               key={row.sku.id}
@@ -101,29 +101,19 @@ export function CatalogueList({
                 <div className="ga-sales-product__text">
                   <p className="ga-sales-list-item__title">{row.product.name}</p>
                   <p className="ga-sales-list-item__meta">
-                    {row.sku.name} · {row.sku.skuCode}
+                    {row.sku.name}
+                    {row.sku.specification ? ` · ${row.sku.specification}` : ''}
                   </p>
                   <p className="ga-sales-product__price">
-                    {formatMoney(
-                      preview?.ok && preview.unitPrice != null
-                        ? preview.unitPrice
-                        : row.unitPrice,
-                    )}{' '}
-                    <span className="ga-sales-muted">
-                      per {sellingQuantityLabel(row.sku, 1).replace(/^1\s+/, '')}
-                      {preview?.ok && preview.unitPrice != null && qty > 0
-                        ? ' · order price'
-                        : ''}
-                    </span>
+                    {formatMoney(previewUnitPrice)}{' '}
+                    <span className="ga-sales-muted">/ {listPrice.unitLabel}</span>
                   </p>
                   {packInfo ? <p className="ga-sales-list-item__meta">{packInfo}</p> : null}
                   {outOfStock ? (
                     <p className="ga-sales-product__stock ga-sales-product__stock--out">
                       Out of stock
                     </p>
-                  ) : (
-                    <p className="ga-sales-product__stock">In stock: {stockLabel(row)}</p>
-                  )}
+                  ) : null}
                   {rules ? <p className="ga-sales-list-item__meta">{rules}</p> : null}
                 </div>
               </div>
@@ -151,7 +141,7 @@ export function CatalogueList({
                       onAdjusted={onAdjusted}
                     />
                     <p className="ga-sales-product__qty-note">
-                      {sellingQuantityLabel(row.sku, qty)}
+                      {formatOrderQuantity(row.sku, qty)}
                       {breakdown ? ` ${breakdown}` : ''}
                     </p>
                   </>

@@ -43,6 +43,8 @@ export type ProductConfigurationFormState = {
   outerType: OuterPackageKey;
   moq: string;
   moqUnit: MoqUnitValue;
+  /** Order step in the same unit as moqUnit (packs or outer). */
+  orderStep: string;
   containerPriceMode: ContainerPriceModeUi;
   containerCustomPrice: string;
   outerDiscountTiers: OuterDiscountTierFormRow[];
@@ -68,6 +70,7 @@ export const EMPTY_PRODUCT_FORM: ProductConfigurationFormState = {
   outerType: 'box',
   moq: '1',
   moqUnit: 'packs',
+  orderStep: '1',
   containerPriceMode: 'calculated',
   containerCustomPrice: '',
   outerDiscountTiers: [],
@@ -97,6 +100,28 @@ export function inferMoqDisplay(input: {
     };
   }
   return { moq: String(moqPacks || 1), moqUnit: 'packs' };
+}
+
+/** Reverse stored quantity_step (packs) into admin display step + unit. */
+export function inferOrderStepDisplay(input: {
+  stepPacks: number;
+  packsPerOuter?: number | null;
+  outerType?: string | null;
+  moqUnit: MoqUnitValue;
+}): string {
+  const { stepPacks, packsPerOuter, moqUnit } = input;
+  const outerKey = resolveOuterPackageKey(input.outerType ?? '');
+  if (
+    moqUnit !== 'packs' &&
+    outerKey &&
+    packsPerOuter != null &&
+    packsPerOuter > 0 &&
+    stepPacks > 0 &&
+    stepPacks % packsPerOuter === 0
+  ) {
+    return String(stepPacks / packsPerOuter);
+  }
+  return String(stepPacks > 0 ? stepPacks : 1);
 }
 
 function resolvePackUnitKey(unit: string | null | undefined): PackUnitKey {
@@ -175,6 +200,12 @@ export function formStateFromProductDetail(
     outerType,
     moq: moqDisplay.moq,
     moqUnit: moqDisplay.moqUnit,
+    orderStep: inferOrderStepDisplay({
+      stepPacks: sku.quantityStep,
+      packsPerOuter: sku.packsPerCarton,
+      outerType: sku.outerType,
+      moqUnit: moqDisplay.moqUnit,
+    }),
     containerPriceMode: sku.containerPriceMode ?? 'calculated',
     containerCustomPrice:
       sku.containerCustomPrice != null
@@ -212,6 +243,7 @@ export function formStateFromSkuRow(
   | 'outerType'
   | 'moq'
   | 'moqUnit'
+  | 'orderStep'
 > {
   const full = formStateFromProductDetail(
     {
@@ -250,5 +282,6 @@ export function formStateFromSkuRow(
     outerType: full.outerType,
     moq: full.moq,
     moqUnit: full.moqUnit,
+    orderStep: full.orderStep,
   };
 }

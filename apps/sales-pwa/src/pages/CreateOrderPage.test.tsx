@@ -195,17 +195,17 @@ describe('shop first (R, S)', () => {
 });
 
 describe('catalogue (F, S)', () => {
-  it('shows image, name, SKU code, price per pack, pack info and real stock', () => {
+  it('shows image, name, price per selling unit, pack info; hides stock qty', () => {
     const html = render('/orders/new?shopId=shop-1');
     expect(html).toContain('Search products');
     expect(html).toContain('Product name or SKU code');
     expect(html).toContain('src="https://cdn.example.test/rice.jpg"');
-    expect(html).toContain('Basmati 1kg · BAS-1KG');
+    expect(html).toContain('Basmati 1kg');
     expect(html).toContain('₹166');
-    expect(html).toContain('per Pack');
+    expect(html).toContain('/ Pack');
     expect(html).toContain('10 Packs per Bag');
-    expect(html).toContain('In stock: 480 Packs (48 Bags)');
-    expect(html).toContain('Min 5 · steps of 5');
+    expect(html).not.toContain('In stock:');
+    expect(html).toContain('Minimum 5 Packs');
   });
 
   it('marks out-of-stock products and does not let them be added', () => {

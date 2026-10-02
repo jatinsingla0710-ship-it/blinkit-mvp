@@ -1640,3 +1640,88 @@ export function useSetSalesmanPayrollAdjustmentsMutation() {
     },
   });
 }
+
+function invalidatePurchasingQueries(
+  queryClient: QueryClient,
+  opts?: { supplierId?: string; purchaseId?: string },
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'suppliers'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'purchases'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'inventory'] }),
+    opts?.supplierId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'suppliers', 'detail', opts.supplierId],
+        })
+      : Promise.resolve(),
+    opts?.purchaseId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'purchases', 'detail', opts.purchaseId],
+        })
+      : Promise.resolve(),
+  ]);
+}
+
+export function useCreateSupplierMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'suppliers', 'create'],
+    mutationFn: (input: Parameters<LiveAdminApi['createSupplier']>[0]) =>
+      requireLiveAdminApi().createSupplier(input),
+    onSuccess: async () => invalidatePurchasingQueries(queryClient),
+  });
+}
+
+export function useUpdateSupplierMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'suppliers', 'update'],
+    mutationFn: (vars: {
+      id: string;
+      input: Parameters<LiveAdminApi['createSupplier']>[0];
+    }) => requireLiveAdminApi().updateSupplier(vars.id, vars.input),
+    onSuccess: async (_data, vars) =>
+      invalidatePurchasingQueries(queryClient, { supplierId: vars.id }),
+  });
+}
+
+export function useUpsertPurchaseDraftMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'upsert-draft'],
+    mutationFn: (input: Parameters<LiveAdminApi['upsertPurchaseDraft']>[0]) =>
+      requireLiveAdminApi().upsertPurchaseDraft(input),
+    onSuccess: async (detail) =>
+      invalidatePurchasingQueries(queryClient, {
+        purchaseId: detail.id,
+        supplierId: detail.supplierId,
+      }),
+  });
+}
+
+export function useReceivePurchaseMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'receive'],
+    mutationFn: (purchaseId: string) =>
+      requireLiveAdminApi().receivePurchase(purchaseId),
+    onSuccess: async (result) =>
+      invalidatePurchasingQueries(queryClient, {
+        purchaseId: result.purchaseId,
+      }),
+  });
+}
+
+export function useCancelPurchaseDraftMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'cancel'],
+    mutationFn: (purchaseId: string) =>
+      requireLiveAdminApi().cancelPurchaseDraft(purchaseId),
+    onSuccess: async (detail) =>
+      invalidatePurchasingQueries(queryClient, {
+        purchaseId: detail.id,
+        supplierId: detail.supplierId,
+      }),
+  });
+}

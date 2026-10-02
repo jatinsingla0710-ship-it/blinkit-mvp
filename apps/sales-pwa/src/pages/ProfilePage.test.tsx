@@ -68,6 +68,15 @@ beforeEach(() => {
 });
 
 describe('ProfilePage', () => {
+  it('shows name read-only without a name edit field', () => {
+    const html = render();
+    expect(html).toContain('Asha Verma');
+    expect(html).toContain('asha@example.com');
+    expect(html).toContain('Preferred language');
+    expect(html).not.toMatch(/label[^>]*>Name</);
+    expect(html).not.toContain('name="name"');
+  });
+
   it('shows name, email, language, version, and earnings', () => {
     const html = render();
     expect(html).toContain('Asha Verma');

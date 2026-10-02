@@ -65,6 +65,12 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
         matchPrefixes: ['/receivables'],
       },
       {
+        id: 'purchases',
+        label: 'Purchases',
+        path: '/purchases',
+        matchPrefixes: ['/purchases', '/suppliers'],
+      },
+      {
         id: 'expenses',
         label: 'Expenses',
         path: '/expenses',

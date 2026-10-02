@@ -206,23 +206,23 @@ export function DashboardPage() {
         subtitle={todayLabel()}
       />
 
-      <Card title="Attendance">
+      <Card title="Today's Work">
         {attendanceView === 'unavailable' ? (
           <p className="ga-sales-muted">
-            Attendance is unavailable until your profile loads.
+            Workday is unavailable until your profile loads.
           </p>
         ) : null}
 
         {attendanceView === 'loading' ? (
           <div className="ga-sales-attendance" role="status" aria-busy="true">
             <Skeleton width={96} height={24} />
-            <p className="ga-sales-muted">Loading attendance…</p>
+            <p className="ga-sales-muted">Loading today&apos;s work…</p>
           </div>
         ) : null}
 
         {attendanceView === 'error' ? (
           <ErrorState
-            message={`Could not load today's attendance${
+            message={`Could not load today's workday${
               attendanceQuery.error instanceof Error
                 ? `: ${attendanceQuery.error.message}.`
                 : '.'
@@ -237,7 +237,11 @@ export function DashboardPage() {
         {attendanceView === 'recorded' && attendance ? (
           <div className="ga-sales-attendance">
             <Badge tone={attendanceTone(attendance.status)}>
-              {attendanceStatusLabel(attendance.status)}
+              {attendance.status === 'PRESENT' && attendance.dayEndedAt
+                ? 'Completed'
+                : attendance.status === 'PRESENT' && attendance.dayStartedAt
+                  ? 'Working'
+                  : attendanceStatusLabel(attendance.status)}
             </Badge>
             {attendance.status === 'PRESENT' ? (
               <p className="ga-sales-muted">
@@ -254,11 +258,14 @@ export function DashboardPage() {
                 for today
               </p>
             )}
+            <p className="ga-sales-muted">Workday window from 8:00 AM</p>
           </div>
         ) : null}
 
         {attendanceView === 'not_started' ? (
-          <p className="ga-sales-muted">Day not started yet</p>
+          <p className="ga-sales-muted">
+            Day not started yet · Workday opens at 8:00 AM
+          </p>
         ) : null}
 
         {dayError ? <p className="ga-sales-error">{dayError}</p> : null}

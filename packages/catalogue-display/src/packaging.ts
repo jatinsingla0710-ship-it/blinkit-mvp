@@ -91,7 +91,7 @@ export function sellingUnitLabel(unit: string | null | undefined): string {
   const named: Record<string, string> = {
     bottle: 'Bottle',
     can: 'Can',
-    tin: 'Can',
+    tin: 'Tin',
     packet: 'Packet',
     pack: 'Pack',
     pouch: 'Pouch',
@@ -99,12 +99,35 @@ export function sellingUnitLabel(unit: string | null | undefined): string {
     box: 'Box',
     bag: 'Bag',
     carton: 'Carton',
+    case: 'Case',
+    crate: 'Crate',
+    bundle: 'Bundle',
     dozen: 'Dozen',
     pair: 'Pair',
     drum: 'Drum',
+    roll: 'Roll',
+    tray: 'Tray',
+    // Explicit selling-unit codes (skus.selling_unit) — not pack net-content size.
+    // Do NOT map bare "g" here: net_quantity_unit "g" means pack contents → Pack.
+    kg: 'Kg',
+    kilogram: 'Kg',
+    kilograms: 'Kg',
+    gram: 'g',
+    grams: 'g',
+    litre: 'Litre',
+    liter: 'Litre',
+    litres: 'Litre',
+    liters: 'Litre',
+    l: 'Litre',
+    ml: 'ml',
+    millilitre: 'ml',
+    milliliter: 'ml',
+    pcs: 'Piece',
+    pc: 'Piece',
   };
   if (named[u]) return named[u];
   if (isPieceUnit(u)) return 'Piece';
+  // Net content units (e.g. pack is 250g) still display as Pack for inventory packs.
   if (isWeightUnit(u) || isVolumeUnit(u)) return 'Pack';
   return unit?.trim() || 'Unit';
 }
@@ -123,8 +146,44 @@ export function sellingUnitPlural(unit: string | null | undefined, count: number
   if (base === 'Packet') return 'Packets';
   if (base === 'Box') return 'Boxes';
   if (base === 'Bag') return 'Bags';
+  if (base === 'Case') return 'Cases';
+  if (base === 'Crate') return 'Crates';
+  if (base === 'Bundle') return 'Bundles';
   if (base === 'Litre') return 'Litres';
+  if (base === 'Kg' || base === 'g' || base === 'ml') return base;
   return `${base}s`;
+}
+
+/** Outer package keys that can be a salesman-facing selling unit. */
+const OUTER_SELLING_CODES = new Set([
+  'box',
+  'carton',
+  'case',
+  'crate',
+  'bundle',
+  'bag',
+]);
+
+/**
+ * True when order qty (moq/step) is stored in whole outer multiples.
+ * Inventory/order lines remain in packs; UI converts to outers.
+ */
+export function sellsInOuterUnits(input: {
+  packsPerOuter?: number | null;
+  outerType?: string | null;
+  moq: number;
+  quantityStep: number;
+}): boolean {
+  const ppo = Number(input.packsPerOuter ?? 0);
+  if (!Number.isFinite(ppo) || ppo <= 1) return false;
+  if (!input.outerType || !OUTER_SELLING_CODES.has(normalizeUnit(input.outerType))) {
+    return false;
+  }
+  const step = Number(input.quantityStep) > 0 ? Number(input.quantityStep) : 1;
+  const moq = Number(input.moq);
+  const stepOk = Math.abs(step / ppo - Math.round(step / ppo)) < 1e-9;
+  const moqOk = Math.abs(moq / ppo - Math.round(moq / ppo)) < 1e-9;
+  return stepOk && moqOk && step >= ppo;
 }
 
 export function roundMoney(amount: number): number {
@@ -176,7 +235,12 @@ export function buildMixedInventoryDisplay(input: {
   outerType?: string | null;
 }): MixedInventoryDisplay {
   const totalPacks = Math.max(0, Math.round(input.totalPacks));
-  const packUnit = input.netQuantityUnit;
+  // Inventory counts packs. Net-content kg/g/ml is weight/volume of one pack, not the count unit.
+  const packCountUnit =
+    isWeightUnit(input.netQuantityUnit) ||
+    isVolumeUnit(normalizeUnit(input.netQuantityUnit))
+      ? 'pack'
+      : (input.netQuantityUnit ?? 'pack');
   const perOuter = input.packsPerOuter;
 
   let mixedLabel: string;
@@ -196,12 +260,14 @@ export function buildMixedInventoryDisplay(input: {
     if (fullOuters > 0) parts.push(`${fullOuters} ${outerWord}`);
     if (loosePacks > 0) {
       parts.push(
-        `${loosePacks} ${sellingUnitPlural(packUnit, loosePacks)}`,
+        `${loosePacks} ${sellingUnitPlural(packCountUnit, loosePacks)}`,
       );
     }
-    mixedLabel = parts.length ? parts.join(' + ') : `0 ${sellingUnitPlural(packUnit, 2)}`;
+    mixedLabel = parts.length
+      ? parts.join(' + ')
+      : `0 ${sellingUnitPlural(packCountUnit, 2)}`;
   } else {
-    mixedLabel = `${totalPacks} ${sellingUnitPlural(packUnit, totalPacks)}`;
+    mixedLabel = `${totalPacks} ${sellingUnitPlural(packCountUnit, totalPacks)}`;
   }
 
   const grams = totalWeightGrams({
@@ -288,7 +354,12 @@ export function cartQuantitySummary(input: {
   const parts: string[] = [];
   if (fullOuters > 0) parts.push(`${fullOuters} ${outerWord}`);
   if (loosePacks > 0) {
-    parts.push(`${loosePacks} ${sellingUnitPlural(input.netQuantityUnit, loosePacks)}`);
+    const packCountUnit =
+      isWeightUnit(input.netQuantityUnit) ||
+      isVolumeUnit(normalizeUnit(input.netQuantityUnit))
+        ? 'pack'
+        : (input.netQuantityUnit ?? 'pack');
+    parts.push(`${loosePacks} ${sellingUnitPlural(packCountUnit, loosePacks)}`);
   }
   return parts.length ? `= ${parts.join(' + ')}` : null;
 }

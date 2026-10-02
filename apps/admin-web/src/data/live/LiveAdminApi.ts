@@ -61,6 +61,17 @@ import {
   type CompanyExpensesSnapshot,
 } from '../company-expenses';
 import {
+  mapPurchaseItemDbRow,
+  mapPurchaseListFields,
+  mapSupplierDbRow,
+  type PurchaseDetail,
+  type PurchaseDraftInput,
+  type PurchaseListRow,
+  type PurchaseStatus,
+  type SupplierInput,
+  type SupplierRow,
+} from '../purchasing';
+import {
   buildDayBookSnapshot,
   type DayBookEntryType,
   type DayBookSnapshot,
@@ -3021,6 +3032,355 @@ export class LiveAdminApi {
       p_expense_id: id,
     });
     if (error) throwRpcError(error, 'Could not delete expense');
+  }
+
+  // ─── Phase 5A — Suppliers + Purchasing ───────────────────────────────
+
+  async suppliersList(): Promise<SupplierRow[]> {
+    const { data, error } = await this.sb
+      .from('suppliers')
+      .select('*')
+      .order('name', { ascending: true });
+    if (error) throwRpcError(error, 'Could not load suppliers');
+    return ((data ?? []) as Row[]).map((row) =>
+      mapSupplierDbRow({
+        id: str(row['id']),
+        name: str(row['name']),
+        contact_person: row['contact_person']
+          ? str(row['contact_person'])
+          : null,
+        mobile: row['mobile'] ? str(row['mobile']) : null,
+        email: row['email'] ? str(row['email']) : null,
+        address_line: row['address_line'] ? str(row['address_line']) : null,
+        city: row['city'] ? str(row['city']) : null,
+        state: row['state'] ? str(row['state']) : null,
+        gstin: row['gstin'] ? str(row['gstin']) : null,
+        notes: row['notes'] ? str(row['notes']) : null,
+        is_active: row['is_active'] !== false,
+        created_at: str(row['created_at']),
+        updated_at: str(row['updated_at']),
+      }),
+    );
+  }
+
+  async supplierDetail(id: string): Promise<{
+    supplier: SupplierRow;
+    purchases: PurchaseListRow[];
+  } | null> {
+    const { data, error } = await this.sb
+      .from('suppliers')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throwRpcError(error, 'Could not load supplier');
+    if (!data) return null;
+    const row = data as unknown as Row;
+    const supplier = mapSupplierDbRow({
+      id: str(row['id']),
+      name: str(row['name']),
+      contact_person: row['contact_person']
+        ? str(row['contact_person'])
+        : null,
+      mobile: row['mobile'] ? str(row['mobile']) : null,
+      email: row['email'] ? str(row['email']) : null,
+      address_line: row['address_line'] ? str(row['address_line']) : null,
+      city: row['city'] ? str(row['city']) : null,
+      state: row['state'] ? str(row['state']) : null,
+      gstin: row['gstin'] ? str(row['gstin']) : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      is_active: row['is_active'] !== false,
+      created_at: str(row['created_at']),
+      updated_at: str(row['updated_at']),
+    });
+    const purchases = (await this.purchasesList()).filter(
+      (p) => p.supplierId === id,
+    );
+    return { supplier, purchases };
+  }
+
+  async createSupplier(input: SupplierInput): Promise<SupplierRow> {
+    const { data, error } = await this.sb.rpc('admin_create_supplier', {
+      p_name: input.name.trim(),
+      p_contact_person: input.contactPerson?.trim() || null,
+      p_mobile: input.mobile?.trim() || null,
+      p_email: input.email?.trim() || null,
+      p_address_line: input.addressLine?.trim() || null,
+      p_city: input.city?.trim() || null,
+      p_state: input.state?.trim() || null,
+      p_gstin: input.gstin?.trim() || null,
+      p_notes: input.notes?.trim() || null,
+      p_is_active: input.isActive ?? true,
+    });
+    if (error) throwRpcError(error, 'Could not create supplier');
+    const row = data as unknown as Row;
+    return mapSupplierDbRow({
+      id: str(row['id']),
+      name: str(row['name']),
+      contact_person: row['contact_person']
+        ? str(row['contact_person'])
+        : null,
+      mobile: row['mobile'] ? str(row['mobile']) : null,
+      email: row['email'] ? str(row['email']) : null,
+      address_line: row['address_line'] ? str(row['address_line']) : null,
+      city: row['city'] ? str(row['city']) : null,
+      state: row['state'] ? str(row['state']) : null,
+      gstin: row['gstin'] ? str(row['gstin']) : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      is_active: row['is_active'] !== false,
+      created_at: str(row['created_at']),
+      updated_at: str(row['updated_at']),
+    });
+  }
+
+  async updateSupplier(id: string, input: SupplierInput): Promise<SupplierRow> {
+    const { data, error } = await this.sb.rpc('admin_update_supplier', {
+      p_supplier_id: id,
+      p_name: input.name.trim(),
+      p_contact_person: input.contactPerson?.trim() || null,
+      p_mobile: input.mobile?.trim() || null,
+      p_email: input.email?.trim() || null,
+      p_address_line: input.addressLine?.trim() || null,
+      p_city: input.city?.trim() || null,
+      p_state: input.state?.trim() || null,
+      p_gstin: input.gstin?.trim() || null,
+      p_notes: input.notes?.trim() || null,
+      p_is_active: input.isActive ?? true,
+    });
+    if (error) throwRpcError(error, 'Could not update supplier');
+    const row = data as unknown as Row;
+    return mapSupplierDbRow({
+      id: str(row['id']),
+      name: str(row['name']),
+      contact_person: row['contact_person']
+        ? str(row['contact_person'])
+        : null,
+      mobile: row['mobile'] ? str(row['mobile']) : null,
+      email: row['email'] ? str(row['email']) : null,
+      address_line: row['address_line'] ? str(row['address_line']) : null,
+      city: row['city'] ? str(row['city']) : null,
+      state: row['state'] ? str(row['state']) : null,
+      gstin: row['gstin'] ? str(row['gstin']) : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      is_active: row['is_active'] !== false,
+      created_at: str(row['created_at']),
+      updated_at: str(row['updated_at']),
+    });
+  }
+
+  async purchasesList(): Promise<PurchaseListRow[]> {
+    const { data, error } = await this.sb
+      .from('purchases')
+      .select('*')
+      .order('purchase_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load purchases');
+
+    const purchaseRows = (data ?? []) as Row[];
+    if (purchaseRows.length === 0) return [];
+
+    const purchaseIds = purchaseRows.map((p) => str(p['id']));
+    const supplierIds = [
+      ...new Set(purchaseRows.map((p) => str(p['supplier_id']))),
+    ];
+    const locationIds = [
+      ...new Set(purchaseRows.map((p) => str(p['operational_location_id']))),
+    ];
+
+    const [suppliersRes, locationsRes, itemsRes] = await Promise.all([
+      this.sb.from('suppliers').select('id, name').in('id', supplierIds),
+      this.sb
+        .from('operational_locations')
+        .select('id, name')
+        .in('id', locationIds),
+      this.sb
+        .from('purchase_items')
+        .select('purchase_id')
+        .in('purchase_id', purchaseIds),
+    ]);
+    if (suppliersRes.error) {
+      throwRpcError(suppliersRes.error, 'Could not load purchase suppliers');
+    }
+    if (locationsRes.error) {
+      throwRpcError(locationsRes.error, 'Could not load purchase warehouses');
+    }
+    if (itemsRes.error) {
+      throwRpcError(itemsRes.error, 'Could not load purchase items');
+    }
+
+    const supplierMap = new Map(
+      ((suppliersRes.data ?? []) as Row[]).map((s) => [
+        str(s['id']),
+        str(s['name']),
+      ]),
+    );
+    const locationMap = new Map(
+      ((locationsRes.data ?? []) as Row[]).map((l) => [
+        str(l['id']),
+        str(l['name']),
+      ]),
+    );
+    const itemCount = new Map<string, number>();
+    for (const item of (itemsRes.data ?? []) as Row[]) {
+      const pid = str(item['purchase_id']);
+      itemCount.set(pid, (itemCount.get(pid) ?? 0) + 1);
+    }
+
+    return purchaseRows.map((p) => {
+      const id = str(p['id']);
+      return mapPurchaseListFields({
+        id,
+        supplierId: str(p['supplier_id']),
+        supplierName: supplierMap.get(str(p['supplier_id'])) ?? '—',
+        warehouseId: str(p['operational_location_id']),
+        warehouseName:
+          locationMap.get(str(p['operational_location_id'])) ?? '—',
+        purchaseDate: str(p['purchase_date']),
+        billNumber: str(p['bill_number']),
+        status: str(p['status']),
+        itemCount: itemCount.get(id) ?? 0,
+        subtotal: num(p['subtotal']),
+        taxAmount: num(p['tax_amount']),
+        total: num(p['total']),
+      });
+    });
+  }
+
+  async purchaseDetail(id: string): Promise<PurchaseDetail | null> {
+    const { data, error } = await this.sb
+      .from('purchases')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throwRpcError(error, 'Could not load purchase');
+    if (!data) return null;
+    const p = data as unknown as Row;
+
+    const [supplierRes, locationRes, itemsRes] = await Promise.all([
+      this.sb
+        .from('suppliers')
+        .select('id, name')
+        .eq('id', str(p['supplier_id']))
+        .maybeSingle(),
+      this.sb
+        .from('operational_locations')
+        .select('id, name')
+        .eq('id', str(p['operational_location_id']))
+        .maybeSingle(),
+      this.sb
+        .from('purchase_items')
+        .select('*')
+        .eq('purchase_id', id)
+        .order('created_at', { ascending: true }),
+    ]);
+    if (supplierRes.error) {
+      throwRpcError(supplierRes.error, 'Could not load purchase supplier');
+    }
+    if (locationRes.error) {
+      throwRpcError(locationRes.error, 'Could not load purchase warehouse');
+    }
+    if (itemsRes.error) {
+      throwRpcError(itemsRes.error, 'Could not load purchase lines');
+    }
+
+    const items = ((itemsRes.data ?? []) as Row[]).map((row) =>
+      mapPurchaseItemDbRow({
+        id: str(row['id']),
+        sku_id: str(row['sku_id']),
+        product_name: str(row['product_name']),
+        sku_code: str(row['sku_code']),
+        sku_name: str(row['sku_name']),
+        quantity: num(row['quantity']),
+        unit_cost: num(row['unit_cost']),
+        line_total: num(row['line_total']),
+      }),
+    );
+
+    const list = mapPurchaseListFields({
+      id: str(p['id']),
+      supplierId: str(p['supplier_id']),
+      supplierName: supplierRes.data
+        ? str((supplierRes.data as unknown as Row)['name'])
+        : '—',
+      warehouseId: str(p['operational_location_id']),
+      warehouseName: locationRes.data
+        ? str((locationRes.data as unknown as Row)['name'])
+        : '—',
+      purchaseDate: str(p['purchase_date']),
+      billNumber: str(p['bill_number']),
+      status: str(p['status']),
+      itemCount: items.length,
+      subtotal: num(p['subtotal']),
+      taxAmount: num(p['tax_amount']),
+      total: num(p['total']),
+    });
+
+    const status = list.status;
+    return {
+      ...list,
+      notes: p['notes'] ? str(p['notes']) : null,
+      receivedAtLabel: p['received_at']
+        ? formatDateTime(str(p['received_at']))
+        : null,
+      items,
+      subtotalLabel: formatInr(list.subtotal),
+      taxAmountLabel: formatInr(list.taxAmount),
+      canEdit: status === 'DRAFT',
+      canReceive: status === 'DRAFT' && items.length > 0,
+    };
+  }
+
+  async upsertPurchaseDraft(input: PurchaseDraftInput): Promise<PurchaseDetail> {
+    const { data, error } = await this.sb.rpc('admin_upsert_purchase_draft', {
+      p_purchase_id: input.purchaseId ?? null,
+      p_supplier_id: input.supplierId,
+      p_operational_location_id: input.warehouseId,
+      p_purchase_date: input.purchaseDate.slice(0, 10),
+      p_bill_number: input.billNumber.trim(),
+      p_tax_amount: input.taxAmount ?? 0,
+      p_notes: input.notes?.trim() || null,
+      p_items: input.items.map((item) => ({
+        sku_id: item.skuId,
+        quantity: item.quantity,
+        unit_cost: item.unitCost,
+      })),
+    });
+    if (error) throwRpcError(error, 'Could not save purchase');
+    const row = data as unknown as Row;
+    const detail = await this.purchaseDetail(str(row['id']));
+    if (!detail) throw new Error('Purchase saved but could not be reloaded');
+    return detail;
+  }
+
+  async receivePurchase(purchaseId: string): Promise<{
+    purchaseId: string;
+    status: PurchaseStatus;
+    alreadyReceived: boolean;
+    movementCount: number;
+    totalQuantity: number;
+  }> {
+    const { data, error } = await this.sb.rpc('admin_receive_purchase', {
+      p_purchase_id: purchaseId,
+    });
+    if (error) throwRpcError(error, 'Could not receive purchase');
+    const row = data as unknown as Row;
+    return {
+      purchaseId: str(row['purchaseId'] ?? purchaseId),
+      status: (str(row['status']).toUpperCase() as PurchaseStatus) || 'RECEIVED',
+      alreadyReceived: row['alreadyReceived'] === true,
+      movementCount: num(row['movementCount']),
+      totalQuantity: num(row['totalQuantity']),
+    };
+  }
+
+  async cancelPurchaseDraft(purchaseId: string): Promise<PurchaseDetail> {
+    const { data, error } = await this.sb.rpc('admin_cancel_purchase_draft', {
+      p_purchase_id: purchaseId,
+    });
+    if (error) throwRpcError(error, 'Could not cancel purchase');
+    const row = data as unknown as Row;
+    const detail = await this.purchaseDetail(str(row['id']));
+    if (!detail) throw new Error('Purchase cancelled but could not be reloaded');
+    return detail;
   }
 
   async dayBookSnapshot(opts: {

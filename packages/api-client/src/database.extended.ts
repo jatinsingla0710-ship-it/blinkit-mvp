@@ -496,6 +496,58 @@ type Sprint7Functions = {
     };
     Returns: Json;
   };
+  admin_create_supplier: {
+    Args: {
+      p_name: string;
+      p_contact_person?: string | null;
+      p_mobile?: string | null;
+      p_email?: string | null;
+      p_address_line?: string | null;
+      p_city?: string | null;
+      p_state?: string | null;
+      p_gstin?: string | null;
+      p_notes?: string | null;
+      p_is_active?: boolean;
+    };
+    Returns: Json;
+  };
+  admin_update_supplier: {
+    Args: {
+      p_supplier_id: string;
+      p_name: string;
+      p_contact_person?: string | null;
+      p_mobile?: string | null;
+      p_email?: string | null;
+      p_address_line?: string | null;
+      p_city?: string | null;
+      p_state?: string | null;
+      p_gstin?: string | null;
+      p_notes?: string | null;
+      p_is_active?: boolean;
+    };
+    Returns: Json;
+  };
+  admin_upsert_purchase_draft: {
+    Args: {
+      p_purchase_id?: string | null;
+      p_supplier_id: string;
+      p_operational_location_id: string;
+      p_purchase_date: string;
+      p_bill_number: string;
+      p_tax_amount?: number;
+      p_notes?: string | null;
+      p_items?: Json;
+    };
+    Returns: Json;
+  };
+  admin_cancel_purchase_draft: {
+    Args: { p_purchase_id: string };
+    Returns: Json;
+  };
+  admin_receive_purchase: {
+    Args: { p_purchase_id: string };
+    Returns: Json;
+  };
   admin_update_company_expense: {
     Args: {
       p_expense_id: string;
@@ -1821,6 +1873,127 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
             reference_number: string | null;
             receipt_path: string | null;
             created_by_profile_id: string | null;
+          }>;
+          Relationships: [];
+        };
+        suppliers: {
+          Row: {
+            id: string;
+            name: string;
+            contact_person: string | null;
+            mobile: string | null;
+            email: string | null;
+            address_line: string | null;
+            city: string | null;
+            state: string | null;
+            gstin: string | null;
+            notes: string | null;
+            is_active: boolean;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            name: string;
+            contact_person?: string | null;
+            mobile?: string | null;
+            email?: string | null;
+            address_line?: string | null;
+            city?: string | null;
+            state?: string | null;
+            gstin?: string | null;
+            notes?: string | null;
+            is_active?: boolean;
+            created_by_profile_id?: string | null;
+          };
+          Update: Partial<{
+            name: string;
+            contact_person: string | null;
+            mobile: string | null;
+            email: string | null;
+            address_line: string | null;
+            city: string | null;
+            state: string | null;
+            gstin: string | null;
+            notes: string | null;
+            is_active: boolean;
+          }>;
+          Relationships: [];
+        };
+        purchases: {
+          Row: {
+            id: string;
+            supplier_id: string;
+            operational_location_id: string;
+            purchase_date: string;
+            bill_number: string;
+            status: 'DRAFT' | 'RECEIVED' | 'CANCELLED';
+            subtotal: number;
+            tax_amount: number;
+            total: number;
+            notes: string | null;
+            received_at: string | null;
+            received_by_profile_id: string | null;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            supplier_id: string;
+            operational_location_id: string;
+            purchase_date: string;
+            bill_number: string;
+            status?: 'DRAFT' | 'RECEIVED' | 'CANCELLED';
+            subtotal?: number;
+            tax_amount?: number;
+            total?: number;
+            notes?: string | null;
+          };
+          Update: Partial<{
+            supplier_id: string;
+            operational_location_id: string;
+            purchase_date: string;
+            bill_number: string;
+            status: 'DRAFT' | 'RECEIVED' | 'CANCELLED';
+            subtotal: number;
+            tax_amount: number;
+            total: number;
+            notes: string | null;
+            received_at: string | null;
+            received_by_profile_id: string | null;
+          }>;
+          Relationships: [];
+        };
+        purchase_items: {
+          Row: {
+            id: string;
+            purchase_id: string;
+            sku_id: string;
+            quantity: number;
+            unit_cost: number;
+            line_total: number;
+            product_name: string;
+            sku_code: string;
+            sku_name: string;
+            created_at: string;
+          };
+          Insert: {
+            id?: string;
+            purchase_id: string;
+            sku_id: string;
+            quantity: number;
+            unit_cost: number;
+            line_total: number;
+            product_name: string;
+            sku_code: string;
+            sku_name: string;
+          };
+          Update: Partial<{
+            quantity: number;
+            unit_cost: number;
+            line_total: number;
           }>;
           Relationships: [];
         };

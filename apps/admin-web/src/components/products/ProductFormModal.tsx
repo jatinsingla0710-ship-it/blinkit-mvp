@@ -7,7 +7,7 @@ import { autoSkuDisplayName, suggestSkuCode } from '@/data/product-create-helper
 import {
   OUTER_PACKAGE_OPTIONS,
   OUTER_PACKAGES,
-  deriveSellingUnitCode,
+  deriveSellingUnitForOrder,
   formatPackLabel,
   isPriceBasisCompatible,
   minimumOrderSummary,
@@ -257,6 +257,16 @@ export function ProductFormModal({
     });
   }, [form.moq, form.moqUnit, livePack.packsPerOuter]);
 
+  const stepConverted = useMemo(() => {
+    const qty = Number(form.orderStep);
+    if (!Number.isFinite(qty) || qty <= 0) return null;
+    return moqToBasePacks({
+      quantity: qty,
+      moqUnit: form.moqUnit,
+      packsPerOuter: livePack.packsPerOuter,
+    });
+  }, [form.orderStep, form.moqUnit, livePack.packsPerOuter]);
+
   const hasInventoryInput =
     form.initialOuterQty.trim() !== '' || form.initialLooseQty.trim() !== '';
 
@@ -505,13 +515,20 @@ export function ProductFormModal({
         skuCode: form.skuCode.trim(),
         name: skuName || autoSkuDisplayName(form.name, packQty, form.packUnit),
         productType: 'PACKED' as const,
-        sellingUnit: deriveSellingUnitCode(form.packUnit),
+        sellingUnit: deriveSellingUnitForOrder({
+          packUnit: form.packUnit,
+          moqUnit: form.moqUnit,
+          outerType: form.outerType,
+        }),
         netQuantity: packQty,
         netQuantityUnit: form.packUnit,
         packsPerCarton,
         outerType: form.outerPackQty.trim() !== '' ? form.outerType : undefined,
         moq: moqConverted.packs,
-        quantityStep: 1,
+        quantityStep:
+          stepConverted && !('error' in stepConverted)
+            ? stepConverted.packs
+            : 1,
         isActive: true,
         ...skuDiscountPayloadFromForm(form),
       };
@@ -612,13 +629,20 @@ export function ProductFormModal({
         skuCode: form.skuCode.trim(),
         name: skuName || autoSkuDisplayName(form.name, packQty, form.packUnit),
         productType: 'PACKED',
-        sellingUnit: deriveSellingUnitCode(form.packUnit),
+        sellingUnit: deriveSellingUnitForOrder({
+          packUnit: form.packUnit,
+          moqUnit: form.moqUnit,
+          outerType: form.outerType,
+        }),
         netQuantity: packQty,
         netQuantityUnit: form.packUnit,
         packsPerCarton,
         outerType: form.outerType,
         moq: moqConverted.packs,
-        quantityStep: 1,
+        quantityStep:
+          stepConverted && !('error' in stepConverted)
+            ? stepConverted.packs
+            : 1,
         isActive: true,
         ...skuDiscountPayloadFromForm(form),
       });
@@ -1111,20 +1135,24 @@ export function ProductFormModal({
             </div>
 
             <div className="ga-product-form__section">
-              <h3 className="ga-product-form__section-title">Minimum order</h3>
+              <h3 className="ga-product-form__section-title">Sales unit</h3>
+              <p className="ga-product-form__hint">
+                Salesman orders in this unit. Choosing Box/Carton converts to packs
+                for inventory automatically.
+              </p>
               <div className="ga-product-form__row">
                 <TextField
-                  label="MOQ"
+                  label="Minimum order"
                   type="number"
                   min={0}
-                  step={1}
+                  step="any"
                   value={form.moq}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, moq: e.target.value }))
                   }
                 />
                 <SelectField
-                  label="MOQ unit"
+                  label="Order unit"
                   value={form.moqUnit}
                   onChange={(moqUnit) =>
                     setForm((f) => ({
@@ -1140,6 +1168,21 @@ export function ProductFormModal({
                   ))}
                 </SelectField>
               </div>
+              <div className="ga-product-form__row">
+                <TextField
+                  label="Order step"
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={form.orderStep}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, orderStep: e.target.value }))
+                  }
+                />
+                <p className="ga-product-form__hint" style={{ alignSelf: 'end' }}>
+                  Same unit as minimum order
+                </p>
+              </div>
               {moqConverted && !('error' in moqConverted) ? (
                 <p className="ga-product-form__hint">
                   {minimumOrderSummary({
@@ -1151,10 +1194,21 @@ export function ProductFormModal({
                     displayUnit: form.moqUnit,
                     displayQuantity: Number(form.moq),
                   })}
+                  {stepConverted && !('error' in stepConverted)
+                    ? ` · Step ${form.orderStep || 1} ${
+                        form.moqUnit === 'packs'
+                          ? packWord
+                          : OUTER_PACKAGES[form.outerType]?.plural?.toLowerCase() ??
+                            form.moqUnit
+                      } (= ${stepConverted.packs} packs)`
+                    : ''}
                 </p>
               ) : null}
               {moqConverted && 'error' in moqConverted ? (
                 <p className="ga-product-form__error">{moqConverted.error}</p>
+              ) : null}
+              {stepConverted && 'error' in stepConverted ? (
+                <p className="ga-product-form__error">{stepConverted.error}</p>
               ) : null}
             </div>
           </>

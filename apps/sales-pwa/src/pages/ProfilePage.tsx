@@ -2,7 +2,7 @@ import { useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthSession, useCurrentUser } from '@groaurum/auth/react';
-import { Button, SelectField, TextField } from '@groaurum/ui';
+import { Button, SelectField } from '@groaurum/ui';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ErrorState } from '@/components/ErrorState';
 import { LoadingState } from '@/components/Skeleton';
@@ -10,7 +10,7 @@ import { useToast } from '@/components/Toast';
 import { BellIcon, ChevronRightIcon, MessageIcon, OrdersIcon, SignOutIcon, WalletIcon } from '@/components/icons';
 import { useSalesmanApi } from '@/data/SalesDataProviders';
 import { shopPhotoFileError } from '@/data/customer-form';
-import { SALES_LANGUAGES, languageLabel, profileNameError, type SalesLanguageCode } from '@/data/profile';
+import { SALES_LANGUAGES, languageLabel, type SalesLanguageCode } from '@/data/profile';
 import { useT } from '@/i18n/language';
 import { SALES_APP_VERSION } from '@/lib/app-version';
 import { errorMessage } from '@/lib/errors';
@@ -29,22 +29,16 @@ export function ProfilePage() {
     queryFn: () => api.getOwnProfile(),
     enabled: Boolean(profileId),
   });
-  const [name, setName] = useState<string | null>(null);
   const [language, setLanguage] = useState<SalesLanguageCode | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const data = profile.data;
-  const displayName = name ?? data?.displayName ?? user?.displayName ?? '';
+  const displayName = data?.displayName ?? user?.displayName ?? '';
   const preferredLanguage = language ?? data?.preferredLanguage ?? 'en';
 
   async function save(next: { updateAvatar?: boolean; avatarPath?: string | null }) {
-    const nameError = profileNameError(displayName);
-    if (nameError) {
-      setError(nameError);
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -56,7 +50,6 @@ export function ProfilePage() {
       });
       await queryClient.invalidateQueries({ queryKey: ['sales', 'profile', profileId] });
       await refreshSession();
-      setName(null);
       setLanguage(null);
       toast.success('Profile saved');
     } catch (err) {
@@ -147,14 +140,6 @@ export function ProfilePage() {
               void save({});
             }}
           >
-            <TextField
-              label="Name"
-              name="name"
-              value={displayName}
-              onChange={(event) => setName(event.target.value)}
-              disabled={busy}
-              grow
-            />
             <SelectField
               label="Preferred language"
               name="language"

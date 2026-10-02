@@ -25,6 +25,7 @@ describe('Phase 1 Admin navigation', () => {
       'Delivery',
       'Salesmen',
       'Receivables',
+      'Purchases',
       'Expenses',
       'Day Book',
       'Reports',
@@ -54,6 +55,7 @@ describe('Phase 1 Admin navigation', () => {
     expect(team?.items.map((i) => i.id)).toEqual(['salesmen']);
     expect(accounting?.items.map((i) => i.id)).toEqual([
       'receivables',
+      'purchases',
       'expenses',
       'day-book',
     ]);
@@ -92,6 +94,8 @@ describe('Phase 1 Admin navigation', () => {
     ]);
     expect(ACCOUNTING_SECTION_LINKS.map((l) => l.to)).toEqual([
       '/receivables',
+      '/purchases',
+      '/suppliers',
       '/expenses',
       '/day-book',
       '/reports',

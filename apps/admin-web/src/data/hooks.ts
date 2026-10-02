@@ -1022,3 +1022,91 @@ export function useOrderDeliveryExtrasQuery(orderId: string | undefined) {
     }),
   };
 }
+
+export function useSuppliersListQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'suppliers', 'list'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.suppliersList();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useSupplierDetailQuery(supplierId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'suppliers', 'detail', supplierId ?? ''],
+    enabled: Boolean(supplierId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !supplierId) throw new Error('Live API required');
+      return client.liveApi.supplierDetail(supplierId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function usePurchasesListQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'purchases', 'list'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.purchasesList();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function usePurchaseDetailQuery(purchaseId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'purchases', 'detail', purchaseId ?? ''],
+    enabled: Boolean(purchaseId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !purchaseId) throw new Error('Live API required');
+      return client.liveApi.purchaseDetail(purchaseId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
