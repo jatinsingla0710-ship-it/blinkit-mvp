@@ -104,7 +104,7 @@ export function PurchaseRecommendPage() {
     <div className="ga-receivables ga-purchase-recommend">
       <PageHeader
         title="What to buy"
-        description="Suggested purchases from current stock and recent sales. Review quantities, then start a purchase yourself — nothing is ordered automatically."
+        subtitle="Suggested purchases from current stock and recent sales. Review quantities, then start a purchase yourself — nothing is ordered automatically."
       />
       <SectionRelatedLinks
         links={[...INVENTORY_SECTION_LINKS, ...ACCOUNTING_SECTION_LINKS].filter(
@@ -114,6 +114,7 @@ export function PurchaseRecommendPage() {
       />
 
       <QueryStateGate
+        title="What to buy"
         state={state}
         emptyTitle="No purchase suggestions"
         emptyDetail="Stock looks covered for now, or there is no inventory yet."

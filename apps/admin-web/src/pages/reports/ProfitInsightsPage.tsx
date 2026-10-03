@@ -57,11 +57,11 @@ export function ProfitInsightsPage() {
     <div className="ga-receivables ga-profit-insights">
       <PageHeader
         title="Profit insights"
-        description="Why profit changed this month vs last month, and what stands out — from your books, not AI guesses."
+        subtitle="Why profit changed this month vs last month, and what stands out — from your books, not AI guesses."
       />
-      <SectionRelatedLinks links={ACCOUNTING_SECTION_LINKS} />
+      <SectionRelatedLinks links={[...ACCOUNTING_SECTION_LINKS]} />
 
-      <QueryStateGate state={state}>
+      <QueryStateGate title="Profit insights" state={state}>
         {(data) => (
           <>
             <div className="ga-profit-insights__summary">

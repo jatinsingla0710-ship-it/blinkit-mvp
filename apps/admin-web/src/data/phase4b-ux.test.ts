@@ -7,6 +7,7 @@ describe('Phase 4B Admin UX navigation honesty', () => {
     const labels = SIDEBAR_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.label));
     expect(labels).toEqual([
       'Dashboard',
+      "Today's brief",
       'Customers',
       'Sales',
       'Products',
@@ -16,7 +17,9 @@ describe('Phase 4B Admin UX navigation honesty', () => {
       'Collections',
       'Money Due',
       'Money to Pay',
+      'Dues assistant',
       'Purchases',
+      'What to buy',
       'Expenses',
       'Day Book',
       'Cash & Bank',

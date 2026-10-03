@@ -14,11 +14,11 @@ export function DailyBriefPage() {
     <div className="ga-daily-brief">
       <PageHeader
         title="Today's brief"
-        description="Yesterday’s money, what needs attention, and what to do next — from your books."
+        subtitle="Yesterday’s money, what needs attention, and what to do next — from your books."
       />
-      <SectionRelatedLinks links={ACCOUNTING_SECTION_LINKS} />
+      <SectionRelatedLinks links={[...ACCOUNTING_SECTION_LINKS]} />
 
-      <QueryStateGate state={state}>
+      <QueryStateGate title="Today's brief" state={state}>
         {(data) => (
           <>
             <header className="ga-daily-brief__hero">

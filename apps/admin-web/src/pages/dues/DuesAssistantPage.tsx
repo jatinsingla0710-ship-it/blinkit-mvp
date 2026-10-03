@@ -88,11 +88,12 @@ export function DuesAssistantPage() {
     <div className="ga-receivables ga-dues">
       <PageHeader
         title="Dues assistant"
-        description="Ask who owes you or whom you need to pay — answered from your books with ranking rules, not AI guesses."
+        subtitle="Ask who owes you or whom you need to pay — answered from your books with ranking rules, not AI guesses."
       />
-      <SectionRelatedLinks links={ACCOUNTING_SECTION_LINKS} />
+      <SectionRelatedLinks links={[...ACCOUNTING_SECTION_LINKS]} />
 
       <QueryStateGate
+        title="Dues assistant"
         state={state}
         emptyTitle="No open dues"
         emptyDetail="Customer and supplier balances are clear on the books."
