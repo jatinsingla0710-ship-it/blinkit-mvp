@@ -55,10 +55,10 @@ export function LoginPage() {
         <div className="ga-login__card" aria-busy="true">
           <div className="ga-login__brand">
             <span className="ga-login__mark" aria-hidden>
-              G
+              R
             </span>
             <div>
-              <p className="ga-login__title">GroAurum Admin</p>
+              <p className="ga-login__title">RichlyBook</p>
               <p className="ga-login__subtitle">Restoring session…</p>
             </div>
           </div>
@@ -100,11 +100,11 @@ export function LoginPage() {
       <div className="ga-login__card">
         <div className="ga-login__brand">
           <span className="ga-login__mark" aria-hidden>
-            G
+            R
           </span>
           <div>
-            <p className="ga-login__title">GroAurum Admin</p>
-            <p className="ga-login__subtitle">Sign in to continue</p>
+            <p className="ga-login__title">RichlyBook</p>
+            <p className="ga-login__subtitle">Your business, clearly managed</p>
           </div>
         </div>
 

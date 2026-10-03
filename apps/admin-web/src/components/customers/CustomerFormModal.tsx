@@ -47,6 +47,7 @@ type FormState = {
   deliveryPinCode: string;
   deliveryLat: number | null;
   deliveryLng: number | null;
+  gstin: string;
 };
 
 const EMPTY: FormState = {
@@ -63,6 +64,7 @@ const EMPTY: FormState = {
   deliveryPinCode: '',
   deliveryLat: null,
   deliveryLng: null,
+  gstin: '',
 };
 
 export function CustomerFormModal({
@@ -294,6 +296,15 @@ export function CustomerFormModal({
               setForm((f) => ({ ...f, legalName: e.target.value }))
             }
             hint="Optional"
+          />
+          <TextField
+            label="GSTIN"
+            value={form.gstin}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, gstin: e.target.value.toUpperCase() }))
+            }
+            hint="Optional · 15 characters"
+            className="ga-cust-form__mono"
           />
           <TextField
             label="Owner / contact person"

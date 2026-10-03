@@ -14,6 +14,11 @@ import {
   mapPaidPayrollToDayBookEntries,
   type PayrollDayBookInput,
 } from '@/data/salesman-payroll';
+import {
+  SUPPLIER_PAYMENT_METHOD_LABELS,
+  mapSupplierPaymentMethod,
+  type SupplierPaymentLedgerInput,
+} from '@/data/supplier-ledger';
 import { formatDate, formatInr } from '@/data/live/format';
 
 export type DayBookEntryType =
@@ -21,7 +26,8 @@ export type DayBookEntryType =
   | 'collection'
   | 'expense'
   | 'refund'
-  | 'payroll';
+  | 'payroll'
+  | 'supplier_payment';
 
 export type DayBookPaymentMethodFilter =
   | 'all'
@@ -101,6 +107,7 @@ function moneyLabels(inAmount: number, outAmount: number) {
  * - Collection: partial / pending cash+online collected
  * - Expense: company_expenses money out
  * - Refund: REFUNDED payment money out
+ * - Supplier payment: cash/bank paid to suppliers (not inventory expense)
  * Does not invent inventory/commission/visit entries.
  */
 export function buildDayBookEntries(input: {
@@ -108,6 +115,9 @@ export function buildDayBookEntries(input: {
   payments: readonly LedgerPaymentInput[];
   expenses: readonly CompanyExpenseRow[];
   paidPayroll?: readonly PayrollDayBookInput[];
+  supplierPayments?: readonly (SupplierPaymentLedgerInput & {
+    supplierName?: string | null;
+  })[];
 }): DayBookEntry[] {
   const paymentByOrder = new Map<string, LedgerPaymentInput>();
   for (const payment of input.payments) {
@@ -230,6 +240,31 @@ export function buildDayBookEntries(input: {
     });
   }
 
+  for (const payment of input.supplierPayments ?? []) {
+    const atIso = `${payment.paymentDate}T12:00:00+05:30`;
+    const method = mapSupplierPaymentMethod(payment.paymentMethod);
+    const party = payment.supplierName?.trim() || 'Supplier';
+    const amount = roundMoney(payment.amount);
+    if (amount <= 0) continue;
+    entries.push({
+      id: `supplier-payment-${payment.id}`,
+      atIso,
+      dateLabel: formatDate(atIso),
+      type: 'supplier_payment',
+      typeLabel: 'Supplier payment',
+      description: payment.referenceNumber?.trim()
+        ? `${party} · ${payment.referenceNumber.trim()}`
+        : `Paid ${party}`,
+      partyLabel: party,
+      moneyIn: 0,
+      moneyOut: amount,
+      ...moneyLabels(0, amount),
+      paymentMethod: SUPPLIER_PAYMENT_METHOD_LABELS[method],
+      href: `/suppliers/${payment.supplierId}`,
+      sortKey: Date.parse(atIso) || 0,
+    });
+  }
+
   return entries.sort((a, b) => {
     if (a.sortKey !== b.sortKey) return b.sortKey - a.sortKey;
     return a.id.localeCompare(b.id);
@@ -283,6 +318,9 @@ export function buildDayBookSnapshot(input: {
   payments: readonly LedgerPaymentInput[];
   expenses: readonly CompanyExpenseRow[];
   paidPayroll?: readonly PayrollDayBookInput[];
+  supplierPayments?: readonly (SupplierPaymentLedgerInput & {
+    supplierName?: string | null;
+  })[];
   type?: DayBookEntryType | 'all';
   paymentMethod?: string;
 }): DayBookSnapshot {
@@ -291,6 +329,7 @@ export function buildDayBookSnapshot(input: {
     payments: input.payments,
     expenses: input.expenses,
     paidPayroll: input.paidPayroll,
+    supplierPayments: input.supplierPayments,
   });
   const entries = filterDayBookEntries(all, {
     dateFrom: input.dateFrom,

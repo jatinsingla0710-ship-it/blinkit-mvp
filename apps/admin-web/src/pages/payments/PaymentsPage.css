@@ -121,3 +121,116 @@
 .ga-cod-settle__mgr-overview {
   margin: 0.5rem 0 0.75rem;
 }
+
+.ga-payments {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.ga-payments__card {
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.ga-payments__card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.ga-payments__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ga-payments__card-head h2 {
+  margin: 0;
+}
+
+.ga-payments__form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ga-payments__form-grid label,
+.ga-payments__card > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-payments__form-grid input,
+.ga-payments__form-grid select,
+.ga-payments__card textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.ga-payments__note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-payments__muted {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-payments__error {
+  color: var(--ga-color-danger, #b42318);
+  margin: 0;
+  font-size: 13px;
+}
+
+.ga-payments__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ga-payments__upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-payments__scan-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+  gap: 20px;
+}
+
+.ga-payments__proof-image {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+@media (max-width: 720px) {
+  .ga-payments__scan-layout {
+    grid-template-columns: 1fr;
+  }
+}

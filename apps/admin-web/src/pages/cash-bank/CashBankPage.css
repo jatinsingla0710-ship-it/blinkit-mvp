@@ -1,0 +1,79 @@
+.ga-cashbank {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ga-cashbank__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-cashbank__toolbar input[type='date'],
+.ga-cashbank__form input,
+.ga-cashbank__form select {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface);
+}
+
+.ga-cashbank__card {
+  padding: 16px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface);
+}
+
+.ga-cashbank__card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.ga-cashbank__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ga-cashbank__mode {
+  border: 1px solid var(--ga-border);
+  background: transparent;
+  border-radius: var(--ga-radius-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.ga-cashbank__mode--active {
+  border-color: var(--ga-primary);
+  color: var(--ga-primary);
+}
+
+.ga-cashbank__form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: end;
+}
+
+.ga-cashbank__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.ga-cashbank__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+}
+
+.ga-cashbank__error {
+  margin: 8px 0 0;
+  color: var(--ga-danger);
+  font-size: 13px;
+}

@@ -89,6 +89,12 @@
   color: var(--ga-text-muted, #667085);
 }
 
+.ga-purchasing__muted {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
 .ga-purchasing__form {
   display: flex;
   flex-direction: column;
@@ -101,7 +107,9 @@
   gap: 12px;
 }
 
-.ga-purchasing__form label {
+.ga-purchasing__form label,
+.ga-purchasing__form-grid label,
+.ga-purchasing__card > label {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -123,6 +131,46 @@
   font-weight: 600;
 }
 
+.ga-purchasing__effects {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ga-purchasing__effect {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  border-left-width: 3px;
+}
+
+.ga-purchasing__effect strong {
+  font-size: 13px;
+}
+
+.ga-purchasing__effect span {
+  font-size: 12px;
+  color: var(--ga-text-secondary);
+}
+
+.ga-purchasing__effect--positive {
+  border-left-color: var(--ga-success);
+}
+
+.ga-purchasing__effect--warning {
+  border-left-color: var(--ga-warning);
+}
+
+.ga-purchasing__effect--info {
+  border-left-color: var(--ga-primary);
+}
+
 .ga-purchasing__actions {
   display: flex;
   flex-wrap: wrap;
@@ -135,8 +183,46 @@
   font-size: 13px;
 }
 
+.ga-purchasing__upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-purchasing__upload input[type='file'] {
+  max-width: 100%;
+}
+
+.ga-purchasing__scan-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+  gap: 20px;
+}
+
+.ga-purchasing__bill-image {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ga-purchasing__hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
 @media (max-width: 720px) {
   .ga-table-wrap {
     overflow-x: auto;
+  }
+
+  .ga-purchasing__scan-layout {
+    grid-template-columns: 1fr;
   }
 }

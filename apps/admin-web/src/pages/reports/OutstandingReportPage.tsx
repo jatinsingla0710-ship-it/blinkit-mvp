@@ -4,6 +4,7 @@ import { Button } from '@groaurum/ui';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
+import { formatInr } from '@/data/live/format';
 import {
   filterReceivableRows,
   type ReceivableRow,
@@ -33,6 +34,8 @@ export function OutstandingReportPage() {
     () => summarizeReceivableRows(filtered),
     [filtered],
   );
+
+  const ageing = state.data?.ageingTotals;
 
   return (
     <div className="ga-rp-page">
@@ -67,6 +70,33 @@ export function OutstandingReportPage() {
                 <p className="ga-rp-summary__value">{summary.customerCount}</p>
               </div>
             </div>
+
+            {ageing ? (
+              <div className="ga-rp-summary">
+                <div>
+                  <p className="ga-rp-summary__label">Current</p>
+                  <p className="ga-rp-summary__value">{formatInr(ageing.current)}</p>
+                </div>
+                <div>
+                  <p className="ga-rp-summary__label">1–30 days</p>
+                  <p className="ga-rp-summary__value">
+                    {formatInr(ageing.days_1_30)}
+                  </p>
+                </div>
+                <div>
+                  <p className="ga-rp-summary__label">31–60 days</p>
+                  <p className="ga-rp-summary__value">
+                    {formatInr(ageing.days_31_60)}
+                  </p>
+                </div>
+                <div>
+                  <p className="ga-rp-summary__label">61+ days</p>
+                  <p className="ga-rp-summary__value">
+                    {formatInr(ageing.days_61_plus)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             <div className="ga-rp-actions">
               <input
@@ -120,6 +150,7 @@ export function OutstandingReportPage() {
                       <th>Sales</th>
                       <th>Paid</th>
                       <th>Outstanding</th>
+                      <th>Age</th>
                       <th>Last Payment</th>
                     </tr>
                   </thead>
@@ -132,6 +163,9 @@ export function OutstandingReportPage() {
                         <td>{row.totalSalesLabel}</td>
                         <td>{row.totalPaidLabel}</td>
                         <td>{row.outstandingLabel}</td>
+                        <td>
+                          {row.outstanding > 0 ? row.ageingLabel : '—'}
+                        </td>
                         <td>{row.lastPaymentAtLabel ?? '—'}</td>
                       </tr>
                     ))}

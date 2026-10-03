@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@groaurum/ui';
 import { usePermissions } from '@groaurum/auth/react';
 import { CompanyExpenseFormModal } from '@/components/expenses/CompanyExpenseFormModal';
@@ -18,8 +18,24 @@ export function ExpensesPage() {
   const { hasPermission } = usePermissions();
   const canManage = hasPermission('payments:manage');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+
+  useEffect(() => {
+    if (canManage && searchParams.get('create') === '1') {
+      setCreateOpen(true);
+    }
+  }, [canManage, searchParams]);
+
+  const closeCreate = () => {
+    setCreateOpen(false);
+    if (searchParams.has('create')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('create');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const rows = useMemo(() => {
     if (!state.data) return [];
@@ -41,9 +57,17 @@ export function ExpensesPage() {
             meta={`As of ${snapshot.generatedAtLabel}`}
             actions={
               canManage ? (
-                <Button variant="primary" onClick={() => setCreateOpen(true)}>
-                  + Add expense
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate('/expenses/scan')}
+                  >
+                    Receipt photo
+                  </Button>
+                  <Button variant="primary" onClick={() => setCreateOpen(true)}>
+                    + Add expense
+                  </Button>
+                </>
               ) : undefined
             }
           />
@@ -133,7 +157,7 @@ export function ExpensesPage() {
           {canManage ? (
             <CompanyExpenseFormModal
               open={createOpen}
-              onClose={() => setCreateOpen(false)}
+              onClose={closeCreate}
             />
           ) : null}
         </div>

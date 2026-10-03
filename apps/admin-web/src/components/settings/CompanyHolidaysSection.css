@@ -1,0 +1,32 @@
+.ga-holidays {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ga-holidays__hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ga-color-text-muted, #667085);
+}
+
+.ga-holidays__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.ga-holidays__error {
+  margin: 0;
+  grid-column: 1 / -1;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}
+
+.ga-holidays__ok {
+  margin: 0;
+  grid-column: 1 / -1;
+  color: var(--ga-color-success, #027a48);
+  font-size: 0.875rem;
+}

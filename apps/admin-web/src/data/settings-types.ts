@@ -13,6 +13,7 @@ export type SettingsSectionId =
   | 'payments'
   | 'notifications'
   | 'taxes'
+  | 'holidays'
   | 'roles'
   | 'preferences';
 

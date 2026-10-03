@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@groaurum/ui';
+import { usePermissions } from '@groaurum/auth/react';
 import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -30,6 +31,7 @@ const TYPE_OPTIONS: { id: DayBookEntryType | 'all'; label: string }[] = [
   { id: 'sale', label: 'Sale' },
   { id: 'collection', label: 'Collection' },
   { id: 'expense', label: 'Expense' },
+  { id: 'supplier_payment', label: 'Supplier payment' },
   { id: 'payroll', label: 'Payroll' },
   { id: 'refund', label: 'Refund' },
 ];
@@ -47,6 +49,9 @@ const METHOD_OPTIONS = [
 
 export function DayBookPage() {
   const today = todayExpenseDate();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission('payments:manage');
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
   const [type, setType] = useState<DayBookEntryType | 'all'>('all');
@@ -75,18 +80,28 @@ export function DayBookPage() {
             subtitle="See all money coming in and going out"
             meta={`As of ${snapshot.generatedAtLabel}`}
             actions={
-              <Button
-                variant="ghost"
-                onClick={() =>
-                  downloadCsv(
-                    `day-book-${dateFrom}-to-${dateTo}.csv`,
-                    exportDayBookCsv(snapshot.entries),
-                  )
-                }
-                disabled={snapshot.entries.length === 0}
-              >
-                Export
-              </Button>
+              <>
+                {canManage ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate('/day-book/scan')}
+                  >
+                    Enter daily book
+                  </Button>
+                ) : null}
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    downloadCsv(
+                      `day-book-${dateFrom}-to-${dateTo}.csv`,
+                      exportDayBookCsv(snapshot.entries),
+                    )
+                  }
+                  disabled={snapshot.entries.length === 0}
+                >
+                  Export
+                </Button>
+              </>
             }
           />
 

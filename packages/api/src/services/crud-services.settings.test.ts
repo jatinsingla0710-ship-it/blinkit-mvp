@@ -45,6 +45,7 @@ describe('CrudServices upsertSetting', () => {
       settingValue: {
         companyName: 'GroAurum',
         gstNumber: '',
+        gstStateCode: '',
         pan: '',
         email: 'ops@groaurum.in',
         phone: '',
@@ -86,6 +87,7 @@ describe('CrudServices upsertSetting', () => {
       settingValue: {
         companyName: 'GroAurum Wholesale',
         gstNumber: '',
+        gstStateCode: '',
         pan: '',
         email: '',
         phone: '+911100000000',

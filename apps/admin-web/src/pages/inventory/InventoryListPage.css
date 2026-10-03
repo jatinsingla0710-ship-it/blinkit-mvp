@@ -21,14 +21,26 @@
   min-width: 200px;
 }
 
-.ga-inv-list__search input {
-  width: 100%;
-  padding: 0.55rem 0.75rem;
+.ga-inv-list__warehouse select {
+  min-width: 160px;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--ga-border);
   border-radius: var(--ga-radius-sm);
   background: var(--ga-surface);
   color: var(--ga-text);
   font: inherit;
+}
+
+.ga-inv-list__report-link {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ga-primary-dark, #1f4d3a);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ga-inv-list__report-link:hover {
+  text-decoration: underline;
 }
 
 .ga-inv-list__filters {

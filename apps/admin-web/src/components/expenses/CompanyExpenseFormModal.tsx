@@ -119,6 +119,10 @@ export function CompanyExpenseFormModal({ open, onClose, expense }: Props) {
       }
     >
       <div style={{ display: 'grid', gap: 12 }}>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--ga-text-muted)' }}>
+          Use expenses for non-stock money out. Inventory supplier bills belong
+          under Purchases — receiving stock increases payable, not expense.
+        </p>
         <TextField
           label="Date"
           type="date"

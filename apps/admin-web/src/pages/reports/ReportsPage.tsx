@@ -13,7 +13,7 @@ export function ReportsPage() {
     <div className="ga-rp-page">
       <PageHeader
         title="Reports"
-        subtitle="Owner financial and business reports"
+        subtitle="Owner financial statements and business reports"
       />
 
       <SectionRelatedLinks

@@ -1,6 +1,7 @@
 import type { StockMovementType, StockMovementRow } from '../inventory-types';
 import type { InventoryMovementRow } from '../product-types';
 import { formatDateTime } from './format';
+import { formatWacUnitCost } from '../inventory-valuation';
 
 type MovementRow = Record<string, unknown>;
 
@@ -89,6 +90,10 @@ export function mapStockMovementRow(
     note: movementNote(row),
     atLabel: formatDateTime(String(row['created_at'] ?? '')),
     recordedByLabel: recordedByLabel(row, profileMap),
+    unitCostLabel:
+      row['unit_cost'] == null || row['unit_cost'] === ''
+        ? undefined
+        : formatWacUnitCost(Number(row['unit_cost'])),
   };
 }
 

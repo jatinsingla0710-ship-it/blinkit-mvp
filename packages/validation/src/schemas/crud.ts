@@ -129,6 +129,10 @@ const skuCoreFields = {
   containerCustomPrice: moneySchema.nullable().optional(),
   containerDiscountType: discountTypeSchema.optional(),
   containerDiscountValue: moneySchema.optional(),
+  /** HSN code for GST (4–8 digits typical). */
+  hsnCode: z.string().trim().min(4).max(8).optional().nullable(),
+  /** GST rate percent (e.g. 5, 12, 18). */
+  gstRatePercent: z.number().min(0).max(100).optional().nullable(),
 } as const;
 
 function refineSkuDiscounts(
@@ -226,6 +230,8 @@ export const customerCreateSchema = z.object({
   deliveryLat: z.number().min(-90).max(90).optional(),
   deliveryLng: z.number().min(-180).max(180).optional(),
   isActive: z.boolean().optional(),
+  /** Optional customer GSTIN (structural format checked in admin UI). */
+  gstin: z.string().trim().max(20).optional().nullable(),
 });
 
 export const customerUpdateSchema = z.object({
@@ -240,6 +246,7 @@ export const customerUpdateSchema = z.object({
   deliveryLat: z.number().min(-90).max(90).optional(),
   deliveryLng: z.number().min(-180).max(180).optional(),
   isActive: z.boolean().optional(),
+  gstin: z.string().trim().max(20).optional().nullable(),
 }).partial();
 
 export const customerContactUpdateSchema = z.object({

@@ -56,3 +56,122 @@
 .ga-daybook__value--out {
   color: var(--ga-color-warning, #b54708);
 }
+
+.ga-daybook__card {
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.ga-daybook__card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.ga-daybook__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ga-daybook__card-head h2 {
+  margin: 0;
+}
+
+.ga-daybook__card label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+  margin-bottom: 10px;
+}
+
+.ga-daybook__card input,
+.ga-daybook__card select,
+.ga-daybook__card textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.ga-daybook__note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-daybook__muted {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-daybook__error {
+  color: var(--ga-color-danger, #b42318);
+  margin: 0;
+  font-size: 13px;
+}
+
+.ga-daybook__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ga-daybook__upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ga-daybook__scan-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+  gap: 20px;
+}
+
+.ga-daybook__scan-image {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 8px;
+  background: #f8fafc;
+  margin-bottom: 8px;
+}
+
+.ga-daybook__source {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+.ga-daybook__raw {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.ga-daybook__flag {
+  color: var(--ga-color-warning, #b54708);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .ga-daybook__scan-layout {
+    grid-template-columns: 1fr;
+  }
+}

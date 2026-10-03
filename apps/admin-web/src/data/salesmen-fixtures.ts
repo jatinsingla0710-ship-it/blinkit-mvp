@@ -124,6 +124,22 @@ export const SALESMEN_SNAPSHOT_FIXTURE: SalesmenSnapshot = {
     },
   ],
   rows: SALESMAN_LIST_FIXTURE,
+  fieldToday: {
+    workDate: '2026-10-03',
+    startedCount: 3,
+    notStartedCount: 1,
+    absentCount: 0,
+    onLeaveCount: 1,
+    pendingExpenseClaims: 2,
+    pendingReturnClaims: 1,
+  },
+  visitCoverage: {
+    rangeLabel: 'Today',
+    planned: 8,
+    completed: 6,
+    missed: 2,
+    total: 16,
+  },
 };
 
 export function browseSalesmen(

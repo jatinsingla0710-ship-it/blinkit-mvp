@@ -25,6 +25,7 @@ describe('company settings JSON contract', () => {
     ).toEqual({
       companyName: 'Acme Wholesale',
       gstNumber: '07AABCG1234D1Z5',
+      gstStateCode: '',
       pan: 'AABCG1234D',
       email: 'ops@acme.in',
       phone: '+911123456789',
@@ -45,6 +46,7 @@ describe('company settings JSON contract', () => {
     ).toEqual({
       companyName: 'GroAurum',
       gstNumber: '',
+      gstStateCode: '',
       pan: '',
       email: '',
       phone: '+91 11 0000 0000',

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
 import {
   EMPTY_SALESMAN_BROWSE,
@@ -45,79 +45,123 @@ export function SalesmenListPage() {
 
   return (
     <QueryStateGate title="Salesmen" state={state}>
-      {(snapshot) => (
-        <div className="ga-sm-list">
-          <PageHeader
-            title="Salesmen"
-            subtitle="Field team coverage, visits, earnings, and claims"
-            meta={snapshot.generatedAtLabel}
-          />
+      {(snapshot) => {
+        const field = snapshot.fieldToday;
+        const visits = snapshot.visitCoverage;
+        const pendingClaims =
+          field.pendingExpenseClaims + field.pendingReturnClaims;
 
-          <SectionRelatedLinks
-            label="Team section"
-            links={[...TEAM_SECTION_LINKS]}
-          />
-
-          <KpiCards items={snapshot.kpis} />
-
-          <Card title="Quick Actions">
-            <SalesmenQuickActions
-              canManageCustomers={canManageCustomers}
-              canManageOrders={canManageOrders}
-              canManageSalesmen={canManageSalesmen}
-              onAction={(id) => {
-                if (id === 'provision_salesman' && canManageSalesmen) {
-                  setProvisionOpen(true);
-                  return;
-                }
-                if (id === 'add_customer' && canManageCustomers) {
-                  setCreateCustomerOpen(true);
-                  return;
-                }
-                if (id === 'create_order' && canManageOrders) {
-                  setCreateOrderOpen(true);
-                  return;
-                }
-                if (id === 'view_territory') {
-                  navigate('/service-areas');
-                }
-              }}
+        return (
+          <div className="ga-sm-list">
+            <PageHeader
+              title="Salesmen"
+              subtitle="Field team coverage, visits, earnings, and claims"
+              meta={snapshot.generatedAtLabel}
             />
-          </Card>
 
-          <SalesmenBrowseBar state={browse} onChange={setBrowse} />
+            <SectionRelatedLinks
+              label="Team section"
+              links={[...TEAM_SECTION_LINKS]}
+            />
 
-          <SalesmenTable
-            rows={result.rows}
-            page={Math.min(browse.page, result.pageCount)}
-            pageCount={result.pageCount}
-            total={result.total}
-            onPageChange={(page) => setBrowse((s) => ({ ...s, page }))}
-          />
+            <KpiCards items={snapshot.kpis} />
 
-          {canManageSalesmen ? (
-            <SalesmanProvisionModal
-              open={provisionOpen}
-              onClose={() => setProvisionOpen(false)}
-              onSuccess={(profileId) => navigate(`/salesmen/${profileId}`)}
+            <div className="ga-sm-list__field" aria-label="Today in the field">
+              <Card title={`Today · ${field.workDate}`}>
+                <div className="ga-sm-list__field-grid">
+                  <div>
+                    <p className="ga-sm-list__field-label">Started day</p>
+                    <p className="ga-sm-list__field-value">{field.startedCount}</p>
+                  </div>
+                  <div>
+                    <p className="ga-sm-list__field-label">Not started</p>
+                    <p className="ga-sm-list__field-value">{field.notStartedCount}</p>
+                  </div>
+                  <div>
+                    <p className="ga-sm-list__field-label">Absent / leave</p>
+                    <p className="ga-sm-list__field-value">
+                      {field.absentCount + field.onLeaveCount}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="ga-sm-list__field-label">Visits</p>
+                    <p className="ga-sm-list__field-value">
+                      {visits.completed}/{visits.total}
+                    </p>
+                    <p className="ga-sm-list__field-hint">
+                      {visits.planned} open · {visits.missed} missed
+                    </p>
+                  </div>
+                  <div>
+                    <p className="ga-sm-list__field-label">Pending claims</p>
+                    <p className="ga-sm-list__field-value">{pendingClaims}</p>
+                    <Link to="/salesmen/claims" className="ga-sm-list__field-link">
+                      Review inbox →
+                    </Link>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            <Card title="Quick Actions">
+              <SalesmenQuickActions
+                canManageCustomers={canManageCustomers}
+                canManageOrders={canManageOrders}
+                canManageSalesmen={canManageSalesmen}
+                onAction={(id) => {
+                  if (id === 'provision_salesman' && canManageSalesmen) {
+                    setProvisionOpen(true);
+                    return;
+                  }
+                  if (id === 'add_customer' && canManageCustomers) {
+                    setCreateCustomerOpen(true);
+                    return;
+                  }
+                  if (id === 'create_order' && canManageOrders) {
+                    setCreateOrderOpen(true);
+                    return;
+                  }
+                  if (id === 'view_territory') {
+                    navigate('/service-areas');
+                  }
+                }}
+              />
+            </Card>
+
+            <SalesmenBrowseBar state={browse} onChange={setBrowse} />
+
+            <SalesmenTable
+              rows={result.rows}
+              page={Math.min(browse.page, result.pageCount)}
+              pageCount={result.pageCount}
+              total={result.total}
+              onPageChange={(page) => setBrowse((s) => ({ ...s, page }))}
             />
-          ) : null}
-          {canManageCustomers ? (
-            <CustomerFormModal
-              open={createCustomerOpen}
-              onClose={() => setCreateCustomerOpen(false)}
-              onSuccess={(customerId) => navigate(`/customers/${customerId}`)}
-            />
-          ) : null}
-          {canManageOrders ? (
-            <SalesmanOrderFormModal
-              open={createOrderOpen}
-              onClose={() => setCreateOrderOpen(false)}
-              onSuccess={(orderId) => navigate(`/orders/${orderId}`)}
-            />
-          ) : null}
-        </div>
-      )}
+
+            {canManageSalesmen ? (
+              <SalesmanProvisionModal
+                open={provisionOpen}
+                onClose={() => setProvisionOpen(false)}
+                onSuccess={(profileId) => navigate(`/salesmen/${profileId}`)}
+              />
+            ) : null}
+            {canManageCustomers ? (
+              <CustomerFormModal
+                open={createCustomerOpen}
+                onClose={() => setCreateCustomerOpen(false)}
+                onSuccess={(customerId) => navigate(`/customers/${customerId}`)}
+              />
+            ) : null}
+            {canManageOrders ? (
+              <SalesmanOrderFormModal
+                open={createOrderOpen}
+                onClose={() => setCreateOrderOpen(false)}
+                onSuccess={(orderId) => navigate(`/orders/${orderId}`)}
+              />
+            ) : null}
+          </div>
+        );
+      }}
     </QueryStateGate>
   );
 }

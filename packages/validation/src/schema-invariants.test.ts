@@ -22,7 +22,39 @@ describe('supabase schema migrations', () => {
     expect(files).toContain('20260820121500_sprint92_pricing_admin_rpcs.sql');
     expect(files).toContain('20260820143000_sprint92_admin_set_sku_price.sql');
     expect(files).toContain('20260820190000_sprint93_admin_adjust_inventory.sql');
-    expect(files.at(-1)).toBe('20260830210000_cod_custody_manager_owner.sql');
+    expect(files.at(-1)).toBe('20261003050000_payment_proof_scans.sql');
+  });
+
+  it('defines purchase bill scan storage and draft-only confirm RPCs', () => {
+    expect(sql).toContain('purchase_bill_scans');
+    expect(sql).toContain('purchase-bills');
+    expect(sql).toContain('admin_create_purchase_bill_scan');
+    expect(sql).toContain('admin_confirm_purchase_bill_scan');
+    expect(sql).toContain('admin_discard_purchase_bill_scan');
+  });
+
+  it('defines expense receipt scan storage and confirm RPCs', () => {
+    expect(sql).toContain('expense_receipt_scans');
+    expect(sql).toContain('expense-receipts');
+    expect(sql).toContain('admin_create_expense_receipt_scan');
+    expect(sql).toContain('admin_confirm_expense_receipt_scan');
+    expect(sql).toContain('admin_discard_expense_receipt_scan');
+  });
+
+  it('defines day book / rojnama scan storage and confirm RPCs', () => {
+    expect(sql).toContain('day_book_scans');
+    expect(sql).toContain('day-book-scans');
+    expect(sql).toContain('admin_create_day_book_scan');
+    expect(sql).toContain('admin_confirm_day_book_scan');
+    expect(sql).toContain('admin_discard_day_book_scan');
+  });
+
+  it('defines payment proof scan storage and confirm RPCs', () => {
+    expect(sql).toContain('payment_proof_scans');
+    expect(sql).toContain('payment-proofs');
+    expect(sql).toContain('admin_create_payment_proof_scan');
+    expect(sql).toContain('admin_confirm_payment_proof_scan');
+    expect(sql).toContain('admin_discard_payment_proof_scan');
   });
 
   it('defines trusted admin_set_sku_price for current-price writes', () => {

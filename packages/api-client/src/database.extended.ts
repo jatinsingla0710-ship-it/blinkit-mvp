@@ -548,6 +548,155 @@ type Sprint7Functions = {
     Args: { p_purchase_id: string };
     Returns: Json;
   };
+  admin_record_supplier_payment: {
+    Args: {
+      p_supplier_id: string;
+      p_payment_date: string;
+      p_amount: number;
+      p_payment_method?: string;
+      p_reference_number?: string | null;
+      p_notes?: string | null;
+      p_purchase_id?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_delete_supplier_payment: {
+    Args: { p_payment_id: string };
+    Returns: undefined;
+  };
+  admin_create_purchase_bill_scan: {
+    Args: { p_notes?: string | null };
+    Returns: Json;
+  };
+  admin_set_purchase_bill_scan_image: {
+    Args: { p_scan_id: string; p_image_path: string };
+    Returns: Json;
+  };
+  admin_save_purchase_bill_scan_extract: {
+    Args: {
+      p_scan_id: string;
+      p_extract_json: Json;
+      p_extractor_label?: string;
+    };
+    Returns: Json;
+  };
+  admin_confirm_purchase_bill_scan: {
+    Args: { p_scan_id: string; p_purchase_id: string };
+    Returns: Json;
+  };
+  admin_discard_purchase_bill_scan: {
+    Args: { p_scan_id: string };
+    Returns: Json;
+  };
+  admin_create_expense_receipt_scan: {
+    Args: { p_notes?: string | null };
+    Returns: Json;
+  };
+  admin_set_expense_receipt_scan_image: {
+    Args: { p_scan_id: string; p_image_path: string };
+    Returns: Json;
+  };
+  admin_save_expense_receipt_scan_extract: {
+    Args: {
+      p_scan_id: string;
+      p_extract_json: Json;
+      p_extractor_label?: string;
+    };
+    Returns: Json;
+  };
+  admin_confirm_expense_receipt_scan: {
+    Args: { p_scan_id: string; p_expense_id: string };
+    Returns: Json;
+  };
+  admin_discard_expense_receipt_scan: {
+    Args: { p_scan_id: string };
+    Returns: Json;
+  };
+  admin_create_day_book_scan: {
+    Args: { p_source_text?: string | null; p_notes?: string | null };
+    Returns: Json;
+  };
+  admin_set_day_book_scan_image: {
+    Args: { p_scan_id: string; p_image_path: string };
+    Returns: Json;
+  };
+  admin_save_day_book_scan_extract: {
+    Args: {
+      p_scan_id: string;
+      p_extract_json: Json;
+      p_extractor_label?: string;
+      p_source_text?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_confirm_day_book_scan: {
+    Args: { p_scan_id: string; p_extract_json?: Json | null };
+    Returns: Json;
+  };
+  admin_discard_day_book_scan: {
+    Args: { p_scan_id: string };
+    Returns: Json;
+  };
+  admin_create_payment_proof_scan: {
+    Args: { p_notes?: string | null };
+    Returns: Json;
+  };
+  admin_set_payment_proof_scan_image: {
+    Args: { p_scan_id: string; p_image_path: string };
+    Returns: Json;
+  };
+  admin_save_payment_proof_scan_extract: {
+    Args: {
+      p_scan_id: string;
+      p_extract_json: Json;
+      p_extractor_label?: string;
+    };
+    Returns: Json;
+  };
+  admin_confirm_payment_proof_scan: {
+    Args: {
+      p_scan_id: string;
+      p_order_id: string;
+      p_shop_id?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_discard_payment_proof_scan: {
+    Args: { p_scan_id: string };
+    Returns: Json;
+  };
+  admin_sync_accounting_journals: {
+    Args: { p_date_from: string; p_date_to: string };
+    Returns: Json;
+  };
+  admin_record_cash_bank_transfer: {
+    Args: {
+      p_entry_date: string;
+      p_amount: number;
+      p_direction: string;
+      p_memo?: string | null;
+    };
+    Returns: string;
+  };
+  admin_record_cash_bank_opening: {
+    Args: {
+      p_entry_date: string;
+      p_cash_amount?: number;
+      p_bank_amount?: number;
+      p_memo?: string | null;
+    };
+    Returns: string;
+  };
+  admin_record_cash_bank_external: {
+    Args: {
+      p_entry_date: string;
+      p_account: string;
+      p_kind: string;
+      p_amount: number;
+      p_memo?: string | null;
+    };
+    Returns: string;
+  };
   admin_update_company_expense: {
     Args: {
       p_expense_id: string;
@@ -1697,7 +1846,10 @@ type Sprint4Views = {
     Relationships: [];
   };
   inventory: {
-    Row: GeneratedDatabase['public']['Tables']['inventory_balances']['Row'];
+    Row: GeneratedDatabase['public']['Tables']['inventory_balances']['Row'] & {
+      average_unit_cost: number | null;
+      stock_value: number;
+    };
     Relationships: [];
   };
 };
@@ -1709,9 +1861,40 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
   > & {
     Tables: Omit<
       GeneratedDatabase['public']['Tables'],
-      keyof SoftDeletedTables | 'orders' | 'payments'
+      | keyof SoftDeletedTables
+      | 'orders'
+      | 'payments'
+      | 'inventory_balances'
+      | 'inventory_movements'
     > &
       SoftDeletedTables & {
+        inventory_balances: {
+          Row: GeneratedDatabase['public']['Tables']['inventory_balances']['Row'] & {
+            average_unit_cost: number | null;
+            stock_value: number;
+          };
+          Insert: GeneratedDatabase['public']['Tables']['inventory_balances']['Insert'] & {
+            average_unit_cost?: number | null;
+            stock_value?: number;
+          };
+          Update: GeneratedDatabase['public']['Tables']['inventory_balances']['Update'] & {
+            average_unit_cost?: number | null;
+            stock_value?: number;
+          };
+          Relationships: GeneratedDatabase['public']['Tables']['inventory_balances']['Relationships'];
+        };
+        inventory_movements: {
+          Row: GeneratedDatabase['public']['Tables']['inventory_movements']['Row'] & {
+            unit_cost: number | null;
+          };
+          Insert: GeneratedDatabase['public']['Tables']['inventory_movements']['Insert'] & {
+            unit_cost?: number | null;
+          };
+          Update: GeneratedDatabase['public']['Tables']['inventory_movements']['Update'] & {
+            unit_cost?: number | null;
+          };
+          Relationships: GeneratedDatabase['public']['Tables']['inventory_movements']['Relationships'];
+        };
         orders: {
           Row: GeneratedDatabase['public']['Tables']['orders']['Row'] &
             OrdersLifecyclePatch['Row'];
@@ -1966,6 +2149,153 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
           }>;
           Relationships: [];
         };
+        purchase_bill_scans: {
+          Row: {
+            id: string;
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            purchase_id: string | null;
+            notes: string | null;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+            confirmed_at: string | null;
+          };
+          Insert: {
+            id?: string;
+            status?: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path?: string | null;
+            extract_json?: Json;
+            extractor_label?: string;
+            purchase_id?: string | null;
+            notes?: string | null;
+            created_by_profile_id?: string | null;
+            confirmed_at?: string | null;
+          };
+          Update: Partial<{
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            purchase_id: string | null;
+            notes: string | null;
+            confirmed_at: string | null;
+          }>;
+          Relationships: [];
+        };
+        expense_receipt_scans: {
+          Row: {
+            id: string;
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            expense_id: string | null;
+            notes: string | null;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+            confirmed_at: string | null;
+          };
+          Insert: {
+            id?: string;
+            status?: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path?: string | null;
+            extract_json?: Json;
+            extractor_label?: string;
+            expense_id?: string | null;
+            notes?: string | null;
+            created_by_profile_id?: string | null;
+            confirmed_at?: string | null;
+          };
+          Update: Partial<{
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            expense_id: string | null;
+            notes: string | null;
+            confirmed_at: string | null;
+          }>;
+          Relationships: [];
+        };
+        day_book_scans: {
+          Row: {
+            id: string;
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            source_text: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            notes: string | null;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+            confirmed_at: string | null;
+          };
+          Insert: {
+            id?: string;
+            status?: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path?: string | null;
+            source_text?: string | null;
+            extract_json?: Json;
+            extractor_label?: string;
+            notes?: string | null;
+            created_by_profile_id?: string | null;
+            confirmed_at?: string | null;
+          };
+          Update: Partial<{
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            source_text: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            notes: string | null;
+            confirmed_at: string | null;
+          }>;
+          Relationships: [];
+        };
+        payment_proof_scans: {
+          Row: {
+            id: string;
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            order_id: string | null;
+            shop_id: string | null;
+            notes: string | null;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+            confirmed_at: string | null;
+          };
+          Insert: {
+            id?: string;
+            status?: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path?: string | null;
+            extract_json?: Json;
+            extractor_label?: string;
+            order_id?: string | null;
+            shop_id?: string | null;
+            notes?: string | null;
+            created_by_profile_id?: string | null;
+            confirmed_at?: string | null;
+          };
+          Update: Partial<{
+            status: 'UPLOADED' | 'REVIEWING' | 'CONFIRMED' | 'DISCARDED';
+            image_path: string | null;
+            extract_json: Json;
+            extractor_label: string;
+            order_id: string | null;
+            shop_id: string | null;
+            notes: string | null;
+            confirmed_at: string | null;
+          }>;
+          Relationships: [];
+        };
         purchase_items: {
           Row: {
             id: string;
@@ -1994,6 +2324,42 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
             quantity: number;
             unit_cost: number;
             line_total: number;
+          }>;
+          Relationships: [];
+        };
+        supplier_payments: {
+          Row: {
+            id: string;
+            supplier_id: string;
+            purchase_id: string | null;
+            payment_date: string;
+            amount: number;
+            payment_method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+            reference_number: string | null;
+            notes: string | null;
+            created_by_profile_id: string | null;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            supplier_id: string;
+            purchase_id?: string | null;
+            payment_date: string;
+            amount: number;
+            payment_method?: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+            reference_number?: string | null;
+            notes?: string | null;
+            created_by_profile_id?: string | null;
+          };
+          Update: Partial<{
+            supplier_id: string;
+            purchase_id: string | null;
+            payment_date: string;
+            amount: number;
+            payment_method: 'CASH' | 'BANK' | 'UPI' | 'OTHER';
+            reference_number: string | null;
+            notes: string | null;
           }>;
           Relationships: [];
         };
@@ -2273,6 +2639,79 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
         delivery_cod_settlements: DeliveryCodSettlements;
         delivery_exceptions: DeliveryExceptions;
         delivery_notification_events: DeliveryNotificationEvents;
+        chart_of_accounts: {
+          Row: {
+            id: string;
+            code: string;
+            name: string;
+            account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+            is_system: boolean;
+            is_active: boolean;
+            created_at: string;
+            updated_at: string;
+          };
+          Insert: {
+            id?: string;
+            code: string;
+            name: string;
+            account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+            is_system?: boolean;
+            is_active?: boolean;
+          };
+          Update: Partial<{
+            name: string;
+            is_active: boolean;
+          }>;
+          Relationships: [];
+        };
+        journal_entries: {
+          Row: {
+            id: string;
+            entry_date: string;
+            source_type: string;
+            source_id: string;
+            memo: string;
+            created_by_profile_id: string | null;
+            created_at: string;
+          };
+          Insert: {
+            id?: string;
+            entry_date: string;
+            source_type: string;
+            source_id: string;
+            memo: string;
+            created_by_profile_id?: string | null;
+          };
+          Update: Partial<{
+            memo: string;
+          }>;
+          Relationships: [];
+        };
+        journal_lines: {
+          Row: {
+            id: string;
+            journal_entry_id: string;
+            account_id: string;
+            debit: number;
+            credit: number;
+            line_memo: string | null;
+            created_at: string;
+          };
+          Insert: {
+            id?: string;
+            journal_entry_id: string;
+            account_id: string;
+            debit?: number;
+            credit?: number;
+            line_memo?: string | null;
+          };
+          Update: Partial<{
+            debit: number;
+            credit: number;
+            line_memo: string | null;
+          }>;
+          Relationships: [];
+        };
       };
     Views: GeneratedDatabase['public']['Views'] & Sprint4Views;
     Functions: GeneratedDatabase['public']['Functions'] &

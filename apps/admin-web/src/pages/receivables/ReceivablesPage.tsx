@@ -5,6 +5,7 @@ import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
+import { formatInr } from '@/data/live/format';
 import {
   filterReceivableRows,
   type ReceivableRow,
@@ -38,6 +39,7 @@ function ReceivablesTable({ rows }: { rows: ReceivableRow[] }) {
             <th>Sales</th>
             <th>Paid</th>
             <th>Due</th>
+            <th>Age</th>
             <th>Last payment</th>
             <th />
           </tr>
@@ -61,6 +63,21 @@ function ReceivablesTable({ rows }: { rows: ReceivableRow[] }) {
                 >
                   {row.outstandingLabel}
                 </strong>
+              </td>
+              <td>
+                {row.outstanding > 0 ? (
+                  <>
+                    {row.ageingLabel}
+                    {row.oldestOpenDays != null ? (
+                      <div className="ga-receivables__meta">
+                        {row.oldestOpenDays} day
+                        {row.oldestOpenDays === 1 ? '' : 's'} open
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  '—'
+                )}
               </td>
               <td>{row.lastPaymentAtLabel ?? '—'}</td>
               <td className="ga-receivables__actions">
@@ -94,6 +111,8 @@ export function ReceivablesPage() {
     () => summarizeReceivableRows(filtered),
     [filtered],
   );
+
+  const ageing = state.data?.ageingTotals;
 
   return (
     <QueryStateGate
@@ -131,6 +150,35 @@ export function ReceivablesPage() {
               <p className="ga-receivables__value">{summary.totalPaidLabel}</p>
             </div>
           </div>
+
+          {ageing ? (
+            <div className="ga-receivables__ageing" aria-label="Ageing buckets">
+              <div>
+                <p className="ga-receivables__label">Current</p>
+                <p className="ga-receivables__value ga-receivables__value--sm">
+                  {formatInr(ageing.current)}
+                </p>
+              </div>
+              <div>
+                <p className="ga-receivables__label">1–30 days</p>
+                <p className="ga-receivables__value ga-receivables__value--sm">
+                  {formatInr(ageing.days_1_30)}
+                </p>
+              </div>
+              <div>
+                <p className="ga-receivables__label">31–60 days</p>
+                <p className="ga-receivables__value ga-receivables__value--sm">
+                  {formatInr(ageing.days_31_60)}
+                </p>
+              </div>
+              <div>
+                <p className="ga-receivables__label">61+ days</p>
+                <p className="ga-receivables__value ga-receivables__value--sm">
+                  {formatInr(ageing.days_61_plus)}
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="ga-receivables__toolbar">
             <label className="ga-receivables__search">

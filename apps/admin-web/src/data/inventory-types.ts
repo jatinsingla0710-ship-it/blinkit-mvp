@@ -28,6 +28,7 @@ export interface InventoryDashboardKpi {
 /** Compact warehouse chip on the inventory list (aggregated SKU row). */
 export interface InventoryListWarehouseChip {
   balanceId: string;
+  warehouseId: string;
   warehouseName: string;
   mixedStockLabel: string;
   status: InventoryHealthStatus;
@@ -66,6 +67,14 @@ export interface InventoryListRow {
   unitLabel: string;
   warehouseCount: number;
   warehouses: InventoryListWarehouseChip[];
+  /** Sum of warehouse stock_value (WAC). */
+  stockValue: number;
+  stockValueLabel: string;
+  /** True when any warehouse balance has quantity but no average cost. */
+  valuationIncomplete: boolean;
+  /** Blended WAC across warehouses when cost is complete. */
+  averageUnitCost: number | null;
+  averageUnitCostLabel: string;
 }
 
 /** One warehouse stock position for a SKU (inventory_balances row). */
@@ -88,6 +97,11 @@ export interface InventoryWarehouseBalance {
   onHandQuantity: number;
   status: InventoryHealthStatus;
   updatedAtLabel: string;
+  averageUnitCost: number | null;
+  averageUnitCostLabel: string;
+  stockValue: number;
+  stockValueLabel: string;
+  valuationIncomplete: boolean;
 }
 
 export interface StockMovementRow {
@@ -100,6 +114,7 @@ export interface StockMovementRow {
   note?: string;
   atLabel: string;
   recordedByLabel: string;
+  unitCostLabel?: string;
 }
 
 export interface StockReservationRow {
@@ -160,7 +175,16 @@ export interface InventorySkuDetail {
   packsPerCarton?: number;
   /** Outer packaging type (bag/box/carton…). */
   outerType?: string;
+  averageUnitCost: number | null;
+  averageUnitCostLabel: string;
+  stockValue: number;
   stockValueLabel: string;
+  /** Sum of stock_value across warehouses for this SKU. */
+  totalStockValue: number;
+  totalStockValueLabel: string;
+  valuationMethodLabel: string;
+  valuationNote: string | null;
+  valuationIncomplete: boolean;
   status: InventoryHealthStatus;
   updatedAtLabel: string;
   /** Movements for selected SKU + warehouse only */

@@ -46,7 +46,11 @@ export function InventoryDetailPage() {
   };
 
   const onAction = (id: InventoryQuickActionId) => {
-    if (id === 'view_ledger' || id === 'receive_stock') {
+    if (id === 'receive_stock') {
+      navigate('/purchases');
+      return;
+    }
+    if (id === 'view_ledger') {
       setTab('movements');
       return;
     }

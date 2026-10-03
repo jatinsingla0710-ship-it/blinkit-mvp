@@ -1,0 +1,44 @@
+.ga-accounting {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ga-accounting__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ga-accounting__toolbar input[type='date'] {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-sm);
+  background: var(--ga-surface);
+}
+
+.ga-accounting__card {
+  padding: 16px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: var(--ga-surface);
+}
+
+.ga-accounting__card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.ga-accounting__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ga-text-secondary);
+}
+
+.ga-accounting__error {
+  margin: 0;
+  color: var(--ga-danger);
+  font-size: 13px;
+}

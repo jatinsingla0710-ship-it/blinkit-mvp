@@ -14,6 +14,7 @@ describe('company settings mapping', () => {
     ).toEqual({
       companyName: 'GroAurum',
       gstNumber: '',
+      gstStateCode: '',
       pan: '',
       email: '',
       phone: '',

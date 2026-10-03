@@ -207,4 +207,22 @@ export interface SalesmenSnapshot {
   generatedAtLabel: string;
   kpis: SalesmenDashboardKpi[];
   rows: SalesmanListRow[];
+  /** Today's field strip (Asia/Kolkata work date). */
+  fieldToday: {
+    workDate: string;
+    startedCount: number;
+    notStartedCount: number;
+    absentCount: number;
+    onLeaveCount: number;
+    pendingExpenseClaims: number;
+    pendingReturnClaims: number;
+  };
+  /** Visit coverage for today (planned_at date in Kolkata). */
+  visitCoverage: {
+    rangeLabel: string;
+    planned: number;
+    completed: number;
+    missed: number;
+    total: number;
+  };
 }

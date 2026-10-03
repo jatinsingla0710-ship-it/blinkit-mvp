@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { Button } from '@groaurum/ui';
 import { SalesDateFilter } from '@/components/sales/SalesDateFilter';
 import { KpiCards } from '@/components/dashboard/KpiCards';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
-import { useProfitLossQuery } from '@/data/hooks';
+import { useLedgerStatementsQuery } from '@/data/hooks';
 import { dateRangeForPreset, type SalesDatePreset } from '@/data/sales-fiscal';
 import './ReportsPage.css';
 
@@ -33,13 +34,13 @@ export function ProfitLossPage() {
 
   const dateFrom = toYmd(range.from) || toYmd(new Date());
   const dateTo = toYmd(range.to) || toYmd(new Date());
-  const { state } = useProfitLossQuery({ dateFrom, dateTo });
+  const { state } = useLedgerStatementsQuery({ dateFrom, dateTo });
 
   return (
     <div className="ga-rp-page">
       <PageHeader
         title="Profit & Loss"
-        subtitle="Sales vs recorded expenses and paid payroll"
+        subtitle="Revenue, cost of goods, expenses, and profit from Books"
         meta={range.label}
       />
       <Link to="/reports" className="ga-rp-back">
@@ -55,79 +56,73 @@ export function ProfitLossPage() {
           onCustomFromChange={setCustomFrom}
           onCustomToChange={setCustomTo}
         />
+        <Link to="/accounting" className="ga-rp-back">
+          Open Books
+        </Link>
       </div>
 
       <QueryStateGate title="Profit & Loss" state={state}>
         {(snapshot) => {
           const pl = snapshot.profitLoss;
+          if (!snapshot.hasLedgerActivity) {
+            return (
+              <EmptyState
+                title="No Books journals yet"
+                detail={snapshot.honestyNote}
+              />
+            );
+          }
           return (
             <div className="ga-rp-pl">
               <KpiCards
                 items={[
                   {
-                    id: 'sales',
-                    label: 'Total Sales',
-                    value: pl.salesTotalLabel,
-                    hint: 'Converted invoices',
+                    id: 'revenue',
+                    label: 'Revenue',
+                    value: pl.revenueLabel,
+                    hint: 'Sales from Books',
                   },
                   {
-                    id: 'costs',
-                    label: 'Total Expenses',
-                    value: pl.totalCostsLabel,
-                    hint: 'Company expenses + paid payroll',
+                    id: 'cogs',
+                    label: 'Cost of Goods Sold',
+                    value: pl.cogsLabel,
                   },
                   {
-                    id: 'result',
-                    label: 'Operating Result',
-                    value: pl.operatingResultLabel,
-                    tone: pl.operatingResult >= 0 ? 'positive' : 'danger',
+                    id: 'gross',
+                    label: 'Gross Profit',
+                    value: pl.grossProfitLabel,
+                    hint: `Margin ${pl.grossMarginLabel}`,
+                    tone: pl.grossProfit >= 0 ? 'positive' : 'danger',
                   },
                   {
-                    id: 'cash',
-                    label: 'Net Cash Movement',
-                    value: pl.netCashMovementLabel,
-                    hint: 'Collections − refunds − costs',
+                    id: 'net',
+                    label: 'Net Profit',
+                    value: pl.netProfitLabel,
+                    hint: 'After expenses and payroll',
+                    tone: pl.netProfit >= 0 ? 'positive' : 'danger',
                   },
                 ]}
               />
 
-              <section className="ga-rp-pl__section" aria-label="Income">
-                <h3>Income / Sales</h3>
-                <div className="ga-rp-pl__row">
-                  <span>Sales</span>
-                  <span>{pl.salesTotalLabel}</span>
-                </div>
-              </section>
-
-              <section className="ga-rp-pl__section" aria-label="Money movement">
-                <h3>Money Movement</h3>
-                <div className="ga-rp-pl__row">
-                  <span>Collections</span>
-                  <span>{pl.collectionsTotalLabel}</span>
-                </div>
-                <div className="ga-rp-pl__row">
-                  <span>Refunds</span>
-                  <span>{pl.refundsTotalLabel}</span>
-                </div>
-              </section>
-
-              <section className="ga-rp-pl__section" aria-label="Expenses">
-                <h3>Expenses</h3>
-                <div className="ga-rp-pl__row">
-                  <span>Company Expenses</span>
-                  <span>{pl.expensesTotalLabel}</span>
-                </div>
-                <div className="ga-rp-pl__row">
-                  <span>Paid Payroll</span>
-                  <span>{pl.payrollPaidTotalLabel}</span>
-                </div>
-                <div className="ga-rp-pl__row ga-rp-pl__row--total">
-                  <span>Operating result</span>
-                  <span>{pl.operatingResultLabel}</span>
-                </div>
+              <section className="ga-rp-pl__section" aria-label="Profit and loss">
+                <h3>Statement</h3>
+                {pl.lines.map((line) => (
+                  <div
+                    key={line.id}
+                    className={
+                      line.emphasis
+                        ? 'ga-rp-pl__row ga-rp-pl__row--total'
+                        : 'ga-rp-pl__row'
+                    }
+                  >
+                    <span>{line.label}</span>
+                    <span>{line.amountLabel}</span>
+                  </div>
+                ))}
               </section>
 
               <p className="ga-rp-disclaimer">{pl.disclaimer}</p>
+              <p className="ga-rp-disclaimer">{snapshot.honestyNote}</p>
               <Button variant="secondary" onClick={() => window.print()}>
                 Print
               </Button>

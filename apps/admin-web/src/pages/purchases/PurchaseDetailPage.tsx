@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@groaurum/ui';
 import { usePermissions } from '@groaurum/auth/react';
 import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { usePurchaseDetailQuery } from '@/data/hooks';
@@ -11,6 +12,7 @@ import {
   useReceivePurchaseMutation,
 } from '@/data/mutations';
 import { formatMutationError } from '@/data/mutation-errors';
+import { formatInr } from '@/data/live/format';
 import { PURCHASING_SECTION_LINKS } from '@/data/purchasing';
 import '@groaurum/ui/styles/data-table.css';
 import './PurchasingPages.css';
@@ -37,8 +39,8 @@ export function PurchaseDetailPage() {
       const result = await receiveMutation.mutateAsync(purchaseId);
       setMessage(
         result.alreadyReceived
-          ? 'Purchase was already received. Stock was not added again.'
-          : `Received into inventory (${result.movementCount} movement(s), qty ${result.totalQuantity}).`,
+          ? 'Purchase was already received. Stock and payable were not changed again.'
+          : `Received into stock (${result.movementCount} movement(s), qty ${result.totalQuantity}). Supplier payable increased — this is not an expense.`,
       );
       await refetch();
     } catch (err) {
@@ -102,6 +104,18 @@ export function PurchaseDetailPage() {
                     {pending ? 'Receiving…' : 'Receive into stock'}
                   </Button>
                 ) : null}
+                {canManage &&
+                purchase.status === 'RECEIVED' &&
+                purchase.accounting.remainingOnBill > 0 ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      navigate(`/suppliers/${purchase.supplierId}?pay=1`)
+                    }
+                  >
+                    Record payment
+                  </Button>
+                ) : null}
               </div>
             }
           />
@@ -113,6 +127,46 @@ export function PurchaseDetailPage() {
 
           {error ? <p className="ga-purchasing__error">{error}</p> : null}
           {message ? <p className="ga-purchasing__note">{message}</p> : null}
+
+          <section className="ga-purchasing__card">
+            <h2>Accounting impact</h2>
+            <p className="ga-purchasing__note">{purchase.accounting.ownerSummary}</p>
+            <ul className="ga-purchasing__effects">
+              {purchase.accounting.effects.map((effect) => (
+                <li
+                  key={effect.id}
+                  className={`ga-purchasing__effect ga-purchasing__effect--${effect.tone}`}
+                >
+                  <strong>{effect.label}</strong>
+                  <span>{effect.detail}</span>
+                </li>
+              ))}
+            </ul>
+            <dl className="ga-purchasing__dl">
+              <div>
+                <dt>Stock cost</dt>
+                <dd>{purchase.accounting.inventoryCostLabel}</dd>
+              </div>
+              <div>
+                <dt>Tax on bill</dt>
+                <dd>{purchase.accounting.taxAmountLabel}</dd>
+              </div>
+              <div>
+                <dt>Payable from bill</dt>
+                <dd>{purchase.accounting.payableIncreaseLabel}</dd>
+              </div>
+              <div>
+                <dt>Paid on this bill</dt>
+                <dd>{purchase.accounting.paidAgainstBillLabel}</dd>
+              </div>
+              <div>
+                <dt>Still to pay</dt>
+                <dd>
+                  <strong>{purchase.accounting.remainingOnBillLabel}</strong>
+                </dd>
+              </div>
+            </dl>
+          </section>
 
           <section className="ga-purchasing__card">
             <h2>Header</h2>
@@ -146,13 +200,6 @@ export function PurchaseDetailPage() {
                 <dd>{purchase.notes ?? '—'}</dd>
               </div>
             </dl>
-            {purchase.status === 'RECEIVED' ? (
-              <p className="ga-purchasing__note">
-                Received purchases are locked. Stock was increased via inventory
-                receipt movements. This is not a cash payment and does not appear
-                in Day Book.
-              </p>
-            ) : null}
           </section>
 
           <section className="ga-purchasing__card">
@@ -162,8 +209,25 @@ export function PurchaseDetailPage() {
               <span>Tax: {purchase.taxAmountLabel}</span>
               <span>Total: {purchase.totalLabel}</span>
             </div>
+            {purchase.taxAmount > 0 ? (
+              <div className="ga-purchasing__totals">
+                <span>
+                  Supply:{' '}
+                  {purchase.supplyType === 'INTRA'
+                    ? 'Same state'
+                    : purchase.supplyType === 'INTER'
+                      ? 'Other state'
+                      : 'Not set'}
+                </span>
+                <span>CGST: {formatInr(purchase.cgstAmount)}</span>
+                <span>SGST: {formatInr(purchase.sgstAmount)}</span>
+                <span>IGST: {formatInr(purchase.igstAmount)}</span>
+              </div>
+            ) : null}
             <p className="ga-purchasing__note">
-              Tax is optional in this phase — full GST engine comes later.
+              Tax is stored on the bill and included in supplier payable. GST
+              summary is available under Reports — this is not a GSTR filing
+              export. Do not post inventory purchases as expenses.
             </p>
           </section>
 
@@ -186,7 +250,7 @@ export function PurchaseDetailPage() {
                       <td>{item.productName}</td>
                       <td>
                         {item.skuCode}
-                        <div className="ga-purchasing__note">{item.skuName}</div>
+                        <div className="ga-purchasing__muted">{item.skuName}</div>
                       </td>
                       <td>{item.quantityLabel}</td>
                       <td>{item.unitCostLabel}</td>
@@ -196,6 +260,53 @@ export function PurchaseDetailPage() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          <section className="ga-purchasing__card">
+            <div className="ga-purchasing__card-head">
+              <h2>Payments on this bill</h2>
+              {canManage && purchase.status === 'RECEIVED' ? (
+                <Link
+                  className="ga-btn ga-btn--secondary"
+                  to={`/suppliers/${purchase.supplierId}?pay=1`}
+                >
+                  + Record payment
+                </Link>
+              ) : null}
+            </div>
+            {purchase.billPayments.length === 0 ? (
+              <EmptyState
+                title="No payments linked to this bill"
+                detail={
+                  purchase.status === 'RECEIVED'
+                    ? 'Record a supplier payment and optionally link it to this bill.'
+                    : 'Receive the purchase before recording payments against it.'
+                }
+              />
+            ) : (
+              <div className="ga-table-wrap">
+                <table className="ga-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Amount</th>
+                      <th>Method</th>
+                      <th>Reference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchase.billPayments.map((payment) => (
+                      <tr key={payment.id}>
+                        <td>{payment.paymentDateLabel}</td>
+                        <td>{payment.amountLabel}</td>
+                        <td>{payment.paymentMethodLabel}</td>
+                        <td>{payment.referenceNumber ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           {canManage && purchase.status === 'DRAFT' ? (

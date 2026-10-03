@@ -21,7 +21,14 @@ export function InventoryOverviewTab({ detail, onSelectWarehouse }: Props) {
         <ul className="ga-inv-overview__total-meta">
           <li>{detail.totalPacksLabel}</li>
           {detail.totalWeightLabel ? <li>{detail.totalWeightLabel}</li> : null}
+          <li>Stock value · {detail.totalStockValueLabel}</li>
+          <li>{detail.valuationMethodLabel}</li>
         </ul>
+        {detail.valuationNote ? (
+          <p className="ga-inv-overview__warn" role="status">
+            {detail.valuationNote}
+          </p>
+        ) : null}
         {detail.packagingLabel ? (
           <p className="ga-inv-overview__packaging">
             Packaging · {detail.packagingLabel}
@@ -75,6 +82,14 @@ export function InventoryOverviewTab({ detail, onSelectWarehouse }: Props) {
                   <div>
                     <dt>On hand</dt>
                     <dd>{wh.mixedOnHandLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>Avg cost</dt>
+                    <dd>{wh.averageUnitCostLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>Stock value</dt>
+                    <dd>{wh.stockValueLabel}</dd>
                   </div>
                 </dl>
                 <p className="ga-inv-overview__wh-packs">{wh.packsTotalLabel}</p>

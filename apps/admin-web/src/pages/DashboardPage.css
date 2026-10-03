@@ -35,6 +35,16 @@
   color: var(--ga-color-text-muted, #667085);
 }
 
+.ga-dashboard__brief {
+  padding-bottom: 4px;
+}
+
+.ga-dashboard__brief-line {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  color: var(--ga-color-text, #101828);
+}
+
 .ga-dashboard__row {
   display: grid;
   gap: var(--ga-space-3);

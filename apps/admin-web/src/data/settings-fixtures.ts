@@ -10,6 +10,7 @@ export const SETTINGS_SNAPSHOT_FIXTURE: SettingsSnapshot = {
   company: {
     companyName: 'GroAurum Wholesale Pvt Ltd',
     gstNumber: '07AABCG1234D1Z5',
+    gstStateCode: '07',
     pan: 'AABCG1234D',
     email: 'ops@groaurum.in',
     phone: '+91 11 XXXX 4400',

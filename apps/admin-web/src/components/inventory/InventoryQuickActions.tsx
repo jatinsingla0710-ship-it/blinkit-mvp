@@ -20,7 +20,7 @@ export function InventoryQuickActions({
       {canManage ? (
         <>
           <Button variant="primary" onClick={() => onAction?.('receive_stock')}>
-            Receive Stock
+            Receive via purchase
           </Button>
           <Button variant="secondary" onClick={() => onAction?.('adjust_stock')}>
             Adjust Stock

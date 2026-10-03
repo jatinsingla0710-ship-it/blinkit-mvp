@@ -1,7 +1,7 @@
 {
-  "name": "GroAurum Admin",
-  "short_name": "GroAurum Admin",
-  "description": "GroAurum wholesale operations console",
+  "name": "RichlyBook",
+  "short_name": "RichlyBook",
+  "description": "RichlyBook owner business console",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

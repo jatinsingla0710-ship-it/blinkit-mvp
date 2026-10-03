@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser, useAuthSession } from '@groaurum/auth/react';
+import type { NavGroup } from '@/data/dashboard-types';
+import { AdminCommandSearch } from './AdminCommandSearch';
 import './TopNav.css';
 
 type Props = {
+  groups: NavGroup[];
   onMenuClick?: () => void;
 };
 
@@ -15,7 +18,7 @@ function roleLabel(role: string | undefined): string {
     .join(' ');
 }
 
-export function TopNav({ onMenuClick }: Props) {
+export function TopNav({ groups, onMenuClick }: Props) {
   const user = useCurrentUser();
   const { signOut } = useAuthSession();
   const navigate = useNavigate();
@@ -49,14 +52,15 @@ export function TopNav({ onMenuClick }: Props) {
         </button>
         <Link to="/" className="ga-topnav__brand">
           <span className="ga-topnav__mark" aria-hidden>
-            G
+            R
           </span>
-          <span className="ga-topnav__name">GroAurum</span>
-          <span className="ga-topnav__product">Admin</span>
+          <span className="ga-topnav__name">RichlyBook</span>
+          <span className="ga-topnav__product">Owner</span>
         </Link>
       </div>
 
       <div className="ga-topnav__right">
+        <AdminCommandSearch groups={groups} />
         <div className="ga-topnav__user">
           <button
             type="button"

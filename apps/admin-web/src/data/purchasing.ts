@@ -4,6 +4,10 @@
  */
 
 import { formatDate, formatDateTime, formatInr } from '@/data/live/format';
+import type { PurchaseAccountingVm } from '@/data/purchase-accounting';
+import type { SupplierPaymentMethod } from '@/data/supplier-ledger';
+import type { GstSupplyType } from '@/data/gst';
+import { GST_SUPPLY_TYPE_LABELS } from '@/data/gst';
 
 export type PurchaseStatus = 'DRAFT' | 'RECEIVED' | 'CANCELLED';
 
@@ -71,8 +75,23 @@ export type PurchaseListRow = {
   itemCount: number;
   subtotal: number;
   taxAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
+  supplyType: GstSupplyType;
   total: number;
   totalLabel: string;
+};
+
+export type PurchaseBillPaymentRow = {
+  id: string;
+  paymentDate: string;
+  paymentDateLabel: string;
+  amount: number;
+  amountLabel: string;
+  paymentMethod: SupplierPaymentMethod | string;
+  paymentMethodLabel: string;
+  referenceNumber: string | null;
 };
 
 export type PurchaseDetail = PurchaseListRow & {
@@ -83,6 +102,8 @@ export type PurchaseDetail = PurchaseListRow & {
   taxAmountLabel: string;
   canEdit: boolean;
   canReceive: boolean;
+  accounting: PurchaseAccountingVm;
+  billPayments: PurchaseBillPaymentRow[];
 };
 
 export type PurchaseDraftInput = {
@@ -92,6 +113,10 @@ export type PurchaseDraftInput = {
   purchaseDate: string;
   billNumber: string;
   taxAmount?: number;
+  supplyType?: GstSupplyType;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
   notes?: string | null;
   items: PurchaseItemInput[];
 };
@@ -238,9 +263,18 @@ export function mapPurchaseListFields(input: {
   itemCount: number;
   subtotal: number;
   taxAmount: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  supplyType?: string | null;
   total: number;
 }): PurchaseListRow {
   const status = (input.status.toUpperCase() as PurchaseStatus) || 'DRAFT';
+  const supplyRaw = (input.supplyType ?? 'UNSET').toUpperCase();
+  const supplyType: GstSupplyType =
+    supplyRaw === 'INTRA' || supplyRaw === 'INTER' || supplyRaw === 'UNSET'
+      ? supplyRaw
+      : 'UNSET';
   return {
     id: input.id,
     supplierId: input.supplierId,
@@ -255,9 +289,17 @@ export function mapPurchaseListFields(input: {
     itemCount: input.itemCount,
     subtotal: input.subtotal,
     taxAmount: input.taxAmount,
+    cgstAmount: Number(input.cgstAmount) || 0,
+    sgstAmount: Number(input.sgstAmount) || 0,
+    igstAmount: Number(input.igstAmount) || 0,
+    supplyType,
     total: input.total,
     totalLabel: formatInr(input.total),
   };
+}
+
+export function purchaseSupplyTypeLabel(supplyType: GstSupplyType): string {
+  return GST_SUPPLY_TYPE_LABELS[supplyType];
 }
 
 export const PURCHASING_SECTION_LINKS = [
@@ -265,6 +307,16 @@ export const PURCHASING_SECTION_LINKS = [
     to: '/purchases',
     label: 'Purchases',
     description: 'Supplier bills and stock receipts',
+  },
+  {
+    to: '/purchases/scan',
+    label: 'Bill photo',
+    description: 'Upload a bill photo → review → draft',
+  },
+  {
+    to: '/payables',
+    label: 'Money to Pay',
+    description: 'Supplier balances due',
   },
   {
     to: '/suppliers',
@@ -279,6 +331,6 @@ export const PURCHASING_SECTION_LINKS = [
   {
     to: '/expenses',
     label: 'Expenses',
-    description: 'Business money out',
+    description: 'Non-stock business money out',
   },
 ] as const;

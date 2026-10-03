@@ -51,6 +51,10 @@ export interface Sku {
   containerCustomPrice?: number | null;
   containerDiscountType?: 'none' | 'percent' | 'fixed';
   containerDiscountValue?: number;
+  /** HSN for GST rate mapping. */
+  hsnCode?: string | null;
+  /** GST rate percent. */
+  gstRatePercent?: number | null;
   moq: number;
   quantityStep: number;
   isActive: boolean;

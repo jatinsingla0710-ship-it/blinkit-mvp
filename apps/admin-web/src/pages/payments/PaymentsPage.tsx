@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
 import { Button } from '@groaurum/ui';
 import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
@@ -44,6 +44,7 @@ function parseTab(raw: string | null): PaymentsTabId {
  */
 export function PaymentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tab = parseTab(searchParams.get('tab'));
   const focus = searchParams.get('focus');
   const ofdUnpaidOnly = focus === 'ofd_unpaid';
@@ -82,6 +83,16 @@ export function PaymentsPage() {
             : canManage
               ? undefined
               : 'Read-only'
+        }
+        actions={
+          canManage ? (
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/payments/scan')}
+            >
+              Payment proof
+            </Button>
+          ) : undefined
         }
       />
 

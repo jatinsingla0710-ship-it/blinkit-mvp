@@ -18,16 +18,23 @@ describe('Phase 1 Admin navigation', () => {
     const labels = SIDEBAR_NAV.map((item) => item.label);
     expect(labels).toEqual([
       'Dashboard',
+      "Today's brief",
       'Customers',
       'Sales',
       'Products',
       'Inventory',
       'Delivery',
       'Salesmen',
-      'Receivables',
+      'Collections',
+      'Money Due',
+      'Money to Pay',
+      'Dues assistant',
       'Purchases',
+      'What to buy',
       'Expenses',
       'Day Book',
+      'Cash & Bank',
+      'Books',
       'Reports',
       'Settings',
     ]);
@@ -40,7 +47,7 @@ describe('Phase 1 Admin navigation', () => {
     expect(labels).not.toContain('Ledger');
   });
 
-  it('groups nav into Business, Team, and Accounting sections', () => {
+  it('groups nav into Business, Team, and owner-friendly Money sections', () => {
     const business = SIDEBAR_NAV_GROUPS.find((g) => g.id === 'business');
     const team = SIDEBAR_NAV_GROUPS.find((g) => g.id === 'team');
     const accounting = SIDEBAR_NAV_GROUPS.find((g) => g.id === 'accounting');
@@ -53,20 +60,29 @@ describe('Phase 1 Admin navigation', () => {
       'delivery',
     ]);
     expect(team?.items.map((i) => i.id)).toEqual(['salesmen']);
+    expect(accounting?.label).toBe('Money');
     expect(accounting?.items.map((i) => i.id)).toEqual([
+      'collections',
       'receivables',
+      'payables',
+      'dues',
       'purchases',
+      'purchase-recommend',
       'expenses',
       'day-book',
+      'cash-bank',
+      'accounting-books',
     ]);
   });
 
-  it('highlights Sales for orders, invoices, and collections', () => {
+  it('keeps Sales and Collections as distinct owner destinations', () => {
     const sales = SIDEBAR_NAV.find((item) => item.id === 'sales')!;
+    const collections = SIDEBAR_NAV.find((item) => item.id === 'collections')!;
     expect(isSidebarItemActive('/orders', sales)).toBe(true);
     expect(isSidebarItemActive('/orders/abc', sales)).toBe(true);
     expect(isSidebarItemActive('/sales', sales)).toBe(true);
-    expect(isSidebarItemActive('/payments', sales)).toBe(true);
+    expect(isSidebarItemActive('/payments', sales)).toBe(false);
+    expect(isSidebarItemActive('/payments', collections)).toBe(true);
     expect(isSidebarItemActive('/products', sales)).toBe(false);
   });
 
@@ -91,13 +107,23 @@ describe('Phase 1 Admin navigation', () => {
       '/orders',
       '/sales',
       '/payments',
+      '/payments/scan',
     ]);
     expect(ACCOUNTING_SECTION_LINKS.map((l) => l.to)).toEqual([
+      '/brief',
+      '/dues',
       '/receivables',
+      '/payables',
+      '/purchases/recommend',
+      '/reports/profit-insights',
       '/purchases',
       '/suppliers',
       '/expenses',
+      '/expenses/scan',
       '/day-book',
+      '/day-book/scan',
+      '/cash-bank',
+      '/accounting',
       '/reports',
       '/payments',
     ]);
@@ -107,6 +133,9 @@ describe('Phase 1 Admin navigation', () => {
       '/pricing',
     ]);
     expect(INVENTORY_SECTION_LINKS.map((l) => l.to)).toContain('/warehouses');
+    expect(INVENTORY_SECTION_LINKS.map((l) => l.to)).toContain(
+      '/purchases/recommend',
+    );
     expect(TEAM_SECTION_LINKS.map((l) => l.to)).toContain('/pricing/commission');
     expect(TEAM_SECTION_LINKS.map((l) => l.to)).toContain('/salesmen/payroll');
     expect(TEAM_SECTION_LINKS.find((l) => l.to === '/salesmen/payroll')?.label).toBe(

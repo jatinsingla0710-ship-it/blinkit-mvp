@@ -50,12 +50,20 @@ export function PurchasesListPage() {
             meta={`${purchases.length} purchase(s)`}
             actions={
               canManage ? (
-                <Button
-                  variant="primary"
-                  onClick={() => navigate('/purchases/new')}
-                >
-                  + New purchase
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate('/purchases/scan')}
+                  >
+                    Bill photo
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => navigate('/purchases/new')}
+                  >
+                    + New purchase
+                  </Button>
+                </>
               ) : undefined
             }
           />

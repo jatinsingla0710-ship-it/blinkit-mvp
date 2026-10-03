@@ -11,6 +11,15 @@ export const COMPANY_SETTING_KEY = 'company' as const;
 export const companySettingsValueSchema = z.object({
   companyName: nonEmptyString,
   gstNumber: z.string().trim().default(''),
+  /** 2-digit GST state code (e.g. 07). Used for intra vs inter-state. */
+  gstStateCode: z
+    .string()
+    .trim()
+    .default('')
+    .refine(
+      (value) => value.length === 0 || /^\d{2}$/.test(value),
+      'GST state code must be 2 digits',
+    ),
   pan: z.string().trim().default(''),
   email: z
     .string()
@@ -58,6 +67,7 @@ export function normalizeCompanySettingsInput(
   return {
     companyName: pickString(obj, ['companyName', 'name']),
     gstNumber: pickString(obj, ['gstNumber']),
+    gstStateCode: pickString(obj, ['gstStateCode', 'gst_state_code']),
     pan: pickString(obj, ['pan']),
     email: pickString(obj, ['email']),
     phone: pickString(obj, ['phone', 'phoneLabel']),

@@ -91,10 +91,10 @@ export interface AttentionAlert {
 }
 
 export type QuickActionId =
-  | 'add_product'
-  | 'update_price'
-  | 'add_customer'
-  | 'create_route';
+  | 'new_sale'
+  | 'new_purchase'
+  | 'record_expense'
+  | 'collect_payment';
 
 export interface DashboardQuickAction {
   id: QuickActionId;

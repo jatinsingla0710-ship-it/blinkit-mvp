@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { InventorySkuDetail } from '@/data/inventory-types';
+import { ADJUST_REASON_PRESETS } from '@/data/inventory-ops';
 import { inventoryOuterLabel } from '@/data/inventory-display';
 import { formatMutationError } from '@/data/mutation-errors';
 import {
@@ -19,6 +20,12 @@ type Props = {
 
 type AdjustMode = 'add' | 'remove' | 'set';
 
+const MODE_LABELS: Record<AdjustMode, string> = {
+  add: 'Add stock',
+  remove: 'Remove / write-off',
+  set: 'Count correction',
+};
+
 export function InventoryAdjustForm({
   detail,
   canManage,
@@ -28,6 +35,7 @@ export function InventoryAdjustForm({
   const [mode, setMode] = useState<AdjustMode>('add');
   const [outerQty, setOuterQty] = useState('');
   const [packQty, setPackQty] = useState('');
+  const [reasonPreset, setReasonPreset] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +43,7 @@ export function InventoryAdjustForm({
   const outerSingular = inventoryOuterLabel(detail.outerType, 1);
   const outerPlural = inventoryOuterLabel(detail.outerType, 2);
   const packWord = packUnitPluralLabel(detail.netQuantityUnit, 2);
+  const presets = ADJUST_REASON_PRESETS[mode];
 
   const preview = useMemo(() => {
     if (!hasOuter && !packQty.trim()) return null;
@@ -81,6 +90,15 @@ export function InventoryAdjustForm({
     packQty,
     packWord,
   ]);
+
+  const resolvedReason = () => {
+    const custom = reason.trim();
+    const presetLabel = presets.find((p) => p.id === reasonPreset)?.label;
+    if (custom && presetLabel) return `${presetLabel}: ${custom}`;
+    if (custom) return custom;
+    if (presetLabel) return presetLabel;
+    return MODE_LABELS[mode];
+  };
 
   const submit = () => {
     setError(null);
@@ -130,7 +148,7 @@ export function InventoryAdjustForm({
           skuId: detail.skuId,
           operationalLocationId: detail.warehouseId,
           onHandQuantity: nextOnHand,
-          reason: reason.trim() || `Inventory ${mode}`,
+          reason: resolvedReason(),
         },
       },
       {
@@ -138,6 +156,7 @@ export function InventoryAdjustForm({
           setOuterQty('');
           setPackQty('');
           setReason('');
+          setReasonPreset('');
         },
         onError: (err) =>
           setError(formatMutationError(err, 'Inventory adjustment failed')),
@@ -164,6 +183,10 @@ export function InventoryAdjustForm({
 
   return (
     <div className="ga-inv-adjust">
+      <p className="ga-inv-adjust__lead">
+        Adjustments post as ADMIN_ADJUSTMENT on the stock ledger. Receive new
+        supplier stock from Purchases so weighted average cost stays correct.
+      </p>
       <ol className="ga-inv-adjust__steps">
         <li>
           <span className="ga-inv-adjust__step-label">Step 1 · Warehouse</span>
@@ -191,9 +214,9 @@ export function InventoryAdjustForm({
           <div className="ga-inv-adjust__modes">
             {(
               [
-                ['add', 'Add Stock'],
-                ['remove', 'Remove Stock'],
-                ['set', 'Set Exact Stock'],
+                ['add', 'Add stock'],
+                ['remove', 'Remove / write-off'],
+                ['set', 'Count correction'],
               ] as const
             ).map(([id, label]) => (
               <button
@@ -204,7 +227,10 @@ export function InventoryAdjustForm({
                     ? 'ga-inv-adjust__mode ga-inv-adjust__mode--active'
                     : 'ga-inv-adjust__mode'
                 }
-                onClick={() => setMode(id)}
+                onClick={() => {
+                  setMode(id);
+                  setReasonPreset('');
+                }}
               >
                 {label}
               </button>
@@ -263,12 +289,28 @@ export function InventoryAdjustForm({
       </ol>
 
       <label className="ga-inv-adjust__reason">
-        Reason (optional)
+        Reason
+        <select
+          value={reasonPreset}
+          onChange={(e) => setReasonPreset(e.target.value)}
+          aria-label="Reason preset"
+        >
+          <option value="">Choose a reason…</option>
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="ga-inv-adjust__reason">
+        Extra note (optional)
         <input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="e.g. Physical count correction"
+          placeholder="Optional detail for the stock ledger"
         />
       </label>
 
@@ -283,13 +325,7 @@ export function InventoryAdjustForm({
         disabled={updateInventory.isPending}
         onClick={submit}
       >
-        {updateInventory.isPending
-          ? 'Saving…'
-          : mode === 'add'
-            ? 'Add stock'
-            : mode === 'remove'
-              ? 'Remove stock'
-              : 'Set stock'}
+        {updateInventory.isPending ? 'Saving…' : MODE_LABELS[mode]}
       </Button>
     </div>
   );

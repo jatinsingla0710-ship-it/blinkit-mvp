@@ -22,6 +22,8 @@ import {
   mapStockMovementRow,
 } from './inventory-movement-map';
 import { selectInventoryBalance } from '../inventory-detail-key';
+import { formatWacUnitCost } from '../inventory-valuation';
+import { blendedAverageUnitCost } from '../inventory-ops';
 import { buildPublishChecklist, isPublishReady } from '../publish';
 import {
   computeProductReadinessLabel,
@@ -47,6 +49,7 @@ import {
   buildCustomerAccountSummary,
   buildCustomerAttentionItems,
   buildCustomerTimeline,
+  oldestOpenReceivableDays,
 } from '../customer-account-dashboard';
 import {
   buildCustomerLedger,
@@ -54,8 +57,21 @@ import {
   type ReceivablesSnapshot,
 } from '../customer-ledger';
 import {
+  buildDuesAssistantSnapshot,
+  type DuesAssistantSnapshot,
+} from '../dues-assistant';
+import {
+  buildProfitAnomalyAssistantSnapshot,
+  type ProfitAnomalyAssistantSnapshot,
+} from '../profit-anomaly-assistant';
+import {
+  buildDailyBusinessBriefSnapshot,
+  type DailyBusinessBriefSnapshot,
+} from '../daily-business-brief';
+import {
   buildCompanyExpensesSnapshot,
   mapCompanyExpenseRow,
+  validateCompanyExpenseInput,
   type CompanyExpenseInput,
   type CompanyExpenseRow,
   type CompanyExpensesSnapshot,
@@ -71,6 +87,50 @@ import {
   type SupplierInput,
   type SupplierRow,
 } from '../purchasing';
+import {
+  parseBillExtractJson,
+  type BillExtractDraft,
+  type PurchaseBillScanStatus,
+  type PurchaseBillScanVm,
+} from '../bill-extract';
+import {
+  parseReceiptExtractJson,
+  type ExpenseReceiptScanStatus,
+  type ExpenseReceiptScanVm,
+  type ReceiptExtractDraft,
+} from '../receipt-extract';
+import {
+  parseDayBookExtractJson,
+  type DayBookExtractDraft,
+  type DayBookScanStatus,
+  type DayBookScanVm,
+} from '../day-book-extract';
+import {
+  buildUnpaidOrderCandidates,
+  parsePaymentProofExtractJson,
+  type PaymentProofExtractDraft,
+  type PaymentProofScanStatus,
+  type PaymentProofScanVm,
+  type UnpaidOrderCandidate,
+} from '../payment-proof-extract';
+import { buildPurchaseAccounting } from '../purchase-accounting';
+import {
+  buildPurchaseRecommendationsSnapshot,
+  inventoryRowToSignal,
+  SALES_LOOKBACK_DAYS,
+  type PurchaseRecommendationsSnapshot,
+  type PurchaseSkuSignal,
+} from '../purchase-recommendations';
+import {
+  buildSupplierLedger,
+  buildSupplierPayablesSnapshot,
+  mapSupplierPaymentMethod,
+  SUPPLIER_PAYMENT_METHOD_LABELS,
+  type SupplierLedgerVm,
+  type SupplierPayablesSnapshot,
+  type SupplierPaymentLedgerInput,
+  type SupplierPaymentMethod,
+} from '../supplier-ledger';
 import {
   buildDayBookSnapshot,
   type DayBookEntryType,
@@ -90,11 +150,48 @@ import {
   buildOwnerFinancialKpis,
   buildProfitLoss,
   filterExpensesByDate,
+  sumInventoryCogs,
   sumPaidPayroll,
   sumSalesTotal,
   summarizeDayBookByType,
   type ProfitLossVm,
 } from '../financial-reports';
+import {
+  ACCOUNT_TYPE_LABELS,
+  buildTrialBalanceRows,
+  journalSourceLabel,
+  type AccountType,
+  type AccountingSnapshot,
+  type ChartAccountRow,
+} from '../accounting';
+import {
+  AP_ACCOUNT_CODE,
+  AR_ACCOUNT_CODE,
+  BANK_ACCOUNT_CODE,
+  CASH_ACCOUNT_CODE,
+  attachRunningBalances,
+  buildCashBankHonestyNote,
+  ledgerAssetBalance,
+  ledgerLiabilityBalance,
+  type CashBankAccountKind,
+  type CashBankExternalKind,
+  type CashBankSnapshot,
+  type CashBankTransferDirection,
+} from '../cash-bank';
+import {
+  buildGstTaxSummary,
+  type GstTaxSummaryVm,
+} from '../gst-report';
+import {
+  buildBalanceSheet,
+  buildCashFlowStatement,
+  buildGeneralLedgerRows,
+  buildLedgerProfitLoss,
+  buildLedgerTrialBalance,
+  cashBankBalanceFromLines,
+  type LedgerLineFact,
+  type LedgerStatementsSnapshot,
+} from '../financial-statements';
 import type { KpiCardItem } from '@/components/dashboard/KpiCards';
 import {
   buildInventoryOverview,
@@ -138,6 +235,11 @@ import {
   latestOrderAtByShop,
   latestVisitAtByShop,
 } from '../salesmen-helpers';
+import {
+  kolkataWorkDate,
+  summarizeFieldToday,
+  summarizeVisitCoverage,
+} from '../field-ops';
 import {
   PREFERRED_PAYMENT_NOT_SET,
   customerHealthOrdersThisMonth,
@@ -277,11 +379,13 @@ import {
   businessDayStartIso,
   ymdInBusinessTz,
 } from '../business-dates';
+import { dateRangeForPreset } from '../sales-fiscal';
 import type { ReportsSnapshot, ReportsSection } from '../reports-types';
 import type {
   SettingsSnapshot,
   WarehouseRow,
   ServiceAreaRow,
+  TaxConfigRow,
 } from '../settings-types';
 import {
   mergeCustomerLocationHints,
@@ -342,6 +446,10 @@ function num(v: unknown): number {
   if (v == null) return 0;
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+function moneyRound(v: unknown): number {
+  return Math.round(num(v) * 100) / 100;
 }
 
 export function mapShopLocation(row: {
@@ -848,6 +956,9 @@ export class LiveAdminApi {
             : undefined,
         containerDiscountType: (str(s['container_discount_type']) || 'none') as ProductSkuRow['containerDiscountType'],
         containerDiscountValue: num(s['container_discount_value'] ?? 0),
+        hsnCode: s['hsn_code'] ? str(s['hsn_code']) : null,
+        gstRatePercent:
+          s['gst_rate_percent'] != null ? num(s['gst_rate_percent']) : null,
         currentTradePrice: livePriceMap.get(sid),
         currentTradePriceLabel: livePriceMap.has(sid)
           ? formatInrPrecise(livePriceMap.get(sid)!)
@@ -1562,6 +1673,9 @@ export class LiveAdminApi {
         moq: num(s['moq']),
         quantityStep: num(s['quantity_step']) || 1,
         packsPerCarton: s['packs_per_carton'] ? num(s['packs_per_carton']) : undefined,
+        hsnCode: s['hsn_code'] ? str(s['hsn_code']) : null,
+        gstRatePercent:
+          s['gst_rate_percent'] != null ? num(s['gst_rate_percent']) : null,
         currentTradePriceLabel: livePriceMap.has(sid)
           ? formatInrPrecise(livePriceMap.get(sid)!)
           : '—',
@@ -1774,6 +1888,7 @@ export class LiveAdminApi {
       balances: Row[];
       totalAvail: number;
       totalReserved: number;
+      totalOnHand: number;
     };
     const bySku = new Map<string, BalanceAgg>();
     for (const b of (balances ?? []) as Row[]) {
@@ -1782,10 +1897,12 @@ export class LiveAdminApi {
         balances: [],
         totalAvail: 0,
         totalReserved: 0,
+        totalOnHand: 0,
       };
       cur.balances.push(b);
       cur.totalAvail += num(b['available_quantity']);
       cur.totalReserved += num(b['reserved_quantity']);
+      cur.totalOnHand += num(b['on_hand_quantity'] ?? b['available_quantity']);
       bySku.set(sid, cur);
     }
 
@@ -1812,6 +1929,7 @@ export class LiveAdminApi {
         const labels = buildInventoryStockLabels(avail, packConfig);
         return {
           balanceId: str(b['id']),
+          warehouseId: str(b['operational_location_id']),
           warehouseName: loc ? str(loc['name']) : '—',
           mixedStockLabel:
             avail <= 0 ? 'Out of Stock' : labels.mixedLabel,
@@ -1826,6 +1944,19 @@ export class LiveAdminApi {
         netQuantity: packConfig.netQuantity,
         netQuantityUnit: packConfig.netQuantityUnit,
       });
+      const stockValue = moneyRound(
+        agg.balances.reduce((sum, b) => sum + num(b['stock_value']), 0),
+      );
+      const valuationIncomplete = agg.balances.some(
+        (b) =>
+          num(b['on_hand_quantity'] ?? b['available_quantity']) > 0 &&
+          b['average_unit_cost'] == null,
+      );
+      const blended = blendedAverageUnitCost(
+        stockValue,
+        agg.totalOnHand,
+        valuationIncomplete,
+      );
 
       rows.push({
         id: sid,
@@ -1853,6 +1984,11 @@ export class LiveAdminApi {
         unitLabel,
         warehouseCount: warehouseChips.length,
         warehouses: warehouseChips,
+        stockValue,
+        stockValueLabel: stockValue > 0 ? formatInr(stockValue) : '—',
+        valuationIncomplete,
+        averageUnitCost: blended.averageUnitCost,
+        averageUnitCostLabel: blended.averageUnitCostLabel,
       });
     }
 
@@ -1862,6 +1998,9 @@ export class LiveAdminApi {
     const withStock = rows.filter((r) => r.availablePacks > 0).length;
     const lowCount = rows.filter((r) => r.status === 'low').length;
     const outCount = rows.filter((r) => r.status === 'out_of_stock').length;
+    const totalStockValue = moneyRound(
+      rows.reduce((sum, row) => sum + row.stockValue, 0),
+    );
     const warehouseIds = new Set(
       ((balances ?? []) as Row[]).map((b) => str(b['operational_location_id'])),
     );
@@ -1874,6 +2013,13 @@ export class LiveAdminApi {
           label: 'Products in Inventory',
           value: `${totalProducts}`,
           hint: 'Tracked SKUs',
+        },
+        {
+          id: 'stock_value',
+          label: 'Stock Value',
+          value: totalStockValue > 0 ? formatInr(totalStockValue) : '—',
+          hint: 'Weighted average cost',
+          tone: 'positive',
         },
         {
           id: 'total_stock',
@@ -2011,6 +2157,10 @@ export class LiveAdminApi {
       const availLabels = buildInventoryStockLabels(avail, packConfig);
       const onHandLabels = buildInventoryStockLabels(onHand, packConfig);
       const reservedLabels = buildInventoryStockLabels(reserved, packConfig);
+      const averageUnitCost =
+        b['average_unit_cost'] == null ? null : num(b['average_unit_cost']);
+      const stockValue = moneyRound(b['stock_value']);
+      const valuationIncomplete = onHand > 0 && averageUnitCost == null;
       return {
         balanceId: str(b['id']),
         warehouseId: locationId,
@@ -2038,6 +2188,11 @@ export class LiveAdminApi {
         onHandQuantity: onHand,
         status: inventoryStatus(avail),
         updatedAtLabel: formatDateTime(str(b['updated_at'])),
+        averageUnitCost,
+        averageUnitCostLabel: formatWacUnitCost(averageUnitCost),
+        stockValue,
+        stockValueLabel: stockValue > 0 ? formatInr(stockValue) : '—',
+        valuationIncomplete,
       };
     });
 
@@ -2134,8 +2289,20 @@ export class LiveAdminApi {
       selectedBalanceRow['on_hand_quantity'] ??
         selectedBalanceRow['available_quantity'],
     );
-    const livePricePerUnit = num(selectedBalanceRow['cost_per_unit']);
-    const stockValue = avail * livePricePerUnit;
+    const averageUnitCost =
+      selectedBalanceRow['average_unit_cost'] == null
+        ? null
+        : num(selectedBalanceRow['average_unit_cost']);
+    const stockValue = moneyRound(selectedBalanceRow['stock_value']);
+    const totalStockValue = moneyRound(
+      warehouses.reduce((sum, wh) => sum + wh.stockValue, 0),
+    );
+    const valuationIncomplete =
+      selected.valuationIncomplete ||
+      warehouses.some((wh) => wh.valuationIncomplete);
+    const valuationNote = valuationIncomplete
+      ? 'Some stock has quantity but no purchase cost yet. Receive a purchase bill to start weighted-average valuation.'
+      : null;
     const unitLabel = str(skuRow['selling_unit']) || 'UNIT';
     const qtyOpts = {
       sellingUnit: unitLabel,
@@ -2193,7 +2360,16 @@ export class LiveAdminApi {
         ? num(skuRow['packs_per_carton'])
         : undefined,
       outerType: str(skuRow['outer_type']) || undefined,
+      averageUnitCost,
+      averageUnitCostLabel: formatWacUnitCost(averageUnitCost),
+      stockValue,
       stockValueLabel: stockValue > 0 ? formatInr(stockValue) : '—',
+      totalStockValue,
+      totalStockValueLabel:
+        totalStockValue > 0 ? formatInr(totalStockValue) : '—',
+      valuationMethodLabel: 'Weighted average cost',
+      valuationNote,
+      valuationIncomplete,
       status: inventoryStatus(avail),
       updatedAtLabel: formatDateTime(str(selectedBalanceRow['updated_at'])),
       movements: movementVms,
@@ -2524,6 +2700,10 @@ export class LiveAdminApi {
     const customerOrders: CustomerOrderRow[] = ((ordersData ?? []) as Row[]).map((o) => {
       const oid = str(o['id']);
       const fulfillmentStatus = str(o['status']);
+      const createdAt = str(o['created_at']);
+      const invoiceNumber = o['invoice_number']
+        ? str(o['invoice_number'])
+        : null;
       return {
         id: oid,
         orderCode: shortCode(oid, 'GA'),
@@ -2538,19 +2718,28 @@ export class LiveAdminApi {
             created_at: str(p['created_at']),
           })),
         ),
-        placedAtLabel: formatDateTime(str(o['created_at'])),
+        placedAtLabel: formatDateTime(createdAt),
+        placedAtIso: createdAt,
+        invoiceNumber,
         totalAmount: num(o['total']),
       };
     });
 
-    const customerPayments: CustomerPaymentRow[] = paymentRows.map((p) => ({
-      id: str(p['id']),
-      orderCode: shortCode(str(p['order_id']), 'GA'),
-      methodLabel: str(p['method']) || '—',
-      amountLabel: formatInr(num(p['amount'])),
-      status: mapPaymentStatusFromDb(str(p['status'])),
-      atLabel: formatDateTime(str(p['created_at'])),
-    }));
+    const customerPayments: CustomerPaymentRow[] = paymentRows.map((p) => {
+      const paidAt = p['paid_at'] ? str(p['paid_at']) : null;
+      const createdAt = p['created_at'] ? str(p['created_at']) : '';
+      const atIso = paidAt || createdAt;
+      return {
+        id: str(p['id']),
+        orderCode: shortCode(str(p['order_id']), 'GA'),
+        orderId: str(p['order_id']),
+        methodLabel: str(p['method']) || '—',
+        amountLabel: formatInr(num(p['amount'])),
+        status: mapPaymentStatusFromDb(str(p['status'])),
+        atLabel: formatDateTime(atIso),
+        atIso,
+      };
+    });
 
     const addressRows: CustomerAddressRow[] = ((addresses ?? []) as Row[])
       .filter((a) => a['deleted_at'] == null)
@@ -2684,7 +2873,20 @@ export class LiveAdminApi {
       };
     });
 
-    const attentionItems = buildCustomerAttentionItems(customerOrders);
+    const ledger = buildCustomerLedger({
+      orders: orderAggregates,
+      payments: paymentAggregates,
+    });
+    const oldestOpenDays = oldestOpenReceivableDays(
+      orderAggregates,
+      paymentAggregates,
+    );
+    const attentionItems = buildCustomerAttentionItems(customerOrders, {
+      outstanding: ledger.outstanding,
+      outstandingLabel: ledger.outstandingLabel,
+      oldestOpenDays,
+      collectHref: ledger.collectHref,
+    });
     const summary = attachAttentionCount(
       buildCustomerAccountSummary({
         orders: orderAggregates,
@@ -2692,11 +2894,6 @@ export class LiveAdminApi {
       }),
       attentionItems,
     );
-    const ledger = buildCustomerLedger({
-      orders: orderAggregates,
-      payments: paymentAggregates,
-    });
-
     const location = mapShopLocation({
       delivery_lat: s['delivery_lat'],
       delivery_lng: s['delivery_lng'],
@@ -2761,7 +2958,12 @@ export class LiveAdminApi {
 
     return {
       ...detail,
-      timeline: buildCustomerTimeline(detail),
+      timeline: buildCustomerTimeline({
+        ...detail,
+        createdAtIso: str(s['created_at']),
+        outstandingLabel:
+          ledger.outstanding > 0 ? ledger.outstandingLabel : null,
+      }),
     };
   }
 
@@ -3063,9 +3265,419 @@ export class LiveAdminApi {
     );
   }
 
+  async listSupplierPayments(
+    supplierId?: string,
+  ): Promise<SupplierPaymentLedgerInput[]> {
+    let query = this.sb
+      .from('supplier_payments')
+      .select(
+        'id, supplier_id, purchase_id, payment_date, amount, payment_method, reference_number, notes, created_at',
+      )
+      .order('payment_date', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (supplierId) query = query.eq('supplier_id', supplierId);
+    const { data, error } = await query;
+    if (error) throwRpcError(error, 'Could not load supplier payments');
+    return ((data ?? []) as Row[]).map((row) => ({
+      id: str(row['id']),
+      supplierId: str(row['supplier_id']),
+      purchaseId: row['purchase_id'] ? str(row['purchase_id']) : null,
+      paymentDate: str(row['payment_date']),
+      amount: num(row['amount']),
+      paymentMethod: mapSupplierPaymentMethod(str(row['payment_method'])),
+      referenceNumber: row['reference_number']
+        ? str(row['reference_number'])
+        : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      createdAt: row['created_at'] ? str(row['created_at']) : null,
+    }));
+  }
+
+  async supplierPayablesSnapshot(): Promise<SupplierPayablesSnapshot> {
+    const [suppliers, purchases, payments] = await Promise.all([
+      this.suppliersList(),
+      this.purchasesList(),
+      this.listSupplierPayments(),
+    ]);
+    return buildSupplierPayablesSnapshot({
+      generatedAtIso: new Date().toISOString(),
+      suppliers: suppliers.map((s) => ({
+        id: s.id,
+        name: s.name,
+        contactPerson: s.contactPerson,
+        mobileLabel: s.mobileLabel,
+      })),
+      purchases: purchases.map((p) => ({
+        id: p.id,
+        supplierId: p.supplierId,
+        billNumber: p.billNumber,
+        status: p.status,
+        total: p.total,
+        purchaseDate: p.purchaseDate,
+      })),
+      payments,
+    });
+  }
+
+  /**
+   * Phase 17 — rules-based dues Q&A over receivables + payables.
+   * No LLM; ranking only. Confirm/collect/pay still happens on existing pages.
+   */
+  async duesAssistantSnapshot(): Promise<DuesAssistantSnapshot> {
+    const [receivables, payables] = await Promise.all([
+      this.receivablesSnapshot(),
+      this.supplierPayablesSnapshot(),
+    ]);
+    return buildDuesAssistantSnapshot({
+      generatedAtIso: new Date().toISOString(),
+      receivables,
+      payables,
+    });
+  }
+
+  /**
+   * Phase 18 — rules-based purchase suggestions from stock + sales velocity.
+   * Never creates a purchase; owner confirms on Purchases → New.
+   */
+  async purchaseRecommendationsSnapshot(): Promise<PurchaseRecommendationsSnapshot> {
+    const now = new Date();
+    const lookbackStart = new Date(now.getTime() - SALES_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const fromYmd = ymdInBusinessTz(lookbackStart);
+    const fromIso = businessDayStartIso(fromYmd);
+
+    const inventory = await this.inventorySnapshot();
+
+    const { data: salesData } = await this.sb
+      .from('sales')
+      .select('id, converted_at, status')
+      .neq('status', 'REFUNDED')
+      .gte('converted_at', fromIso)
+      .limit(3000);
+    const saleIds = ((salesData ?? []) as Row[])
+      .filter((s) => str(s['status']) !== 'REFUNDED')
+      .map((s) => str(s['id']));
+
+    const soldBySku = new Map<string, number>();
+    if (saleIds.length > 0) {
+      const { data: items } = await this.sb
+        .from('sale_items')
+        .select('sku_id, quantity')
+        .in('sale_id', saleIds);
+      for (const item of (items ?? []) as Row[]) {
+        const skuId = item['sku_id'] ? str(item['sku_id']) : '';
+        if (!skuId) continue;
+        soldBySku.set(
+          skuId,
+          (soldBySku.get(skuId) ?? 0) + num(item['quantity']),
+        );
+      }
+    }
+
+    const { data: purchaseRows } = await this.sb
+      .from('purchases')
+      .select('id, supplier_id, status, purchase_date, created_at')
+      .in('status', ['DRAFT', 'RECEIVED'])
+      .order('purchase_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(500);
+    const purchases = (purchaseRows ?? []) as Row[];
+    const purchaseIds = purchases.map((p) => str(p['id']));
+    const purchaseMeta = new Map(
+      purchases.map((p) => [
+        str(p['id']),
+        {
+          supplierId: str(p['supplier_id']),
+          status: str(p['status']).toUpperCase(),
+          purchaseDate: str(p['purchase_date']),
+          createdAt: str(p['created_at']),
+        },
+      ]),
+    );
+
+    const openDraftBySku = new Map<string, number>();
+    const lastReceivedBySku = new Map<
+      string,
+      { supplierId: string; quantity: number; sortKey: string }
+    >();
+
+    if (purchaseIds.length > 0) {
+      const { data: itemRows } = await this.sb
+        .from('purchase_items')
+        .select('purchase_id, sku_id, quantity')
+        .in('purchase_id', purchaseIds);
+      for (const item of (itemRows ?? []) as Row[]) {
+        const purchaseId = str(item['purchase_id']);
+        const skuId = str(item['sku_id']);
+        const qty = num(item['quantity']);
+        const meta = purchaseMeta.get(purchaseId);
+        if (!meta || !skuId) continue;
+        if (meta.status === 'DRAFT') {
+          openDraftBySku.set(
+            skuId,
+            (openDraftBySku.get(skuId) ?? 0) + qty,
+          );
+        } else if (meta.status === 'RECEIVED') {
+          const sortKey = `${meta.purchaseDate}|${meta.createdAt}|${purchaseId}`;
+          const existing = lastReceivedBySku.get(skuId);
+          if (!existing || sortKey > existing.sortKey) {
+            lastReceivedBySku.set(skuId, {
+              supplierId: meta.supplierId,
+              quantity: qty,
+              sortKey,
+            });
+          }
+        }
+      }
+    }
+
+    const supplierIds = [
+      ...new Set(
+        [...lastReceivedBySku.values()].map((v) => v.supplierId).filter(Boolean),
+      ),
+    ];
+    const supplierNameById = new Map<string, string>();
+    if (supplierIds.length > 0) {
+      const { data: suppliers } = await this.sb
+        .from('suppliers')
+        .select('id, name')
+        .in('id', supplierIds);
+      for (const s of (suppliers ?? []) as Row[]) {
+        supplierNameById.set(str(s['id']), str(s['name']));
+      }
+    }
+
+    const signals: PurchaseSkuSignal[] = inventory.rows.map((row) => {
+      const last = lastReceivedBySku.get(row.skuId);
+      return inventoryRowToSignal(row, {
+        soldLast28Days: soldBySku.get(row.skuId) ?? 0,
+        openDraftQty: openDraftBySku.get(row.skuId) ?? 0,
+        lastSupplierId: last?.supplierId ?? null,
+        lastSupplierName: last
+          ? supplierNameById.get(last.supplierId) ?? null
+          : null,
+        lastPurchaseQty: last?.quantity ?? null,
+      });
+    });
+
+    return buildPurchaseRecommendationsSnapshot({
+      generatedAtIso: now.toISOString(),
+      signals,
+    });
+  }
+
+  /**
+   * Phase 19 — rules-based profit change + unusual flags.
+   * Compares this month vs last month P&L from existing reports. Never labels fraud.
+   */
+  async profitAnomalyAssistantSnapshot(): Promise<ProfitAnomalyAssistantSnapshot> {
+    const asOf = new Date();
+    const toYmd = (d: Date | null): string => {
+      if (!d) return ymdInBusinessTz(asOf);
+      return ymdInBusinessTz(d);
+    };
+
+    const currentRange = dateRangeForPreset('this_month', undefined, asOf);
+    const priorRange = dateRangeForPreset('last_month', undefined, asOf);
+    const currentFrom = toYmd(currentRange.from);
+    const currentTo = toYmd(currentRange.to);
+    const priorFrom = toYmd(priorRange.from);
+    const priorTo = toYmd(priorRange.to);
+
+    const [currentSnap, priorSnap, expensesSnap] = await Promise.all([
+      this.profitLossSnapshot({ dateFrom: currentFrom, dateTo: currentTo }),
+      this.profitLossSnapshot({ dateFrom: priorFrom, dateTo: priorTo }),
+      this.companyExpensesSnapshot(),
+    ]);
+
+    const currentExpenses = filterExpensesByDate(
+      expensesSnap.rows,
+      currentFrom,
+      currentTo,
+    );
+
+    const currentWindow = businessDateRangeInclusive(currentFrom, currentTo);
+    const { data: adjRows, error: adjErr } = await this.sb
+      .from('inventory_movements')
+      .select('movement_type')
+      .in('movement_type', ['ADMIN_ADJUSTMENT', 'DAMAGE'])
+      .gte('created_at', currentWindow.fromIso)
+      .lt('created_at', currentWindow.toIsoExclusive)
+      .limit(2000);
+    if (adjErr) {
+      throwRpcError(adjErr, 'Could not load stock adjustments for insights');
+    }
+
+    let adjustmentCount = 0;
+    let damageCount = 0;
+    for (const row of (adjRows ?? []) as Row[]) {
+      const type = str(row['movement_type']).toUpperCase();
+      if (type === 'ADMIN_ADJUSTMENT') adjustmentCount += 1;
+      else if (type === 'DAMAGE') damageCount += 1;
+    }
+
+    return buildProfitAnomalyAssistantSnapshot({
+      generatedAtIso: asOf.toISOString(),
+      currentLabel: 'This month',
+      priorLabel: 'Last month',
+      currentRangeLabel: currentSnap.rangeLabel || currentRange.label,
+      priorRangeLabel: priorSnap.rangeLabel || priorRange.label,
+      current: currentSnap.profitLoss,
+      prior: priorSnap.profitLoss,
+      expenses: currentExpenses.map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        amountLabel: row.amountLabel,
+        categoryLabel: row.categoryLabel,
+        description: row.description,
+        expenseDateLabel: row.expenseDateLabel,
+        href: `/expenses/${row.id}`,
+      })),
+      stock: { adjustmentCount, damageCount },
+    });
+  }
+
+  /**
+   * Phase 20 — rules-based daily business brief (yesterday + attention + recs).
+   * Configurable sections; never invents narrative beyond ranked facts.
+   */
+  async dailyBusinessBriefSnapshot(): Promise<DailyBusinessBriefSnapshot> {
+    const asOf = new Date();
+    const hour = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Kolkata',
+        hour: 'numeric',
+        hour12: false,
+      }).format(asOf),
+    );
+    const yesterdayRange = dateRangeForPreset('yesterday', undefined, asOf);
+    const toYmd = (d: Date | null): string =>
+      d ? ymdInBusinessTz(d) : ymdInBusinessTz(asOf);
+    const yFrom = toYmd(yesterdayRange.from);
+    const yTo = toYmd(yesterdayRange.to);
+
+    const [
+      plSnap,
+      receivables,
+      payables,
+      balancesRes,
+      purchasesRes,
+      billScansRes,
+      purchaseRecs,
+      profitInsights,
+    ] = await Promise.all([
+      this.profitLossSnapshot({ dateFrom: yFrom, dateTo: yTo }),
+      this.receivablesSnapshot(),
+      this.supplierPayablesSnapshot(),
+      this.sb.from('inventory_balances').select('available_quantity'),
+      this.sb.from('purchases').select('id, status'),
+      this.sb
+        .from('purchase_bill_scans')
+        .select('id, status')
+        .in('status', ['UPLOADED', 'REVIEWING']),
+      this.purchaseRecommendationsSnapshot().catch(() => null),
+      this.profitAnomalyAssistantSnapshot().catch(() => null),
+    ]);
+
+    if (balancesRes.error) {
+      throwRpcError(balancesRes.error, 'Could not load stock for daily brief');
+    }
+    if (purchasesRes.error) {
+      throwRpcError(purchasesRes.error, 'Could not load purchases for daily brief');
+    }
+    // Bill scans table may be missing until hosted migration — treat as zero.
+    const billScans = billScansRes.error
+      ? []
+      : ((billScansRes.data ?? []) as Row[]);
+
+    const balances = (balancesRes.data ?? []) as Row[];
+    const purchases = (purchasesRes.data ?? []) as Row[];
+    const lowStockThreshold = 10;
+    let lowStockCount = 0;
+    let outOfStockCount = 0;
+    for (const b of balances) {
+      const avail = num(b['available_quantity']);
+      if (avail <= 0) outOfStockCount += 1;
+      else if (avail < lowStockThreshold) lowStockCount += 1;
+    }
+
+    const draftPurchaseCount = purchases.filter(
+      (p) => str(p['status']).toUpperCase() === 'DRAFT',
+    ).length;
+
+    const customersDue = receivables.rows.filter((r) => r.outstanding > 0);
+    const staleCustomers = customersDue.filter(
+      (r) =>
+        r.ageingBucket === 'days_61_plus' || (r.oldestOpenDays ?? 0) >= 61,
+    ).length;
+
+    const topPurchase = purchaseRecs?.rows[0]
+      ? {
+          productName: purchaseRecs.rows[0].productName,
+          recommendedQtyLabel: purchaseRecs.rows[0].recommendedQtyLabel,
+          purchaseHref: purchaseRecs.rows[0].purchaseHref,
+        }
+      : null;
+
+    const unusualExpense =
+      profitInsights?.answers.what_looks_unusual.findings.find(
+        (f) =>
+          f.id === 'expense-spike' ||
+          f.id.startsWith('expense-') ||
+          f.id === 'margin-drop',
+      ) ?? null;
+
+    return buildDailyBusinessBriefSnapshot({
+      generatedAtIso: asOf.toISOString(),
+      hour: Number.isFinite(hour) ? hour : asOf.getHours(),
+      yesterdayDateLabel: formatDate(
+        yesterdayRange.from?.toISOString() ?? asOf.toISOString(),
+      ),
+      asOfLabel: formatDate(asOf.toISOString()),
+      profitLossYesterday: plSnap.profitLoss,
+      yesterdayRangeLabel: plSnap.rangeLabel || yesterdayRange.label,
+      customersWithDues: customersDue.length,
+      staleCustomers,
+      suppliersWithDues: payables.suppliersWithDues,
+      lowStockCount,
+      outOfStockCount,
+      draftPurchaseCount,
+      billScansPendingCount: billScans.length,
+      customers: customersDue.map((r) => ({
+        customerId: r.customerId,
+        shopName: r.shopName,
+        outstanding: r.outstanding,
+        outstandingLabel: r.outstandingLabel,
+        oldestOpenDays: r.oldestOpenDays,
+        ageingBucket: r.ageingBucket,
+        ledgerHref: r.ledgerHref,
+      })),
+      suppliers: payables.rows
+        .filter((r) => r.outstanding > 0)
+        .map((r) => ({
+          supplierId: r.supplierId,
+          supplierName: r.supplierName,
+          outstanding: r.outstanding,
+          outstandingLabel: r.outstandingLabel,
+          payHref: r.payHref,
+        })),
+      topPurchase,
+      unusualExpenseNote: unusualExpense
+        ? `${unusualExpense.title}: ${unusualExpense.detail}`
+        : null,
+    });
+  }
+
   async supplierDetail(id: string): Promise<{
     supplier: SupplierRow;
     purchases: PurchaseListRow[];
+    ledger: SupplierLedgerVm;
+    payments: Array<
+      SupplierPaymentLedgerInput & {
+        amountLabel: string;
+        paymentMethodLabel: string;
+        paymentDateLabel: string;
+      }
+    >;
   } | null> {
     const { data, error } = await this.sb
       .from('suppliers')
@@ -3095,7 +3707,75 @@ export class LiveAdminApi {
     const purchases = (await this.purchasesList()).filter(
       (p) => p.supplierId === id,
     );
-    return { supplier, purchases };
+    const payments = await this.listSupplierPayments(id);
+    const ledger = buildSupplierLedger({
+      supplierId: id,
+      purchases: purchases.map((p) => ({
+        id: p.id,
+        supplierId: p.supplierId,
+        billNumber: p.billNumber,
+        status: p.status,
+        total: p.total,
+        purchaseDate: p.purchaseDate,
+      })),
+      payments,
+    });
+    return {
+      supplier,
+      purchases,
+      ledger,
+      payments: payments.map((payment) => ({
+        ...payment,
+        amountLabel: formatInr(payment.amount),
+        paymentMethodLabel:
+          SUPPLIER_PAYMENT_METHOD_LABELS[
+            mapSupplierPaymentMethod(payment.paymentMethod)
+          ],
+        paymentDateLabel: formatDate(payment.paymentDate),
+      })),
+    };
+  }
+
+  async recordSupplierPayment(input: {
+    supplierId: string;
+    paymentDate: string;
+    amount: number;
+    paymentMethod: SupplierPaymentMethod;
+    referenceNumber?: string | null;
+    notes?: string | null;
+    purchaseId?: string | null;
+  }): Promise<SupplierPaymentLedgerInput> {
+    const { data, error } = await this.sb.rpc('admin_record_supplier_payment', {
+      p_supplier_id: input.supplierId,
+      p_payment_date: input.paymentDate,
+      p_amount: input.amount,
+      p_payment_method: input.paymentMethod,
+      p_reference_number: input.referenceNumber?.trim() || null,
+      p_notes: input.notes?.trim() || null,
+      p_purchase_id: input.purchaseId || null,
+    });
+    if (error) throwRpcError(error, 'Could not record supplier payment');
+    const row = data as unknown as Row;
+    return {
+      id: str(row['id']),
+      supplierId: str(row['supplier_id']),
+      purchaseId: row['purchase_id'] ? str(row['purchase_id']) : null,
+      paymentDate: str(row['payment_date']),
+      amount: num(row['amount']),
+      paymentMethod: mapSupplierPaymentMethod(str(row['payment_method'])),
+      referenceNumber: row['reference_number']
+        ? str(row['reference_number'])
+        : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      createdAt: row['created_at'] ? str(row['created_at']) : null,
+    };
+  }
+
+  async deleteSupplierPayment(paymentId: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_delete_supplier_payment', {
+      p_payment_id: paymentId,
+    });
+    if (error) throwRpcError(error, 'Could not delete supplier payment');
   }
 
   async createSupplier(input: SupplierInput): Promise<SupplierRow> {
@@ -3240,6 +3920,10 @@ export class LiveAdminApi {
         itemCount: itemCount.get(id) ?? 0,
         subtotal: num(p['subtotal']),
         taxAmount: num(p['tax_amount']),
+        cgstAmount: num(p['cgst_amount']),
+        sgstAmount: num(p['sgst_amount']),
+        igstAmount: num(p['igst_amount']),
+        supplyType: str(p['supply_type']) || 'UNSET',
         total: num(p['total']),
       });
     });
@@ -3255,7 +3939,7 @@ export class LiveAdminApi {
     if (!data) return null;
     const p = data as unknown as Row;
 
-    const [supplierRes, locationRes, itemsRes] = await Promise.all([
+    const [supplierRes, locationRes, itemsRes, paymentsRes] = await Promise.all([
       this.sb
         .from('suppliers')
         .select('id, name')
@@ -3271,6 +3955,14 @@ export class LiveAdminApi {
         .select('*')
         .eq('purchase_id', id)
         .order('created_at', { ascending: true }),
+      this.sb
+        .from('supplier_payments')
+        .select(
+          'id, payment_date, amount, payment_method, reference_number, created_at',
+        )
+        .eq('purchase_id', id)
+        .order('payment_date', { ascending: false })
+        .order('created_at', { ascending: false }),
     ]);
     if (supplierRes.error) {
       throwRpcError(supplierRes.error, 'Could not load purchase supplier');
@@ -3280,6 +3972,9 @@ export class LiveAdminApi {
     }
     if (itemsRes.error) {
       throwRpcError(itemsRes.error, 'Could not load purchase lines');
+    }
+    if (paymentsRes.error) {
+      throwRpcError(paymentsRes.error, 'Could not load bill payments');
     }
 
     const items = ((itemsRes.data ?? []) as Row[]).map((row) =>
@@ -3294,6 +3989,22 @@ export class LiveAdminApi {
         line_total: num(row['line_total']),
       }),
     );
+
+    const billPayments = ((paymentsRes.data ?? []) as Row[]).map((row) => {
+      const method = mapSupplierPaymentMethod(str(row['payment_method']));
+      return {
+        id: str(row['id']),
+        paymentDate: str(row['payment_date']),
+        paymentDateLabel: formatDate(str(row['payment_date'])),
+        amount: num(row['amount']),
+        amountLabel: formatInr(num(row['amount'])),
+        paymentMethod: method,
+        paymentMethodLabel: SUPPLIER_PAYMENT_METHOD_LABELS[method],
+        referenceNumber: row['reference_number']
+          ? str(row['reference_number'])
+          : null,
+      };
+    });
 
     const list = mapPurchaseListFields({
       id: str(p['id']),
@@ -3311,10 +4022,29 @@ export class LiveAdminApi {
       itemCount: items.length,
       subtotal: num(p['subtotal']),
       taxAmount: num(p['tax_amount']),
+      cgstAmount: num(p['cgst_amount']),
+      sgstAmount: num(p['sgst_amount']),
+      igstAmount: num(p['igst_amount']),
+      supplyType: str(p['supply_type']) || 'UNSET',
       total: num(p['total']),
     });
 
     const status = list.status;
+    const accounting = buildPurchaseAccounting({
+      status,
+      subtotal: list.subtotal,
+      taxAmount: list.taxAmount,
+      total: list.total,
+      items,
+      payments: billPayments.map((payment) => ({
+        id: payment.id,
+        amount: payment.amount,
+        paymentDate: payment.paymentDate,
+        paymentMethodLabel: payment.paymentMethodLabel,
+        referenceNumber: payment.referenceNumber,
+      })),
+    });
+
     return {
       ...list,
       notes: p['notes'] ? str(p['notes']) : null,
@@ -3326,6 +4056,8 @@ export class LiveAdminApi {
       taxAmountLabel: formatInr(list.taxAmount),
       canEdit: status === 'DRAFT',
       canReceive: status === 'DRAFT' && items.length > 0,
+      accounting,
+      billPayments,
     };
   }
 
@@ -3343,6 +4075,10 @@ export class LiveAdminApi {
         quantity: item.quantity,
         unit_cost: item.unitCost,
       })),
+      p_supply_type: input.supplyType ?? 'UNSET',
+      p_cgst_amount: input.cgstAmount ?? 0,
+      p_sgst_amount: input.sgstAmount ?? 0,
+      p_igst_amount: input.igstAmount ?? 0,
     });
     if (error) throwRpcError(error, 'Could not save purchase');
     const row = data as unknown as Row;
@@ -3383,6 +4119,756 @@ export class LiveAdminApi {
     return detail;
   }
 
+  /** Phase 13: create an empty bill scan row (admin only). */
+  async createPurchaseBillScan(notes?: string | null): Promise<PurchaseBillScanVm> {
+    const { data, error } = await this.sb.rpc('admin_create_purchase_bill_scan', {
+      p_notes: notes?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not create bill scan');
+    return this.mapPurchaseBillScan(data as unknown as Row);
+  }
+
+  async getPurchaseBillScan(scanId: string): Promise<PurchaseBillScanVm | null> {
+    const { data, error } = await this.sb
+      .from('purchase_bill_scans')
+      .select(
+        'id, status, image_path, extract_json, extractor_label, purchase_id, notes, created_at',
+      )
+      .eq('id', scanId)
+      .maybeSingle();
+    if (error) throwRpcError(error, 'Could not load bill scan');
+    if (!data) return null;
+    return this.mapPurchaseBillScan(data as unknown as Row);
+  }
+
+  async uploadPurchaseBillScanImage(
+    scanId: string,
+    file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string },
+  ): Promise<PurchaseBillScanVm> {
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowed.has(file.contentType)) {
+      throw new Error('Use a JPEG, PNG, or WebP photo.');
+    }
+    const ext =
+      file.contentType === 'image/png'
+        ? 'png'
+        : file.contentType === 'image/webp'
+          ? 'webp'
+          : 'jpg';
+    const path = `${scanId}/bill.${ext}`;
+    const { error: uploadError } = await this.sb.storage
+      .from('purchase-bills')
+      .upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Could not upload bill photo');
+    }
+    const { data, error } = await this.sb.rpc(
+      'admin_set_purchase_bill_scan_image',
+      {
+        p_scan_id: scanId,
+        p_image_path: path,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not attach bill photo');
+    return this.mapPurchaseBillScan(data as unknown as Row);
+  }
+
+  async savePurchaseBillScanExtract(
+    scanId: string,
+    extract: BillExtractDraft,
+  ): Promise<PurchaseBillScanVm> {
+    const { data, error } = await this.sb.rpc(
+      'admin_save_purchase_bill_scan_extract',
+      {
+        p_scan_id: scanId,
+        p_extract_json: extract,
+        p_extractor_label: extract.extractorLabel || 'manual',
+      },
+    );
+    if (error) throwRpcError(error, 'Could not save bill extract');
+    return this.mapPurchaseBillScan(data as unknown as Row);
+  }
+
+  /**
+   * Confirm path: create purchase DRAFT from reviewed extract, then mark scan confirmed.
+   * Never receives stock.
+   */
+  async confirmPurchaseBillScanToDraft(input: {
+    scanId: string;
+    draft: PurchaseDraftInput;
+  }): Promise<{ scan: PurchaseBillScanVm; purchase: PurchaseDetail }> {
+    if (!input.draft.supplierId) {
+      throw new Error('Choose a supplier before creating the draft');
+    }
+    if (!input.draft.warehouseId) {
+      throw new Error('Choose a warehouse before creating the draft');
+    }
+    if (!input.draft.billNumber.trim()) {
+      throw new Error('Bill number is required');
+    }
+    if (!input.draft.items.length) {
+      throw new Error('Add at least one line with a matched SKU');
+    }
+    for (const item of input.draft.items) {
+      if (!item.skuId || item.quantity <= 0 || item.unitCost < 0) {
+        throw new Error('Each line needs SKU, positive quantity, and unit cost');
+      }
+    }
+
+    const purchase = await this.upsertPurchaseDraft(input.draft);
+    const { data, error } = await this.sb.rpc('admin_confirm_purchase_bill_scan', {
+      p_scan_id: input.scanId,
+      p_purchase_id: purchase.id,
+    });
+    if (error) throwRpcError(error, 'Could not confirm bill scan');
+    const scan = await this.mapPurchaseBillScan(data as unknown as Row);
+    return { scan, purchase };
+  }
+
+  async discardPurchaseBillScan(scanId: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_discard_purchase_bill_scan', {
+      p_scan_id: scanId,
+    });
+    if (error) throwRpcError(error, 'Could not discard bill scan');
+  }
+
+  private async mapPurchaseBillScan(row: Row): Promise<PurchaseBillScanVm> {
+    const imagePath = row['imagePath']
+      ? str(row['imagePath'])
+      : row['image_path']
+        ? str(row['image_path'])
+        : null;
+    let imageUrl: string | null = null;
+    if (imagePath) {
+      const signed = await this.sb.storage
+        .from('purchase-bills')
+        .createSignedUrl(imagePath, 60 * 60);
+      if (!signed.error) imageUrl = signed.data?.signedUrl ?? null;
+    }
+    const extractRaw =
+      row['extractJson'] ?? row['extract_json'] ?? {};
+    const extract = parseBillExtractJson(extractRaw);
+    const statusRaw = str(row['status'] ?? 'UPLOADED').toUpperCase();
+    const status: PurchaseBillScanStatus =
+      statusRaw === 'REVIEWING' ||
+      statusRaw === 'CONFIRMED' ||
+      statusRaw === 'DISCARDED' ||
+      statusRaw === 'UPLOADED'
+        ? statusRaw
+        : 'UPLOADED';
+    return {
+      id: str(row['id']),
+      status,
+      imagePath,
+      imageUrl,
+      extract,
+      extractorLabel: str(
+        row['extractorLabel'] ?? row['extractor_label'] ?? extract.extractorLabel,
+      ),
+      purchaseId: row['purchaseId']
+        ? str(row['purchaseId'])
+        : row['purchase_id']
+          ? str(row['purchase_id'])
+          : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      createdAtLabel: row['createdAt']
+        ? formatDateTime(str(row['createdAt']))
+        : row['created_at']
+          ? formatDateTime(str(row['created_at']))
+          : '—',
+    };
+  }
+
+  /** Phase 14: create an empty expense receipt scan row (admin only). */
+  async createExpenseReceiptScan(notes?: string | null): Promise<ExpenseReceiptScanVm> {
+    const { data, error } = await this.sb.rpc('admin_create_expense_receipt_scan', {
+      p_notes: notes?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not create receipt scan');
+    return this.mapExpenseReceiptScan(data as unknown as Row);
+  }
+
+  async getExpenseReceiptScan(scanId: string): Promise<ExpenseReceiptScanVm | null> {
+    const { data, error } = await this.sb
+      .from('expense_receipt_scans')
+      .select(
+        'id, status, image_path, extract_json, extractor_label, expense_id, notes, created_at',
+      )
+      .eq('id', scanId)
+      .maybeSingle();
+    if (error) throwRpcError(error, 'Could not load receipt scan');
+    if (!data) return null;
+    return this.mapExpenseReceiptScan(data as unknown as Row);
+  }
+
+  async uploadExpenseReceiptScanImage(
+    scanId: string,
+    file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string },
+  ): Promise<ExpenseReceiptScanVm> {
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowed.has(file.contentType)) {
+      throw new Error('Use a JPEG, PNG, or WebP photo.');
+    }
+    const ext =
+      file.contentType === 'image/png'
+        ? 'png'
+        : file.contentType === 'image/webp'
+          ? 'webp'
+          : 'jpg';
+    const path = `${scanId}/receipt.${ext}`;
+    const { error: uploadError } = await this.sb.storage
+      .from('expense-receipts')
+      .upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Could not upload receipt photo');
+    }
+    const { data, error } = await this.sb.rpc(
+      'admin_set_expense_receipt_scan_image',
+      {
+        p_scan_id: scanId,
+        p_image_path: path,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not attach receipt photo');
+    return this.mapExpenseReceiptScan(data as unknown as Row);
+  }
+
+  async saveExpenseReceiptScanExtract(
+    scanId: string,
+    extract: ReceiptExtractDraft,
+  ): Promise<ExpenseReceiptScanVm> {
+    const { data, error } = await this.sb.rpc(
+      'admin_save_expense_receipt_scan_extract',
+      {
+        p_scan_id: scanId,
+        p_extract_json: extract,
+        p_extractor_label: extract.extractorLabel || 'manual',
+      },
+    );
+    if (error) throwRpcError(error, 'Could not save receipt extract');
+    return this.mapExpenseReceiptScan(data as unknown as Row);
+  }
+
+  /**
+   * Confirm path: create company expense from reviewed extract, then mark scan confirmed.
+   * Never auto-posts without owner review.
+   */
+  async confirmExpenseReceiptScanToExpense(input: {
+    scanId: string;
+    expense: CompanyExpenseInput;
+  }): Promise<{ scan: ExpenseReceiptScanVm; expense: CompanyExpenseRow }> {
+    const problem = validateCompanyExpenseInput(input.expense);
+    if (problem) throw new Error(problem);
+
+    const expense = await this.createCompanyExpense({
+      ...input.expense,
+      receiptPath: input.expense.receiptPath ?? null,
+    });
+    const { data, error } = await this.sb.rpc(
+      'admin_confirm_expense_receipt_scan',
+      {
+        p_scan_id: input.scanId,
+        p_expense_id: expense.id,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not confirm receipt scan');
+    const scan = await this.mapExpenseReceiptScan(data as unknown as Row);
+    return { scan, expense };
+  }
+
+  async discardExpenseReceiptScan(scanId: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_discard_expense_receipt_scan', {
+      p_scan_id: scanId,
+    });
+    if (error) throwRpcError(error, 'Could not discard receipt scan');
+  }
+
+  private async mapExpenseReceiptScan(row: Row): Promise<ExpenseReceiptScanVm> {
+    const imagePath = row['imagePath']
+      ? str(row['imagePath'])
+      : row['image_path']
+        ? str(row['image_path'])
+        : null;
+    let imageUrl: string | null = null;
+    if (imagePath) {
+      const signed = await this.sb.storage
+        .from('expense-receipts')
+        .createSignedUrl(imagePath, 60 * 60);
+      if (!signed.error) imageUrl = signed.data?.signedUrl ?? null;
+    }
+    const extractRaw = row['extractJson'] ?? row['extract_json'] ?? {};
+    const extract = parseReceiptExtractJson(extractRaw);
+    const statusRaw = str(row['status'] ?? 'UPLOADED').toUpperCase();
+    const status: ExpenseReceiptScanStatus =
+      statusRaw === 'REVIEWING' ||
+      statusRaw === 'CONFIRMED' ||
+      statusRaw === 'DISCARDED' ||
+      statusRaw === 'UPLOADED'
+        ? statusRaw
+        : 'UPLOADED';
+    return {
+      id: str(row['id']),
+      status,
+      imagePath,
+      imageUrl,
+      extract,
+      extractorLabel: str(
+        row['extractorLabel'] ?? row['extractor_label'] ?? extract.extractorLabel,
+      ),
+      expenseId: row['expenseId']
+        ? str(row['expenseId'])
+        : row['expense_id']
+          ? str(row['expense_id'])
+          : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      createdAtLabel: row['createdAt']
+        ? formatDateTime(str(row['createdAt']))
+        : row['created_at']
+          ? formatDateTime(str(row['created_at']))
+          : '—',
+    };
+  }
+
+  /** Phase 15: create a day-book / rojnama scan from pasted text (admin only). */
+  async createDayBookScan(input?: {
+    sourceText?: string | null;
+    notes?: string | null;
+  }): Promise<DayBookScanVm> {
+    const { data, error } = await this.sb.rpc('admin_create_day_book_scan', {
+      p_source_text: input?.sourceText?.trim() || null,
+      p_notes: input?.notes?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not create day book scan');
+    return this.mapDayBookScan(data as unknown as Row);
+  }
+
+  async getDayBookScan(scanId: string): Promise<DayBookScanVm | null> {
+    const { data, error } = await this.sb
+      .from('day_book_scans')
+      .select(
+        'id, status, image_path, source_text, extract_json, extractor_label, notes, created_at',
+      )
+      .eq('id', scanId)
+      .maybeSingle();
+    if (error) throwRpcError(error, 'Could not load day book scan');
+    if (!data) return null;
+    return this.mapDayBookScan(data as unknown as Row);
+  }
+
+  async uploadDayBookScanImage(
+    scanId: string,
+    file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string },
+  ): Promise<DayBookScanVm> {
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowed.has(file.contentType)) {
+      throw new Error('Use a JPEG, PNG, or WebP photo.');
+    }
+    const ext =
+      file.contentType === 'image/png'
+        ? 'png'
+        : file.contentType === 'image/webp'
+          ? 'webp'
+          : 'jpg';
+    const path = `${scanId}/rojnama.${ext}`;
+    const { error: uploadError } = await this.sb.storage
+      .from('day-book-scans')
+      .upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Could not upload day book photo');
+    }
+    const { data, error } = await this.sb.rpc('admin_set_day_book_scan_image', {
+      p_scan_id: scanId,
+      p_image_path: path,
+    });
+    if (error) throwRpcError(error, 'Could not attach day book photo');
+    return this.mapDayBookScan(data as unknown as Row);
+  }
+
+  async saveDayBookScanExtract(
+    scanId: string,
+    extract: DayBookExtractDraft,
+    sourceText?: string | null,
+  ): Promise<DayBookScanVm> {
+    const { data, error } = await this.sb.rpc(
+      'admin_save_day_book_scan_extract',
+      {
+        p_scan_id: scanId,
+        p_extract_json: extract,
+        p_extractor_label: extract.extractorLabel || 'line-rules',
+        p_source_text: sourceText ?? null,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not save day book extract');
+    return this.mapDayBookScan(data as unknown as Row);
+  }
+
+  /**
+   * Confirm path: create expenses / supplier payments for included lines only.
+   * Collection lines stay as needs_order proposals — never silent collection post.
+   */
+  async confirmDayBookScan(input: {
+    scanId: string;
+    extract: DayBookExtractDraft;
+  }): Promise<DayBookScanVm> {
+    const entryDate = (
+      input.extract.entryDate || new Date().toISOString().slice(0, 10)
+    ).slice(0, 10);
+    const finalized = await this.postDayBookConfirmLines({
+      extract: { ...input.extract, entryDate },
+    });
+
+    const { data, error } = await this.sb.rpc('admin_confirm_day_book_scan', {
+      p_scan_id: input.scanId,
+      p_extract_json: finalized,
+    });
+    if (error) throwRpcError(error, 'Could not confirm day book scan');
+    return this.mapDayBookScan(data as unknown as Row);
+  }
+
+  private async postDayBookConfirmLines(input: {
+    extract: DayBookExtractDraft;
+  }): Promise<DayBookExtractDraft> {
+    const entryDate = (input.extract.entryDate || '').slice(0, 10);
+    const lines = [];
+
+    for (const line of input.extract.lines) {
+      if (line.decision !== 'include') {
+        lines.push(line);
+        continue;
+      }
+      if (!line.amount || line.amount <= 0) {
+        throw new Error(`Line "${line.rawText}" needs a positive amount`);
+      }
+
+      if (line.kind === 'expense') {
+        const expense = await this.createCompanyExpense({
+          expenseDate: entryDate,
+          category: line.expenseCategory ?? 'OTHER',
+          amount: line.amount,
+          description:
+            line.notes?.trim() ||
+            line.partyHint?.trim() ||
+            line.rawText ||
+            'Day book expense',
+          paymentMethod: 'CASH',
+        });
+        lines.push({ ...line, createdExpenseId: expense.id });
+        continue;
+      }
+
+      if (line.kind === 'supplier_payment') {
+        if (!line.matchedSupplierId) {
+          throw new Error(
+            `Line "${line.rawText}" needs a matched supplier before posting`,
+          );
+        }
+        const payment = await this.recordSupplierPayment({
+          supplierId: line.matchedSupplierId,
+          paymentDate: entryDate,
+          amount: line.amount,
+          paymentMethod: 'CASH',
+          notes:
+            line.notes?.trim() ||
+            `From day book (${input.extract.extractorLabel}): ${line.rawText}`,
+        });
+        lines.push({ ...line, createdSupplierPaymentId: payment.id });
+        continue;
+      }
+
+      throw new Error(
+        `Line "${line.rawText}" cannot be posted as ${line.kind}. Collections need an order.`,
+      );
+    }
+
+    return { ...input.extract, lines };
+  }
+
+  async discardDayBookScan(scanId: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_discard_day_book_scan', {
+      p_scan_id: scanId,
+    });
+    if (error) throwRpcError(error, 'Could not discard day book scan');
+  }
+
+  private async mapDayBookScan(row: Row): Promise<DayBookScanVm> {
+    const imagePath = row['imagePath']
+      ? str(row['imagePath'])
+      : row['image_path']
+        ? str(row['image_path'])
+        : null;
+    let imageUrl: string | null = null;
+    if (imagePath) {
+      const signed = await this.sb.storage
+        .from('day-book-scans')
+        .createSignedUrl(imagePath, 60 * 60);
+      if (!signed.error) imageUrl = signed.data?.signedUrl ?? null;
+    }
+    const extractRaw = row['extractJson'] ?? row['extract_json'] ?? {};
+    const extract = parseDayBookExtractJson(extractRaw);
+    const statusRaw = str(row['status'] ?? 'UPLOADED').toUpperCase();
+    const status: DayBookScanStatus =
+      statusRaw === 'REVIEWING' ||
+      statusRaw === 'CONFIRMED' ||
+      statusRaw === 'DISCARDED' ||
+      statusRaw === 'UPLOADED'
+        ? statusRaw
+        : 'UPLOADED';
+    return {
+      id: str(row['id']),
+      status,
+      imagePath,
+      imageUrl,
+      sourceText: row['sourceText']
+        ? str(row['sourceText'])
+        : row['source_text']
+          ? str(row['source_text'])
+          : null,
+      extract,
+      extractorLabel: str(
+        row['extractorLabel'] ??
+          row['extractor_label'] ??
+          extract.extractorLabel,
+      ),
+      notes: row['notes'] ? str(row['notes']) : null,
+      createdAtLabel: row['createdAt']
+        ? formatDateTime(str(row['createdAt']))
+        : row['created_at']
+          ? formatDateTime(str(row['created_at']))
+          : '—',
+    };
+  }
+
+  /** Phase 16: create an empty payment proof scan (admin only). */
+  async createPaymentProofScan(notes?: string | null): Promise<PaymentProofScanVm> {
+    const { data, error } = await this.sb.rpc('admin_create_payment_proof_scan', {
+      p_notes: notes?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not create payment proof scan');
+    return this.mapPaymentProofScan(data as unknown as Row);
+  }
+
+  async getPaymentProofScan(scanId: string): Promise<PaymentProofScanVm | null> {
+    const { data, error } = await this.sb
+      .from('payment_proof_scans')
+      .select(
+        'id, status, image_path, extract_json, extractor_label, order_id, shop_id, notes, created_at',
+      )
+      .eq('id', scanId)
+      .maybeSingle();
+    if (error) throwRpcError(error, 'Could not load payment proof scan');
+    if (!data) return null;
+    return this.mapPaymentProofScan(data as unknown as Row);
+  }
+
+  async uploadPaymentProofScanImage(
+    scanId: string,
+    file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string },
+  ): Promise<PaymentProofScanVm> {
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowed.has(file.contentType)) {
+      throw new Error('Use a JPEG, PNG, or WebP photo.');
+    }
+    const ext =
+      file.contentType === 'image/png'
+        ? 'png'
+        : file.contentType === 'image/webp'
+          ? 'webp'
+          : 'jpg';
+    const path = `${scanId}/proof.${ext}`;
+    const { error: uploadError } = await this.sb.storage
+      .from('payment-proofs')
+      .upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Could not upload payment proof');
+    }
+    const { data, error } = await this.sb.rpc(
+      'admin_set_payment_proof_scan_image',
+      {
+        p_scan_id: scanId,
+        p_image_path: path,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not attach payment proof');
+    return this.mapPaymentProofScan(data as unknown as Row);
+  }
+
+  async savePaymentProofScanExtract(
+    scanId: string,
+    extract: PaymentProofExtractDraft,
+  ): Promise<PaymentProofScanVm> {
+    const { data, error } = await this.sb.rpc(
+      'admin_save_payment_proof_scan_extract',
+      {
+        p_scan_id: scanId,
+        p_extract_json: extract,
+        p_extractor_label: extract.extractorLabel || 'manual',
+      },
+    );
+    if (error) throwRpcError(error, 'Could not save payment proof extract');
+    return this.mapPaymentProofScan(data as unknown as Row);
+  }
+
+  async unpaidOrderCandidatesForShop(
+    shopId: string,
+  ): Promise<UnpaidOrderCandidate[]> {
+    const { data: orders, error } = await this.sb
+      .from('orders')
+      .select('id, shop_id, status, total, created_at')
+      .eq('shop_id', shopId)
+      .neq('status', 'CANCELLED')
+      .order('created_at', { ascending: false });
+    if (error) throwRpcError(error, 'Could not load unpaid orders');
+    const orderRows = (orders ?? []) as unknown as Row[];
+    if (!orderRows.length) return [];
+
+    const orderIds = orderRows.map((o) => str(o['id']));
+    const { data: payments } = await this.sb
+      .from('payments')
+      .select(
+        'order_id, status, cash_collected_amount, online_collected_amount',
+      )
+      .in('order_id', orderIds);
+    const payMap = new Map<
+      string,
+      {
+        status: string;
+        cash_collected_amount?: number | null;
+        online_collected_amount?: number | null;
+      }
+    >();
+    for (const p of (payments ?? []) as Row[]) {
+      payMap.set(str(p['order_id']), {
+        status: str(p['status']),
+        cash_collected_amount:
+          p['cash_collected_amount'] != null
+            ? num(p['cash_collected_amount'])
+            : null,
+        online_collected_amount:
+          p['online_collected_amount'] != null
+            ? num(p['online_collected_amount'])
+            : null,
+      });
+    }
+
+    return buildUnpaidOrderCandidates(
+      orderRows.map((o) => ({
+        id: str(o['id']),
+        shopId: str(o['shop_id']),
+        status: str(o['status']),
+        total: num(o['total']),
+        createdAt: str(o['created_at']),
+      })),
+      payMap,
+      formatDateTime,
+      (id) => shortCode(id, 'GA'),
+    );
+  }
+
+  /**
+   * Confirm path: owner-selected order → mark payment received, then link scan.
+   * Never marks paid from image alone.
+   */
+  async confirmPaymentProofScan(input: {
+    scanId: string;
+    extract: PaymentProofExtractDraft;
+    orderId: string;
+    shopId?: string | null;
+  }): Promise<{ scan: PaymentProofScanVm }> {
+    if (!input.orderId) {
+      throw new Error('Choose an unpaid order before confirming');
+    }
+
+    await this.savePaymentProofScanExtract(input.scanId, input.extract);
+    await this.markOrderPaymentReceived(
+      input.orderId,
+      input.extract.collectionMethod ?? 'UPI_ON_DELIVERY',
+    );
+
+    const { data, error } = await this.sb.rpc(
+      'admin_confirm_payment_proof_scan',
+      {
+        p_scan_id: input.scanId,
+        p_order_id: input.orderId,
+        p_shop_id: input.shopId ?? input.extract.matchedCustomerId ?? null,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not confirm payment proof');
+    const scan = await this.mapPaymentProofScan(data as unknown as Row);
+    return { scan };
+  }
+
+  async discardPaymentProofScan(scanId: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_discard_payment_proof_scan', {
+      p_scan_id: scanId,
+    });
+    if (error) throwRpcError(error, 'Could not discard payment proof');
+  }
+
+  private async mapPaymentProofScan(row: Row): Promise<PaymentProofScanVm> {
+    const imagePath = row['imagePath']
+      ? str(row['imagePath'])
+      : row['image_path']
+        ? str(row['image_path'])
+        : null;
+    let imageUrl: string | null = null;
+    if (imagePath) {
+      const signed = await this.sb.storage
+        .from('payment-proofs')
+        .createSignedUrl(imagePath, 60 * 60);
+      if (!signed.error) imageUrl = signed.data?.signedUrl ?? null;
+    }
+    const extractRaw = row['extractJson'] ?? row['extract_json'] ?? {};
+    const extract = parsePaymentProofExtractJson(extractRaw);
+    const statusRaw = str(row['status'] ?? 'UPLOADED').toUpperCase();
+    const status: PaymentProofScanStatus =
+      statusRaw === 'REVIEWING' ||
+      statusRaw === 'CONFIRMED' ||
+      statusRaw === 'DISCARDED' ||
+      statusRaw === 'UPLOADED'
+        ? statusRaw
+        : 'UPLOADED';
+    return {
+      id: str(row['id']),
+      status,
+      imagePath,
+      imageUrl,
+      extract,
+      extractorLabel: str(
+        row['extractorLabel'] ??
+          row['extractor_label'] ??
+          extract.extractorLabel,
+      ),
+      orderId: row['orderId']
+        ? str(row['orderId'])
+        : row['order_id']
+          ? str(row['order_id'])
+          : null,
+      shopId: row['shopId']
+        ? str(row['shopId'])
+        : row['shop_id']
+          ? str(row['shop_id'])
+          : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      createdAtLabel: row['createdAt']
+        ? formatDateTime(str(row['createdAt']))
+        : row['created_at']
+          ? formatDateTime(str(row['created_at']))
+          : '—',
+    };
+  }
+
   async dayBookSnapshot(opts: {
     dateFrom: string;
     dateTo: string;
@@ -3393,8 +4879,14 @@ export class LiveAdminApi {
     const fromTs = range.fromIso;
     const toTs = range.toIsoInclusive;
 
-    const [ordersRes, paymentsByPaid, paymentsByCreated, expensesRes, payrollRes] =
-      await Promise.all([
+    const [
+      ordersRes,
+      paymentsByPaid,
+      paymentsByCreated,
+      expensesRes,
+      payrollRes,
+      supplierPaymentsRes,
+    ] = await Promise.all([
         this.sb
           .from('orders')
           .select('id, shop_id, status, total, created_at')
@@ -3427,6 +4919,13 @@ export class LiveAdminApi {
           .eq('status', 'PAID')
           .gte('paid_at', fromTs)
           .lte('paid_at', toTs),
+        this.sb
+          .from('supplier_payments')
+          .select(
+            'id, supplier_id, purchase_id, payment_date, amount, payment_method, reference_number, notes, created_at',
+          )
+          .gte('payment_date', opts.dateFrom)
+          .lte('payment_date', opts.dateTo),
       ]);
 
     if (ordersRes.error) throwRpcError(ordersRes.error, 'Could not load day book sales');
@@ -3441,6 +4940,12 @@ export class LiveAdminApi {
     }
     if (payrollRes.error) {
       throwRpcError(payrollRes.error, 'Could not load day book payroll');
+    }
+    if (supplierPaymentsRes.error) {
+      throwRpcError(
+        supplierPaymentsRes.error,
+        'Could not load day book supplier payments',
+      );
     }
 
     const paymentMap = new Map<string, Row>();
@@ -3566,6 +5071,32 @@ export class LiveAdminApi {
       };
     });
 
+    const supplierPaymentRows = (supplierPaymentsRes.data ?? []) as Row[];
+    const supplierIds = [
+      ...new Set(supplierPaymentRows.map((r) => str(r['supplier_id']))),
+    ];
+    const { data: supplierRows } = supplierIds.length
+      ? await this.sb.from('suppliers').select('id, name').in('id', supplierIds)
+      : { data: [] as Row[] };
+    const supplierNameMap = new Map(
+      ((supplierRows ?? []) as Row[]).map((s) => [str(s['id']), str(s['name'])]),
+    );
+    const supplierPayments = supplierPaymentRows.map((row) => ({
+      id: str(row['id']),
+      supplierId: str(row['supplier_id']),
+      purchaseId: row['purchase_id'] ? str(row['purchase_id']) : null,
+      paymentDate: str(row['payment_date']),
+      amount: num(row['amount']),
+      paymentMethod: mapSupplierPaymentMethod(str(row['payment_method'])),
+      referenceNumber: row['reference_number']
+        ? str(row['reference_number'])
+        : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      createdAt: row['created_at'] ? str(row['created_at']) : null,
+      supplierName:
+        supplierNameMap.get(str(row['supplier_id'])) ?? 'Supplier',
+    }));
+
     return buildDayBookSnapshot({
       generatedAtIso: new Date().toISOString(),
       dateFrom: opts.dateFrom,
@@ -3583,6 +5114,7 @@ export class LiveAdminApi {
       payments,
       expenses,
       paidPayroll,
+      supplierPayments,
     });
   }
 
@@ -3686,6 +5218,8 @@ export class LiveAdminApi {
   async ownerFinancialOverview(): Promise<{
     generatedAtLabel: string;
     kpis: KpiCardItem[];
+    customersWithMoneyDue: number;
+    suppliersWithMoneyToPay: number;
   }> {
     const now = new Date();
     const today = ymdInBusinessTz(now);
@@ -3693,12 +5227,11 @@ export class LiveAdminApi {
     const todayRange = businessDateRangeInclusive(today, today);
     const monthRange = businessDateRangeInclusive(monthStart, today);
 
-    const [dayBookToday, receivables, expensesSnap, payrollMonth, salesToday, salesMonth, shopsRes] =
+    const [dayBookToday, receivables, expensesSnap, salesToday, salesMonth] =
       await Promise.all([
         this.dayBookSnapshot({ dateFrom: today, dateTo: today }),
         this.receivablesSnapshot(),
         this.companyExpensesSnapshot(),
-        this.payrollMonthSnapshot(monthStart),
         this.listSalesRegister({
           fromIso: todayRange.fromIso,
           toIso: todayRange.toIsoInclusive,
@@ -3709,11 +5242,6 @@ export class LiveAdminApi {
           toIso: monthRange.toIsoInclusive,
           limit: 500,
         }),
-        this.sb
-          .from('shops')
-          .select('id', { count: 'exact', head: true })
-          .is('deleted_at', null)
-          .eq('is_active', true),
       ]);
 
     const byType = summarizeDayBookByType(dayBookToday.entries);
@@ -3743,19 +5271,24 @@ export class LiveAdminApi {
       collectionsToday: byType.collectionsIn + byType.salesIn,
       outstanding: receivables.totalOutstanding,
       expensesMonth,
-      payrollPaidMonth: payrollMonth.paidTotal,
       netCashToday: byType.net,
-      activeCustomers: shopsRes.count ?? 0,
     });
+
+    const payables = await this.supplierPayablesSnapshot();
 
     return {
       generatedAtLabel: `Updated ${formatDateTime(now.toISOString())}`,
       kpis,
+      customersWithMoneyDue: receivables.rows.filter(
+        (row) => row.outstanding > 0,
+      ).length,
+      suppliersWithMoneyToPay: payables.suppliersWithDues,
     };
   }
 
   /**
-   * Profit &amp; Loss for a date range from existing Day Book + sales + expenses + paid payroll.
+   * Profit &amp; Loss for a date range from Day Book + sales + expenses +
+   * paid payroll + inventory COGS (WAC consumption).
    */
   async profitLossSnapshot(opts: {
     dateFrom: string;
@@ -3770,26 +5303,37 @@ export class LiveAdminApi {
     const to = opts.dateTo.slice(0, 10);
     const range = businessDateRangeInclusive(from, to);
 
-    const [dayBook, expensesSnap, salesRows, payrollRes] = await Promise.all([
-      this.dayBookSnapshot({ dateFrom: from, dateTo: to }),
-      this.companyExpensesSnapshot(),
-      this.listSalesRegister({
-        fromIso: range.fromIso,
-        toIso: range.toIsoInclusive,
-        limit: 2000,
-      }),
-      this.sb
-        .from('salesman_payroll')
-        .select(
-          'id, salesman_profile_id, payroll_month, earning_model, base_salary, unpaid_leave_days, unpaid_deduction, earned_commission, daily_allowance, other_allowance, adjustments, total_amount, status, paid_at, payment_method, payment_reference, notes, calculated_at',
-        )
-        .eq('status', 'PAID')
-        .gte('paid_at', range.fromIso)
-        .lt('paid_at', range.toIsoExclusive),
-    ]);
+    const [dayBook, expensesSnap, salesRows, payrollRes, movementsRes] =
+      await Promise.all([
+        this.dayBookSnapshot({ dateFrom: from, dateTo: to }),
+        this.companyExpensesSnapshot(),
+        this.listSalesRegister({
+          fromIso: range.fromIso,
+          toIso: range.toIsoInclusive,
+          limit: 2000,
+        }),
+        this.sb
+          .from('salesman_payroll')
+          .select(
+            'id, salesman_profile_id, payroll_month, earning_model, base_salary, unpaid_leave_days, unpaid_deduction, earned_commission, daily_allowance, other_allowance, adjustments, total_amount, status, paid_at, payment_method, payment_reference, notes, calculated_at',
+          )
+          .eq('status', 'PAID')
+          .gte('paid_at', range.fromIso)
+          .lt('paid_at', range.toIsoExclusive),
+        this.sb
+          .from('inventory_movements')
+          .select('movement_type, quantity_delta, unit_cost, created_at')
+          .in('movement_type', ['ORDER_DISPATCH', 'RETURN'])
+          .gte('created_at', range.fromIso)
+          .lt('created_at', range.toIsoExclusive)
+          .limit(5000),
+      ]);
 
     if (payrollRes.error) {
       throwRpcError(payrollRes.error, 'Could not load paid payroll for P&L');
+    }
+    if (movementsRes.error) {
+      throwRpcError(movementsRes.error, 'Could not load inventory COGS for P&L');
     }
 
     const byType = summarizeDayBookByType(dayBook.entries);
@@ -3822,6 +5366,15 @@ export class LiveAdminApi {
       }),
     );
 
+    const cogs = sumInventoryCogs(
+      ((movementsRes.data ?? []) as Row[]).map((row) => ({
+        movementType: str(row['movement_type']),
+        quantityDelta: num(row['quantity_delta']),
+        unitCost:
+          row['unit_cost'] == null ? null : num(row['unit_cost']),
+      })),
+    );
+
     const profitLoss = buildProfitLoss({
       salesTotal: sumSalesTotal(
         salesRows.map((r) => ({
@@ -3835,6 +5388,8 @@ export class LiveAdminApi {
       refundsTotal: byType.refundsOut,
       expensesTotal,
       payrollPaidTotal: sumPaidPayroll(payrollRows),
+      cogsTotal: cogs.cogsTotal,
+      cogsIncomplete: cogs.incompleteMovementCount > 0,
     });
 
     return {
@@ -3842,6 +5397,547 @@ export class LiveAdminApi {
       rangeLabel: `${from} → ${to}`,
       profitLoss,
       dayBookByType: byType,
+    };
+  }
+
+  /**
+   * Phase 6 Books snapshot: chart of accounts, journals in range, trial balance.
+   * Journals are posted from domain events via admin_sync_accounting_journals.
+   */
+  async accountingSnapshot(opts: {
+    dateFrom: string;
+    dateTo: string;
+  }): Promise<AccountingSnapshot> {
+    const from = opts.dateFrom.slice(0, 10);
+    const to = opts.dateTo.slice(0, 10);
+
+    const [accountsRes, journalsRes, linesRes] = await Promise.all([
+      this.sb
+        .from('chart_of_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('code', { ascending: true }),
+      this.sb
+        .from('journal_entries')
+        .select('*')
+        .gte('entry_date', from)
+        .lte('entry_date', to)
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(500),
+      this.sb
+        .from('journal_lines')
+        .select('id, journal_entry_id, account_id, debit, credit')
+        .limit(5000),
+    ]);
+
+    if (accountsRes.error) {
+      throwRpcError(accountsRes.error, 'Could not load chart of accounts');
+    }
+    if (journalsRes.error) {
+      throwRpcError(journalsRes.error, 'Could not load journal entries');
+    }
+    if (linesRes.error) {
+      throwRpcError(linesRes.error, 'Could not load journal lines');
+    }
+
+    const accounts: ChartAccountRow[] = ((accountsRes.data ?? []) as Row[]).map(
+      (row) => {
+        const accountType = str(row['account_type']).toUpperCase() as AccountType;
+        return {
+          id: str(row['id']),
+          code: str(row['code']),
+          name: str(row['name']),
+          accountType,
+          accountTypeLabel: ACCOUNT_TYPE_LABELS[accountType] ?? accountType,
+          isSystem: row['is_system'] === true,
+          isActive: row['is_active'] !== false,
+        };
+      },
+    );
+
+    const journalIds = new Set(
+      ((journalsRes.data ?? []) as Row[]).map((row) => str(row['id'])),
+    );
+    const lineRows = ((linesRes.data ?? []) as Row[]).filter((row) =>
+      journalIds.has(str(row['journal_entry_id'])),
+    );
+
+    const debitByJournal = new Map<string, number>();
+    const countByJournal = new Map<string, number>();
+    for (const line of lineRows) {
+      const jid = str(line['journal_entry_id']);
+      debitByJournal.set(
+        jid,
+        moneyRound((debitByJournal.get(jid) ?? 0) + num(line['debit'])),
+      );
+      countByJournal.set(jid, (countByJournal.get(jid) ?? 0) + 1);
+    }
+
+    const journals = ((journalsRes.data ?? []) as Row[]).map((row) => {
+      const id = str(row['id']);
+      const totalDebit = debitByJournal.get(id) ?? 0;
+      const sourceType = str(row['source_type']);
+      return {
+        id,
+        entryDate: str(row['entry_date']),
+        entryDateLabel: formatDate(str(row['entry_date'])),
+        sourceType,
+        sourceTypeLabel: journalSourceLabel(sourceType),
+        sourceId: str(row['source_id']),
+        memo: str(row['memo']),
+        totalDebit,
+        totalDebitLabel: formatInr(totalDebit),
+        lineCount: countByJournal.get(id) ?? 0,
+      };
+    });
+
+    const tb = buildTrialBalanceRows(
+      accounts,
+      lineRows.map((row) => ({
+        accountId: str(row['account_id']),
+        debit: num(row['debit']),
+        credit: num(row['credit']),
+      })),
+    );
+
+    return {
+      generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+      rangeLabel: `${from} → ${to}`,
+      accountCount: accounts.length,
+      journalCount: journals.length,
+      trialBalanceBalanced: tb.balanced,
+      totalDebitsLabel: formatInr(tb.totalDebit),
+      totalCreditsLabel: formatInr(tb.totalCredit),
+      accounts,
+      journals,
+      trialBalance: tb.rows,
+      lastSyncLabel: null,
+    };
+  }
+
+  async syncAccountingJournals(opts: {
+    dateFrom: string;
+    dateTo: string;
+  }): Promise<{ posted: number; skipped: number; dateFrom: string; dateTo: string }> {
+    const { data, error } = await this.sb.rpc('admin_sync_accounting_journals', {
+      p_date_from: opts.dateFrom.slice(0, 10),
+      p_date_to: opts.dateTo.slice(0, 10),
+    });
+    if (error) throwRpcError(error, 'Could not sync accounting journals');
+    const row = (data ?? {}) as Row;
+    return {
+      posted: num(row['posted']),
+      skipped: num(row['skipped']),
+      dateFrom: str(row['dateFrom'] ?? opts.dateFrom),
+      dateTo: str(row['dateTo'] ?? opts.dateTo),
+    };
+  }
+
+  /**
+   * Phase 7 Cash & Bank snapshot from posted journal lines only.
+   * Never invents balances when the ledger is empty.
+   */
+  async cashBankSnapshot(opts: { asOfDate: string }): Promise<CashBankSnapshot> {
+    const asOfDate = opts.asOfDate.slice(0, 10);
+
+    const { data: accounts, error: accountsError } = await this.sb
+      .from('chart_of_accounts')
+      .select('id, code, name')
+      .in('code', [
+        CASH_ACCOUNT_CODE,
+        BANK_ACCOUNT_CODE,
+        AR_ACCOUNT_CODE,
+        AP_ACCOUNT_CODE,
+      ]);
+    if (accountsError) {
+      throwRpcError(accountsError, 'Could not load cash/bank accounts');
+    }
+
+    const accountRows = (accounts ?? []) as Row[];
+    const idByCode = new Map(
+      accountRows.map((row) => [str(row['code']), str(row['id'])] as const),
+    );
+    const nameByCode = new Map(
+      accountRows.map((row) => [str(row['code']), str(row['name'])] as const),
+    );
+    const codeById = new Map(
+      accountRows.map((row) => [str(row['id']), str(row['code'])] as const),
+    );
+    const cashId = idByCode.get(CASH_ACCOUNT_CODE);
+    const bankId = idByCode.get(BANK_ACCOUNT_CODE);
+    const arId = idByCode.get(AR_ACCOUNT_CODE);
+    const apId = idByCode.get(AP_ACCOUNT_CODE);
+    const trackedIds = [cashId, bankId, arId, apId].filter(Boolean) as string[];
+
+    if (trackedIds.length === 0) {
+      return {
+        generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+        asOfDate,
+        asOfDateLabel: formatDate(asOfDate),
+        cashBalance: 0,
+        cashBalanceLabel: '—',
+        bankBalance: 0,
+        bankBalanceLabel: '—',
+        moneyExpected: 0,
+        moneyExpectedLabel: '—',
+        moneyToPay: 0,
+        moneyToPayLabel: '—',
+        hasLedgerActivity: false,
+        honestyNote: buildCashBankHonestyNote(false),
+        movements: [],
+      };
+    }
+
+    const { data: entries, error: entriesError } = await this.sb
+      .from('journal_entries')
+      .select('id, entry_date, source_type, memo')
+      .lte('entry_date', asOfDate)
+      .order('entry_date', { ascending: true })
+      .order('created_at', { ascending: true })
+      .limit(5000);
+    if (entriesError) {
+      throwRpcError(entriesError, 'Could not load cash/bank journals');
+    }
+
+    const entryRows = (entries ?? []) as Row[];
+    const entryIds = entryRows.map((row) => str(row['id']));
+    const entryById = new Map(
+      entryRows.map((row) => [str(row['id']), row] as const),
+    );
+
+    let lineRows: Row[] = [];
+    if (entryIds.length > 0) {
+      const { data: lines, error: linesError } = await this.sb
+        .from('journal_lines')
+        .select('id, journal_entry_id, account_id, debit, credit')
+        .in('journal_entry_id', entryIds)
+        .in('account_id', trackedIds)
+        .limit(8000);
+      if (linesError) {
+        throwRpcError(linesError, 'Could not load cash/bank journal lines');
+      }
+      lineRows = (lines ?? []) as Row[];
+    }
+
+    const totals = new Map<string, { debit: number; credit: number }>();
+    for (const line of lineRows) {
+      const accountId = str(line['account_id']);
+      const cur = totals.get(accountId) ?? { debit: 0, credit: 0 };
+      cur.debit += num(line['debit']);
+      cur.credit += num(line['credit']);
+      totals.set(accountId, cur);
+    }
+
+    const cashTotals = cashId
+      ? totals.get(cashId) ?? { debit: 0, credit: 0 }
+      : { debit: 0, credit: 0 };
+    const bankTotals = bankId
+      ? totals.get(bankId) ?? { debit: 0, credit: 0 }
+      : { debit: 0, credit: 0 };
+    const arTotals = arId
+      ? totals.get(arId) ?? { debit: 0, credit: 0 }
+      : { debit: 0, credit: 0 };
+    const apTotals = apId
+      ? totals.get(apId) ?? { debit: 0, credit: 0 }
+      : { debit: 0, credit: 0 };
+
+    const cashBalance = ledgerAssetBalance(cashTotals.debit, cashTotals.credit);
+    const bankBalance = ledgerAssetBalance(bankTotals.debit, bankTotals.credit);
+    const moneyExpected = ledgerAssetBalance(arTotals.debit, arTotals.credit);
+    const moneyToPay = ledgerLiabilityBalance(apTotals.debit, apTotals.credit);
+
+    const cashBankIds = new Set(
+      [cashId, bankId].filter(Boolean) as string[],
+    );
+    const movementSource = lineRows
+      .filter((line) => cashBankIds.has(str(line['account_id'])))
+      .map((line) => {
+        const entry = entryById.get(str(line['journal_entry_id']));
+        const accountCode = codeById.get(str(line['account_id'])) ?? '—';
+        const debit = num(line['debit']);
+        const credit = num(line['credit']);
+        const sourceType = entry ? str(entry['source_type']) : '';
+        return {
+          id: str(line['id']),
+          entryDate: entry ? str(entry['entry_date']) : asOfDate,
+          entryDateLabel: formatDate(entry ? str(entry['entry_date']) : asOfDate),
+          accountCode,
+          accountLabel: nameByCode.get(accountCode) ?? accountCode,
+          sourceType,
+          sourceTypeLabel: journalSourceLabel(sourceType),
+          memo: entry ? str(entry['memo']) : '—',
+          debit,
+          credit,
+          amountLabel: formatInr(debit > 0 ? debit : credit),
+          sortKey: `${entry ? str(entry['entry_date']) : ''}|${str(line['id'])}`,
+        };
+      })
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+    const movements = attachRunningBalances(
+      movementSource.map(({ sortKey: _sortKey, ...row }) => row),
+      0,
+    );
+
+    const hasLedgerActivity = lineRows.length > 0;
+
+    return {
+      generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+      asOfDate,
+      asOfDateLabel: formatDate(asOfDate),
+      cashBalance,
+      cashBalanceLabel: hasLedgerActivity ? formatInr(cashBalance) : '—',
+      bankBalance,
+      bankBalanceLabel: hasLedgerActivity ? formatInr(bankBalance) : '—',
+      moneyExpected,
+      moneyExpectedLabel: hasLedgerActivity ? formatInr(moneyExpected) : '—',
+      moneyToPay,
+      moneyToPayLabel: hasLedgerActivity ? formatInr(moneyToPay) : '—',
+      hasLedgerActivity,
+      honestyNote: buildCashBankHonestyNote(hasLedgerActivity),
+      movements,
+    };
+  }
+
+  async recordCashBankTransfer(input: {
+    entryDate: string;
+    amount: number;
+    direction: CashBankTransferDirection;
+    memo?: string | null;
+  }): Promise<string> {
+    const { data, error } = await this.sb.rpc('admin_record_cash_bank_transfer', {
+      p_entry_date: input.entryDate.slice(0, 10),
+      p_amount: input.amount,
+      p_direction: input.direction,
+      p_memo: input.memo?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not record cash/bank transfer');
+    return str(data);
+  }
+
+  async recordCashBankOpening(input: {
+    entryDate: string;
+    cashAmount?: number;
+    bankAmount?: number;
+    memo?: string | null;
+  }): Promise<string> {
+    const { data, error } = await this.sb.rpc('admin_record_cash_bank_opening', {
+      p_entry_date: input.entryDate.slice(0, 10),
+      p_cash_amount: input.cashAmount ?? 0,
+      p_bank_amount: input.bankAmount ?? 0,
+      p_memo: input.memo?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not record opening balances');
+    return str(data);
+  }
+
+  async recordCashBankExternal(input: {
+    entryDate: string;
+    account: CashBankAccountKind;
+    kind: CashBankExternalKind;
+    amount: number;
+    memo?: string | null;
+  }): Promise<string> {
+    const { data, error } = await this.sb.rpc('admin_record_cash_bank_external', {
+      p_entry_date: input.entryDate.slice(0, 10),
+      p_account: input.account,
+      p_kind: input.kind,
+      p_amount: input.amount,
+      p_memo: input.memo?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not record deposit/withdrawal');
+    return str(data);
+  }
+
+  /**
+   * Phase 9 — GST input-tax summary from received purchases in range.
+   * Not a GSTR filing export.
+   */
+  async gstTaxSummary(opts: {
+    dateFrom: string;
+    dateTo: string;
+  }): Promise<GstTaxSummaryVm> {
+    const from = opts.dateFrom.slice(0, 10);
+    const to = opts.dateTo.slice(0, 10);
+
+    const { data, error } = await this.sb
+      .from('purchases')
+      .select(
+        'id, bill_number, purchase_date, supplier_id, subtotal, tax_amount, cgst_amount, sgst_amount, igst_amount, supply_type, status, received_at',
+      )
+      .eq('status', 'RECEIVED')
+      .gte('purchase_date', from)
+      .lte('purchase_date', to)
+      .order('purchase_date', { ascending: true })
+      .limit(2000);
+    if (error) throwRpcError(error, 'Could not load purchases for GST summary');
+
+    const purchaseRows = (data ?? []) as unknown as Row[];
+    const supplierIds = [
+      ...new Set(purchaseRows.map((row) => str(row['supplier_id']))),
+    ];
+    const supplierMap = new Map<string, string>();
+    if (supplierIds.length > 0) {
+      const { data: suppliers, error: suppliersError } = await this.sb
+        .from('suppliers')
+        .select('id, name')
+        .in('id', supplierIds);
+      if (suppliersError) {
+        throwRpcError(suppliersError, 'Could not load suppliers for GST summary');
+      }
+      for (const s of (suppliers ?? []) as Row[]) {
+        supplierMap.set(str(s['id']), str(s['name']));
+      }
+    }
+
+    return buildGstTaxSummary({
+      generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+      rangeLabel: `${from} → ${to}`,
+      purchases: purchaseRows.map((row) => ({
+        id: str(row['id']),
+        billNumber: str(row['bill_number']),
+        purchaseDate: str(row['purchase_date']).slice(0, 10),
+        purchaseDateLabel: formatDate(str(row['purchase_date'])),
+        supplierName: supplierMap.get(str(row['supplier_id'])) ?? '—',
+        supplyType: str(row['supply_type']) || 'UNSET',
+        subtotal: num(row['subtotal']),
+        taxAmount: num(row['tax_amount']),
+        cgstAmount: num(row['cgst_amount']),
+        sgstAmount: num(row['sgst_amount']),
+        igstAmount: num(row['igst_amount']),
+      })),
+    });
+  }
+
+  /**
+   * Phase 8 — P&L, Balance Sheet, Cash Flow, Trial Balance, and GL
+   * from the same Books journal ledger (never invents balances).
+   */
+  async ledgerStatementsSnapshot(opts: {
+    dateFrom: string;
+    dateTo: string;
+    glAccountCode?: string | null;
+  }): Promise<LedgerStatementsSnapshot> {
+    const from = opts.dateFrom.slice(0, 10);
+    const to = opts.dateTo.slice(0, 10);
+
+    const [accountsRes, journalsRes] = await Promise.all([
+      this.sb
+        .from('chart_of_accounts')
+        .select('id, code, name, account_type')
+        .eq('is_active', true)
+        .order('code', { ascending: true }),
+      this.sb
+        .from('journal_entries')
+        .select('id, entry_date, source_type, memo')
+        .lte('entry_date', to)
+        .order('entry_date', { ascending: true })
+        .order('created_at', { ascending: true })
+        .limit(5000),
+    ]);
+
+    if (accountsRes.error) {
+      throwRpcError(accountsRes.error, 'Could not load chart of accounts');
+    }
+    if (journalsRes.error) {
+      throwRpcError(journalsRes.error, 'Could not load journal entries');
+    }
+
+    const accountRows = (accountsRes.data ?? []) as Row[];
+    const accountById = new Map(
+      accountRows.map((row) => {
+        const accountType = str(row['account_type']).toUpperCase() as AccountType;
+        return [
+          str(row['id']),
+          {
+            id: str(row['id']),
+            code: str(row['code']),
+            name: str(row['name']),
+            accountType,
+          },
+        ] as const;
+      }),
+    );
+
+    const entryRows = (journalsRes.data ?? []) as Row[];
+    const entryIds = entryRows.map((row) => str(row['id']));
+    const entryById = new Map(
+      entryRows.map((row) => [str(row['id']), row] as const),
+    );
+
+    let lineRows: Row[] = [];
+    if (entryIds.length > 0) {
+      const { data: lines, error: linesError } = await this.sb
+        .from('journal_lines')
+        .select('id, journal_entry_id, account_id, debit, credit')
+        .in('journal_entry_id', entryIds)
+        .limit(12000);
+      if (linesError) {
+        throwRpcError(linesError, 'Could not load journal lines');
+      }
+      lineRows = (lines ?? []) as Row[];
+    }
+
+    const allFacts: LedgerLineFact[] = [];
+    for (const line of lineRows) {
+      const entry = entryById.get(str(line['journal_entry_id']));
+      const account = accountById.get(str(line['account_id']));
+      if (!entry || !account) continue;
+      allFacts.push({
+        accountId: account.id,
+        accountCode: account.code,
+        accountName: account.name,
+        accountType: account.accountType,
+        journalId: str(entry['id']),
+        entryDate: str(entry['entry_date']),
+        sourceType: str(entry['source_type']),
+        memo: str(entry['memo']),
+        debit: num(line['debit']),
+        credit: num(line['credit']),
+      });
+    }
+
+    const openingFacts = allFacts.filter((f) => f.entryDate < from);
+    const periodFacts = allFacts.filter(
+      (f) => f.entryDate >= from && f.entryDate <= to,
+    );
+    const throughAsOf = allFacts.filter((f) => f.entryDate <= to);
+
+    const periodJournalIds = new Set(periodFacts.map((f) => f.journalId));
+    const openingCashBank = cashBankBalanceFromLines(openingFacts);
+    const profitLoss = buildLedgerProfitLoss(periodFacts);
+    const balanceSheet = buildBalanceSheet(throughAsOf, to);
+    const cashFlow = buildCashFlowStatement({
+      openingCashBank,
+      periodLines: periodFacts,
+    });
+    const tb = buildLedgerTrialBalance(throughAsOf);
+    const generalLedger = buildGeneralLedgerRows(
+      periodFacts,
+      (iso) => formatDate(iso),
+      opts.glAccountCode ?? null,
+    );
+
+    const hasLedgerActivity = allFacts.length > 0;
+
+    return {
+      generatedAtLabel: `Updated ${formatDateTime(new Date().toISOString())}`,
+      rangeLabel: `${from} → ${to}`,
+      asOfDate: to,
+      profitLoss,
+      balanceSheet,
+      cashFlow,
+      trialBalance: tb.rows,
+      trialBalanceBalanced: tb.balanced,
+      trialBalanceDebitTotalLabel: formatInr(tb.totalDebit),
+      trialBalanceCreditTotalLabel: formatInr(tb.totalCredit),
+      generalLedger,
+      journalCount: periodJournalIds.size,
+      hasLedgerActivity,
+      honestyNote: hasLedgerActivity
+        ? 'All statements come from posted Books journals. Update Books before relying on these figures.'
+        : 'No posted Books journals yet. Update Books for sales, collections, purchases, and expenses — statement balances are never invented.',
     };
   }
 
@@ -5614,7 +7710,28 @@ export class LiveAdminApi {
       .contains('roles', ['SALESMAN']);
 
     if (!salesmen?.length) {
-      return { generatedAtLabel: formatDateTime(new Date().toISOString()), kpis: [], rows: [] };
+      const workDate = kolkataWorkDate();
+      return {
+        generatedAtLabel: formatDateTime(new Date().toISOString()),
+        kpis: [],
+        rows: [],
+        fieldToday: {
+          workDate,
+          startedCount: 0,
+          notStartedCount: 0,
+          absentCount: 0,
+          onLeaveCount: 0,
+          pendingExpenseClaims: 0,
+          pendingReturnClaims: 0,
+        },
+        visitCoverage: {
+          rangeLabel: 'Today',
+          planned: 0,
+          completed: 0,
+          missed: 0,
+          total: 0,
+        },
+      };
     }
 
     const salesmanIds = (salesmen as unknown as Row[]).map((s) => str(s['id']));
@@ -5673,12 +7790,100 @@ export class LiveAdminApi {
     const totalSalesmen = rows.length;
     const activeSalesmen = rows.filter((r) => r.status === 'active').length;
     const totalOrders = [...ordersCountMap.values()].reduce((a, b) => a + b, 0);
+    const activeIds = rows
+      .filter((r) => r.status === 'active')
+      .map((r) => r.id);
+    const workDate = kolkataWorkDate();
+
+    const [
+      { data: todayAttendance },
+      { data: todayVisits },
+      { count: pendingExpenseCount },
+      { count: pendingReturnCount },
+    ] = await Promise.all([
+      activeIds.length
+        ? this.sb
+            .from('salesman_attendance')
+            .select('profile_id, status, day_started_at')
+            .eq('work_date', workDate)
+            .in('profile_id', activeIds)
+        : Promise.resolve({ data: [] as Row[] }),
+      this.sb
+        .from('sales_visits')
+        .select('status, planned_at')
+        .gte('planned_at', `${workDate}T00:00:00+05:30`)
+        .lt('planned_at', `${workDate}T23:59:59.999+05:30`),
+      this.sb
+        .from('salesman_expenses')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'PENDING'),
+      this.sb
+        .from('salesman_return_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'PENDING'),
+    ]);
+
+    const fieldToday = summarizeFieldToday({
+      workDate,
+      activeSalesmanIds: activeIds,
+      attendance: ((todayAttendance ?? []) as Row[]).map((row) => ({
+        profileId: str(row['profile_id']),
+        status: str(row['status']),
+        dayStartedAt: row['day_started_at']
+          ? str(row['day_started_at'])
+          : null,
+      })),
+      pendingExpenseClaims: pendingExpenseCount ?? 0,
+      pendingReturnClaims: pendingReturnCount ?? 0,
+    });
+
+    const visitCoverage = summarizeVisitCoverage({
+      rangeLabel: 'Today',
+      visits: ((todayVisits ?? []) as Row[]).map((row) => ({
+        status: str(row['status']),
+      })),
+    });
+
+    const pendingClaims =
+      fieldToday.pendingExpenseClaims + fieldToday.pendingReturnClaims;
 
     return {
       generatedAtLabel: formatDateTime(new Date().toISOString()),
       kpis: [
         { id: 'total', label: 'Total Salesmen', value: `${totalSalesmen}` },
-        { id: 'active', label: 'Active', value: `${activeSalesmen}`, tone: 'positive' },
+        {
+          id: 'active',
+          label: 'Active',
+          value: `${activeSalesmen}`,
+          tone: 'positive',
+        },
+        {
+          id: 'started_today',
+          label: 'Started today',
+          value: `${fieldToday.startedCount}`,
+          hint: workDate,
+          tone: fieldToday.startedCount > 0 ? 'positive' : 'default',
+        },
+        {
+          id: 'not_started',
+          label: 'Not started',
+          value: `${fieldToday.notStartedCount}`,
+          hint: 'Active without day start',
+          tone: fieldToday.notStartedCount > 0 ? 'warning' : 'default',
+        },
+        {
+          id: 'visits_today',
+          label: 'Visits today',
+          value: `${visitCoverage.completed}/${visitCoverage.total || 0}`,
+          hint: `${visitCoverage.missed} missed · ${visitCoverage.planned} open`,
+        },
+        {
+          id: 'pending_claims',
+          label: 'Pending claims',
+          value: `${pendingClaims}`,
+          hint: 'Expenses + returns',
+          tone: pendingClaims > 0 ? 'warning' : 'default',
+        },
         {
           id: 'orders',
           label: 'Orders This Month',
@@ -5687,6 +7892,8 @@ export class LiveAdminApi {
         },
       ],
       rows,
+      fieldToday,
+      visitCoverage,
     };
   }
 
@@ -6355,6 +8562,167 @@ export class LiveAdminApi {
     const parsed = parseSalesmanTarget(data);
     if (!parsed) throw new Error('Could not save the target');
     return parsed;
+  }
+
+  /** Admin: pending expense + return claims across the team. */
+  async listPendingTeamClaims(): Promise<
+    {
+      id: string;
+      kind: 'expense' | 'return';
+      salesmanProfileId: string;
+      salesmanName: string;
+      title: string;
+      detail: string;
+      amountLabel: string | null;
+      createdAtLabel: string;
+      href: string;
+    }[]
+  > {
+    const [{ data: expenses }, { data: returns }, { data: profiles }] =
+      await Promise.all([
+        this.sb
+          .from('salesman_expenses')
+          .select(
+            'id, salesman_profile_id, category, amount, expense_date, note, created_at',
+          )
+          .eq('status', 'PENDING')
+          .order('created_at', { ascending: false })
+          .limit(100),
+        this.sb
+          .from('salesman_return_requests')
+          .select(
+            'id, salesman_profile_id, shop_name, product_name, sku_name, quantity, reason, created_at',
+          )
+          .eq('status', 'PENDING')
+          .order('created_at', { ascending: false })
+          .limit(100),
+        this.sb
+          .from('profiles')
+          .select('id, display_name')
+          .contains('roles', ['SALESMAN']),
+      ]);
+
+    const nameById = new Map(
+      ((profiles ?? []) as Row[]).map(
+        (p) => [str(p['id']), str(p['display_name'])] as const,
+      ),
+    );
+
+    const expenseRows = ((expenses ?? []) as Row[]).map((row) => {
+      const profileId = str(row['salesman_profile_id']);
+      return {
+        id: str(row['id']),
+        kind: 'expense' as const,
+        salesmanProfileId: profileId,
+        salesmanName: nameById.get(profileId) ?? '—',
+        title: str(row['category']).replace(/_/g, ' '),
+        detail: row['note'] ? str(row['note']) : str(row['expense_date']).slice(0, 10),
+        amountLabel: formatInr(num(row['amount'])),
+        createdAtLabel: formatDateTime(str(row['created_at'])),
+        href: `/salesmen/${profileId}?tab=claims`,
+      };
+    });
+
+    const returnRows = ((returns ?? []) as Row[]).map((row) => {
+      const profileId = str(row['salesman_profile_id']);
+      return {
+        id: str(row['id']),
+        kind: 'return' as const,
+        salesmanProfileId: profileId,
+        salesmanName: nameById.get(profileId) ?? '—',
+        title: `${str(row['product_name'])} · ${str(row['shop_name'])}`,
+        detail: `Qty ${num(row['quantity'])} · ${str(row['reason'])}`,
+        amountLabel: null,
+        createdAtLabel: formatDateTime(str(row['created_at'])),
+        href: `/salesmen/${profileId}?tab=claims`,
+      };
+    });
+
+    return [...expenseRows, ...returnRows].sort((a, b) =>
+      b.createdAtLabel.localeCompare(a.createdAtLabel),
+    );
+  }
+
+  /** Admin: commission ledger lines for one salesman (newest first). */
+  async listSalesmanCommissionEntries(
+    profileId: string,
+    limit = 50,
+  ): Promise<
+    {
+      id: string;
+      status: string;
+      statusLabel: string;
+      quantity: number;
+      unitCommission: number;
+      commissionAmount: number;
+      commissionAmountLabel: string;
+      orderId: string;
+      orderHref: string;
+      createdAtLabel: string;
+    }[]
+  > {
+    const { data, error } = await this.sb
+      .from('salesman_commission_entries')
+      .select(
+        'id, status, quantity, unit_commission, commission_amount, order_id, created_at',
+      )
+      .eq('salesman_profile_id', profileId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error) throwRpcError(error, 'Could not load commission ledger');
+    return ((data ?? []) as Row[]).map((row) => {
+      const status = str(row['status']);
+      return {
+        id: str(row['id']),
+        status,
+        statusLabel: status === 'REVERSED' ? 'Reversed' : 'Earned',
+        quantity: num(row['quantity']),
+        unitCommission: num(row['unit_commission']),
+        commissionAmount: num(row['commission_amount']),
+        commissionAmountLabel: formatInr(num(row['commission_amount'])),
+        orderId: str(row['order_id']),
+        orderHref: `/orders/${str(row['order_id'])}`,
+        createdAtLabel: formatDateTime(str(row['created_at'])),
+      };
+    });
+  }
+
+  async listCompanyHolidays(): Promise<
+    {
+      id: string;
+      holidayDate: string;
+      name: string;
+      serviceAreaId: string | null;
+      serviceAreaLabel: string;
+    }[]
+  > {
+    const [{ data: holidays, error }, { data: areas }] = await Promise.all([
+      this.sb
+        .from('company_holidays')
+        .select('id, holiday_date, name, service_area_id')
+        .order('holiday_date', { ascending: true }),
+      this.sb.from('service_areas').select('id, name'),
+    ]);
+    if (error) throwRpcError(error, 'Could not load company holidays');
+    const areaMap = new Map(
+      ((areas ?? []) as Row[]).map(
+        (a) => [str(a['id']), str(a['name'])] as const,
+      ),
+    );
+    return ((holidays ?? []) as Row[]).map((row) => {
+      const areaId = row['service_area_id']
+        ? str(row['service_area_id'])
+        : null;
+      return {
+        id: str(row['id']),
+        holidayDate: str(row['holiday_date']).slice(0, 10),
+        name: str(row['name']),
+        serviceAreaId: areaId,
+        serviceAreaLabel: areaId
+          ? (areaMap.get(areaId) ?? '—')
+          : 'Company-wide',
+      };
+    });
   }
 
   /** Admin: one salesman's expense claims. Approval does not create a payment. */
@@ -7460,6 +9828,7 @@ export class LiveAdminApi {
       recentPricesRes,
       recentShopsRes,
       skusRes,
+      purchasesRes,
     ] = await Promise.all([
       this.sb
         .from('orders')
@@ -7522,11 +9891,13 @@ export class LiveAdminApi {
         .order('created_at', { ascending: false })
         .limit(8),
       this.sb.from('skus').select('id, name, sku_code'),
+      this.sb.from('purchases').select('id, status'),
     ]);
 
     if (ordersRes.error) throw ordersRes.error;
     if (shopsRes.error) throw shopsRes.error;
     if (paymentsRes.error) throw paymentsRes.error;
+    if (purchasesRes.error) throw purchasesRes.error;
 
     const orders = (ordersRes.data ?? []) as Row[];
     const shops = (shopsRes.data ?? []) as Row[];
@@ -7540,6 +9911,7 @@ export class LiveAdminApi {
     const recentPrices = (recentPricesRes.data ?? []) as Row[];
     const recentShops = (recentShopsRes.data ?? []) as Row[];
     const skus = (skusRes.data ?? []) as Row[];
+    const purchases = (purchasesRes.data ?? []) as Row[];
     const skuMap = new Map(
       skus.map((s) => [
         str(s['id']),
@@ -7647,6 +10019,9 @@ export class LiveAdminApi {
       const online = num(p['online_collected_amount']);
       return cash + online > due + 1e-9;
     }).length;
+    const draftPurchaseCount = purchases.filter(
+      (purchase) => str(purchase['status']) === 'DRAFT',
+    ).length;
 
     const attentionAlerts: AttentionAlert[] = [];
     if (lowStockCount > 0) {
@@ -7655,7 +10030,7 @@ export class LiveAdminApi {
         title: 'Low Stock Products',
         count: lowStockCount,
         severity: 'high',
-        href: '/inventory',
+        href: '/inventory?status=low',
       });
     }
     if (stalePendingCount > 0) {
@@ -7703,30 +10078,38 @@ export class LiveAdminApi {
         href: '/payments?tab=all',
       });
     }
+    if (draftPurchaseCount > 0) {
+      attentionAlerts.push({
+        id: 'draft_purchases',
+        title: 'Purchase drafts waiting',
+        count: draftPurchaseCount,
+        severity: 'medium',
+        href: '/purchases',
+      });
+    }
     const quickActions: DashboardQuickAction[] = [
       {
-        id: 'add_product',
-        label: 'Add Product',
-        description: 'Create a new catalogue product',
-        href: '/products',
+        id: 'new_sale',
+        label: 'New Sale',
+        description: 'Create an assisted customer order',
       },
       {
-        id: 'update_price',
-        label: 'Update Price',
-        description: 'Change a product trade price',
-        href: '/pricing',
+        id: 'new_purchase',
+        label: 'New Purchase',
+        description: 'Record a supplier bill and receive stock',
+        href: '/purchases/new',
       },
       {
-        id: 'add_customer',
-        label: 'Add Customer',
-        description: 'Add a new shop',
-        href: '/customers',
+        id: 'record_expense',
+        label: 'Record Expense',
+        description: 'Add business money spent',
+        href: '/expenses?create=1',
       },
       {
-        id: 'create_route',
-        label: 'Create Delivery Trip',
-        description: 'Assign orders to a delivery boy',
-        href: '/delivery',
+        id: 'collect_payment',
+        label: 'Collect Payment',
+        description: 'Open customer balances awaiting collection',
+        href: '/payments?tab=all&focus=ofd_unpaid',
       },
     ];
 
@@ -8291,6 +10674,24 @@ export class LiveAdminApi {
       languageLabel: str(prefData?.['language'] ?? 'English'),
     };
 
+    const { data: taxSkus } = await this.sb
+      .from('skus')
+      .select('id, sku_code, name, hsn_code, gst_rate_percent')
+      .is('deleted_at', null)
+      .not('hsn_code', 'is', null)
+      .limit(200);
+    const taxes: TaxConfigRow[] = ((taxSkus ?? []) as unknown as Row[])
+      .filter((s) => str(s['hsn_code']).trim().length > 0)
+      .map((s) => ({
+        id: str(s['id']),
+        categoryLabel: `${str(s['sku_code'])} · ${str(s['name'])}`,
+        gstPercentLabel:
+          s['gst_rate_percent'] != null
+            ? `${num(s['gst_rate_percent'])}%`
+            : '—',
+        hsnCode: str(s['hsn_code']),
+      }));
+
     return {
       generatedAtLabel: formatDateTime(new Date().toISOString()),
       company,
@@ -8303,7 +10704,7 @@ export class LiveAdminApi {
       ],
       payments: paymentsConfig,
       notifications: [],
-      taxes: [],
+      taxes,
       roles: [],
       preferences,
     };

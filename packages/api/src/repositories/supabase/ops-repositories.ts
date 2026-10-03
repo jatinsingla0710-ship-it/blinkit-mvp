@@ -47,6 +47,7 @@ type ShopRow = {
   delivery_pin_code: string;
   delivery_lat: number | null;
   delivery_lng: number | null;
+  gstin?: string | null;
   is_active: boolean;
   deleted_at: string | null;
   created_at: string;
@@ -128,6 +129,7 @@ function mapShop(row: ShopRow): Shop {
     deliveryPinCode: row.delivery_pin_code,
     deliveryLat: row.delivery_lat ?? undefined,
     deliveryLng: row.delivery_lng ?? undefined,
+    gstin: row.gstin ?? null,
     isActive: row.is_active,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -245,6 +247,7 @@ export function createCustomersRepository(
       delivery_pin_code: input.deliveryPinCode,
       delivery_lat: input.deliveryLat ?? null,
       delivery_lng: input.deliveryLng ?? null,
+      gstin: input.gstin?.trim() ? input.gstin.trim().toUpperCase() : null,
       is_active: input.isActive ?? true,
     }),
     toUpdate: (input) => ({
@@ -271,6 +274,13 @@ export function createCustomersRepository(
         : {}),
       ...(input.deliveryLng !== undefined
         ? { delivery_lng: input.deliveryLng }
+        : {}),
+      ...(input.gstin !== undefined
+        ? {
+            gstin: input.gstin?.trim()
+              ? input.gstin.trim().toUpperCase()
+              : null,
+          }
         : {}),
       ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
     }),

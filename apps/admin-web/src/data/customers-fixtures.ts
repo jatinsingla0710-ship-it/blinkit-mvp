@@ -12,6 +12,7 @@ import {
   buildCustomerAccountSummary,
   buildCustomerAttentionItems,
   buildCustomerTimeline,
+  oldestOpenReceivableDays,
 } from './customer-account-dashboard';
 import { buildCustomerLedger } from './customer-ledger';
 import { SERVICE_AREA_LIST_FIXTURE } from './service-area-fixtures';
@@ -64,14 +65,6 @@ function enrichCustomerDetail(input: CustomerDetailFixtureInput): CustomerDetail
     amount: parseInrLabel(payment.amountLabel),
   }));
 
-  const attentionItems = buildCustomerAttentionItems(orders);
-  const summary = attachAttentionCount(
-    buildCustomerAccountSummary({
-      orders: orderAggregates,
-      payments: paymentAggregates,
-    }),
-    attentionItems,
-  );
   const ledger = buildCustomerLedger({
     orders: orderAggregates.map((order) => ({
       ...order,
@@ -79,6 +72,23 @@ function enrichCustomerDetail(input: CustomerDetailFixtureInput): CustomerDetail
     })),
     payments: paymentAggregates,
   });
+  const oldestOpenDays = oldestOpenReceivableDays(
+    orderAggregates,
+    paymentAggregates,
+  );
+  const attentionItems = buildCustomerAttentionItems(orders, {
+    outstanding: ledger.outstanding,
+    outstandingLabel: ledger.outstandingLabel,
+    oldestOpenDays,
+    collectHref: ledger.collectHref,
+  });
+  const summary = attachAttentionCount(
+    buildCustomerAccountSummary({
+      orders: orderAggregates,
+      payments: paymentAggregates,
+    }),
+    attentionItems,
+  );
 
   const detail: CustomerDetail = {
     ...input,
@@ -91,7 +101,11 @@ function enrichCustomerDetail(input: CustomerDetailFixtureInput): CustomerDetail
 
   return {
     ...detail,
-    timeline: buildCustomerTimeline(detail),
+    timeline: buildCustomerTimeline({
+      ...detail,
+      outstandingLabel:
+        ledger.outstanding > 0 ? ledger.outstandingLabel : null,
+    }),
   };
 }
 

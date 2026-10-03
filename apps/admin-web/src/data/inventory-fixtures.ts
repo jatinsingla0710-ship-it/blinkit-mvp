@@ -22,6 +22,11 @@ function enrichWarehouse(
     | 'packsTotalLabel'
     | 'availablePacks'
     | 'reservedPacks'
+    | 'averageUnitCost'
+    | 'averageUnitCostLabel'
+    | 'stockValue'
+    | 'stockValueLabel'
+    | 'valuationIncomplete'
   > &
     Partial<
       Pick<
@@ -32,9 +37,15 @@ function enrichWarehouse(
         | 'packsTotalLabel'
         | 'availablePacks'
         | 'reservedPacks'
+        | 'averageUnitCost'
+        | 'averageUnitCostLabel'
+        | 'stockValue'
+        | 'stockValueLabel'
+        | 'valuationIncomplete'
       >
     >,
 ): InventoryWarehouseBalance {
+  const stockValue = partial.stockValue ?? 0;
   return {
     ...partial,
     mixedAvailableLabel: partial.mixedAvailableLabel ?? partial.availableLabel,
@@ -43,6 +54,11 @@ function enrichWarehouse(
     packsTotalLabel: partial.packsTotalLabel ?? partial.availableLabel,
     availablePacks: partial.availablePacks ?? partial.onHandQuantity,
     reservedPacks: partial.reservedPacks ?? 0,
+    averageUnitCost: partial.averageUnitCost ?? null,
+    averageUnitCostLabel: partial.averageUnitCostLabel ?? '—',
+    stockValue,
+    stockValueLabel: partial.stockValueLabel ?? (stockValue > 0 ? `₹${stockValue}` : '—'),
+    valuationIncomplete: partial.valuationIncomplete ?? false,
   };
 }
 
@@ -57,6 +73,11 @@ function enrichListRow(
     | 'availablePacks'
     | 'warehouseCount'
     | 'warehouses'
+    | 'stockValue'
+    | 'stockValueLabel'
+    | 'valuationIncomplete'
+    | 'averageUnitCost'
+    | 'averageUnitCostLabel'
   > &
     Partial<
       Pick<
@@ -69,9 +90,15 @@ function enrichListRow(
         | 'availablePacks'
         | 'warehouseCount'
         | 'warehouses'
+        | 'stockValue'
+        | 'stockValueLabel'
+        | 'valuationIncomplete'
+        | 'averageUnitCost'
+        | 'averageUnitCostLabel'
       >
     >,
 ): InventoryListRow {
+  const stockValue = partial.stockValue ?? 0;
   return {
     ...partial,
     productId: partial.productId ?? `prod-${partial.skuId}`,
@@ -86,21 +113,54 @@ function enrichListRow(
     warehouses: partial.warehouses ?? [
       {
         balanceId: partial.id,
+        warehouseId: partial.warehouseId,
         warehouseName: partial.warehouseName,
         mixedStockLabel: partial.mixedStockLabel ?? partial.availableLabel,
         status: partial.status,
       },
     ],
+    stockValue,
+    stockValueLabel: partial.stockValueLabel ?? (stockValue > 0 ? `₹${stockValue}` : '—'),
+    valuationIncomplete: partial.valuationIncomplete ?? false,
+    averageUnitCost: partial.averageUnitCost ?? null,
+    averageUnitCostLabel: partial.averageUnitCostLabel ?? '—',
   };
 }
 
 function enrichDetailTotals(
-  detail: InventorySkuDetail,
+  detail: Omit<
+    InventorySkuDetail,
+    | 'averageUnitCost'
+    | 'averageUnitCostLabel'
+    | 'stockValue'
+    | 'totalStockValue'
+    | 'totalStockValueLabel'
+    | 'valuationMethodLabel'
+    | 'valuationNote'
+    | 'valuationIncomplete'
+  > &
+    Partial<
+      Pick<
+        InventorySkuDetail,
+        | 'averageUnitCost'
+        | 'averageUnitCostLabel'
+        | 'stockValue'
+        | 'stockValueLabel'
+        | 'totalStockValue'
+        | 'totalStockValueLabel'
+        | 'valuationMethodLabel'
+        | 'valuationNote'
+        | 'valuationIncomplete'
+      >
+    >,
 ): InventorySkuDetail {
   const totalAvailablePacks = detail.warehouses.reduce(
     (sum, wh) => sum + wh.availablePacks,
     0,
   );
+  const totalStockValue =
+    detail.totalStockValue ??
+    detail.warehouses.reduce((sum, wh) => sum + wh.stockValue, 0);
   return {
     ...detail,
     categoryName: detail.categoryName || 'Dry Fruits',
@@ -111,6 +171,18 @@ function enrichDetailTotals(
       detail.totalMixedStockLabel || detail.availableLabel,
     totalPacksLabel: detail.totalPacksLabel || detail.availableLabel,
     overallStatus: detail.overallStatus ?? detail.status,
+    averageUnitCost: detail.averageUnitCost ?? null,
+    averageUnitCostLabel: detail.averageUnitCostLabel ?? '—',
+    stockValue: detail.stockValue ?? 0,
+    stockValueLabel: detail.stockValueLabel ?? '—',
+    totalStockValue,
+    totalStockValueLabel:
+      detail.totalStockValueLabel ??
+      (totalStockValue > 0 ? `₹${totalStockValue}` : '—'),
+    valuationMethodLabel:
+      detail.valuationMethodLabel ?? 'Weighted average cost',
+    valuationNote: detail.valuationNote ?? null,
+    valuationIncomplete: detail.valuationIncomplete ?? false,
   };
 }
 
@@ -138,12 +210,14 @@ export const INVENTORY_LIST_FIXTURE: InventoryListRow[] = [
     warehouses: [
       {
         balanceId: 'inv-akh-10-cp',
+        warehouseId: 'wh-cp',
         warehouseName: 'Hub — CP',
         mixedStockLabel: '12 KG',
         status: 'low',
       },
       {
         balanceId: 'inv-akh-10-saket',
+        warehouseId: 'wh-saket',
         warehouseName: 'Hub — Saket',
         mixedStockLabel: '200 KG',
         status: 'healthy',
@@ -417,15 +491,32 @@ function singleWarehouseDetail(
     | 'totalPacksLabel'
     | 'overallStatus'
     | 'packagingLabel'
+    | 'averageUnitCost'
+    | 'averageUnitCostLabel'
+    | 'stockValue'
+    | 'totalStockValue'
+    | 'totalStockValueLabel'
+    | 'valuationMethodLabel'
+    | 'valuationNote'
+    | 'valuationIncomplete'
   > & {
     balanceId: string;
     onHandLabel: string;
     onHandQuantity?: number;
     categoryName?: string;
     packagingLabel?: string;
+    averageUnitCost?: number | null;
+    averageUnitCostLabel?: string;
+    stockValue?: number;
+    totalStockValue?: number;
+    totalStockValueLabel?: string;
+    valuationMethodLabel?: string;
+    valuationNote?: string | null;
+    valuationIncomplete?: boolean;
   },
 ): InventorySkuDetail {
   const availablePacks = partial.onHandQuantity ?? 0;
+  const stockValue = partial.stockValue ?? 0;
   return enrichDetailTotals({
     ...partial,
     categoryName: partial.categoryName ?? 'Dry Fruits',
@@ -435,6 +526,16 @@ function singleWarehouseDetail(
     totalPacksLabel: partial.availableLabel,
     overallStatus: partial.status,
     warehouseActive: true,
+    averageUnitCost: partial.averageUnitCost ?? null,
+    averageUnitCostLabel: partial.averageUnitCostLabel ?? '—',
+    stockValue,
+    stockValueLabel: partial.stockValueLabel,
+    totalStockValue: partial.totalStockValue ?? stockValue,
+    totalStockValueLabel: partial.totalStockValueLabel,
+    valuationMethodLabel:
+      partial.valuationMethodLabel ?? 'Weighted average cost',
+    valuationNote: partial.valuationNote ?? null,
+    valuationIncomplete: partial.valuationIncomplete ?? false,
     warehouses: [
       enrichWarehouse({
         balanceId: partial.balanceId,
@@ -448,6 +549,11 @@ function singleWarehouseDetail(
         availablePacks,
         status: partial.status,
         updatedAtLabel: partial.updatedAtLabel,
+        averageUnitCost: partial.averageUnitCost ?? null,
+        averageUnitCostLabel: partial.averageUnitCostLabel ?? '—',
+        stockValue,
+        stockValueLabel: partial.stockValueLabel,
+        valuationIncomplete: partial.valuationIncomplete ?? false,
       }),
     ],
   });
@@ -703,7 +809,11 @@ export function getInventorySkuDetailFixture(
       onHandQuantity: saket.onHandQuantity,
       status: saket.status,
       updatedAtLabel: saket.updatedAtLabel,
-      stockValueLabel: '₹2,30,000',
+      averageUnitCost: saket.averageUnitCost,
+      averageUnitCostLabel: saket.averageUnitCostLabel,
+      stockValue: saket.stockValue,
+      stockValueLabel: saket.stockValueLabel || '₹2,30,000',
+      valuationIncomplete: saket.valuationIncomplete,
       incomingLabel: '0 KG',
       movements: MOVEMENTS_AKH_SAKET,
       reservations: RESERVATIONS_AKH_SAKET,

@@ -28,6 +28,8 @@ export function InventoryTable({ rows }: Props) {
                 <th>SKU</th>
                 <th>Category</th>
                 <th>Total Stock</th>
+                <th>Avg Cost</th>
+                <th>Stock Value</th>
                 <th>Packaging</th>
                 <th>Warehouses</th>
                 <th>Status</th>
@@ -36,7 +38,14 @@ export function InventoryTable({ rows }: Props) {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id}>
+                <tr
+                  key={row.id}
+                  className={
+                    row.status === 'low' || row.status === 'out_of_stock'
+                      ? 'ga-inv-table__row--attention'
+                      : undefined
+                  }
+                >
                   <td>
                     <div className="ga-inv-table__product">
                       <div className="ga-inv-table__thumb" aria-hidden>
@@ -75,6 +84,17 @@ export function InventoryTable({ rows }: Props) {
                     </span>
                   </td>
                   <td>
+                    <span>{row.averageUnitCostLabel}</span>
+                  </td>
+                  <td>
+                    <strong>{row.stockValueLabel}</strong>
+                    {row.valuationIncomplete ? (
+                      <span className="ga-inv-table__stock-sub">
+                        Cost incomplete
+                      </span>
+                    ) : null}
+                  </td>
+                  <td>
                     <span className="ga-inv-table__packaging">
                       {row.packagingLabel}
                     </span>
@@ -97,13 +117,21 @@ export function InventoryTable({ rows }: Props) {
                   <td>
                     <InventoryStatusBadge status={row.status} />
                   </td>
-                  <td>
+                  <td className="ga-inv-table__actions">
                     <Link
                       to={inventoryDetailPath(row.skuId)}
                       className="ga-inv-table__action"
                     >
-                      Manage stock
+                      Manage
                     </Link>
+                    {row.status === 'low' || row.status === 'out_of_stock' ? (
+                      <>
+                        {' · '}
+                        <Link to="/purchases" className="ga-inv-table__action">
+                          Purchase
+                        </Link>
+                      </>
+                    ) : null}
                   </td>
                 </tr>
               ))}

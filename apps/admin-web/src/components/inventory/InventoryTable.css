@@ -97,6 +97,14 @@
   text-decoration: underline;
 }
 
+.ga-inv-table__actions {
+  white-space: nowrap;
+}
+
+.ga-inv-table__row--attention td {
+  background: color-mix(in srgb, var(--ga-color-warning, #b54708) 6%, transparent);
+}
+
 .ga-inv-link {
   display: inline-flex;
   flex-direction: column;

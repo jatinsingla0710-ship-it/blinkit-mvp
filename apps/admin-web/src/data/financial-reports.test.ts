@@ -13,6 +13,7 @@ import {
   exportReceivablesCsv,
   exportSalesmanPerformanceCsv,
   filterExpensesByDate,
+  sumInventoryCogs,
   sumPaidPayroll,
   sumSalesTotal,
   summarizeDayBookByType,
@@ -25,18 +26,73 @@ import { buildReceivableRow } from './customer-ledger';
 import { businessDateRangeInclusive } from './business-dates';
 
 describe('Phase 3D financial reports', () => {
-  it('does not count collections as additional sales in P&L', () => {
+  it('builds gross profit from COGS and keeps cash separate', () => {
+    const pl = buildProfitLoss({
+      salesTotal: 500000,
+      collectionsTotal: 400000,
+      refundsTotal: 10000,
+      expensesTotal: 20000,
+      payrollPaidTotal: 30000,
+      cogsTotal: 350000,
+    });
+    expect(pl.cogsTotal).toBe(350000);
+    expect(pl.grossProfit).toBe(150000);
+    expect(pl.grossMarginPercent).toBe(30);
+    expect(pl.grossMarginLabel).toBe('30%');
+    // Operating result = sales − COGS − expenses − payroll
+    expect(pl.operatingResult).toBe(500000 - 350000 - 20000 - 30000);
+    // Cash path still ignores COGS
+    expect(pl.netCashMovement).toBe(400000 - 10000 - 20000 - 30000);
+    expect(pl.disclaimer).toMatch(/Gross profit/i);
+    expect(pl.disclaimer).toMatch(/COGS/i);
+  });
+
+  it('flags incomplete COGS when stock movements lacked unit cost', () => {
     const pl = buildProfitLoss({
       salesTotal: 10000,
       collectionsTotal: 7000,
-      refundsTotal: 500,
-      expensesTotal: 2000,
-      payrollPaidTotal: 3000,
+      refundsTotal: 0,
+      expensesTotal: 1000,
+      payrollPaidTotal: 0,
+      cogsTotal: 2000,
+      cogsIncomplete: true,
     });
-    // Operating result uses sales, not collections.
-    expect(pl.operatingResult).toBe(10000 - 2000 - 3000);
-    expect(pl.netCashMovement).toBe(7000 - 500 - 2000 - 3000);
-    expect(pl.disclaimer).toContain('COGS');
+    expect(pl.cogsIncomplete).toBe(true);
+    expect(pl.disclaimer).toMatch(/understated/i);
+  });
+
+  it('sums COGS from dispatch and return movements at stamped WAC', () => {
+    const cogs = sumInventoryCogs([
+      {
+        movementType: 'ORDER_DISPATCH',
+        quantityDelta: -10,
+        unitCost: 100,
+      },
+      {
+        movementType: 'ORDER_DISPATCH',
+        quantityDelta: -5,
+        unitCost: 120,
+      },
+      {
+        movementType: 'RETURN',
+        quantityDelta: 2,
+        unitCost: 100,
+      },
+      {
+        movementType: 'ADMIN_ADJUSTMENT',
+        quantityDelta: -1,
+        unitCost: 50,
+      },
+      {
+        movementType: 'ORDER_DISPATCH',
+        quantityDelta: -3,
+        unitCost: null,
+      },
+    ]);
+    expect(cogs.dispatchCost).toBe(1000 + 600);
+    expect(cogs.returnCost).toBe(200);
+    expect(cogs.cogsTotal).toBe(1400);
+    expect(cogs.incompleteMovementCount).toBe(1);
   });
 
   it('keeps sales and collections separate in day book type summary', () => {
@@ -212,9 +268,7 @@ describe('Phase 3D financial reports', () => {
       collectionsToday: 800,
       outstanding: 2000,
       expensesMonth: 300,
-      payrollPaidMonth: 10000,
       netCashToday: 500,
-      activeCustomers: 12,
     });
     expect(kpis.map((k) => k.id)).toEqual([
       'today_sales',
@@ -222,9 +276,7 @@ describe('Phase 3D financial reports', () => {
       'collections_today',
       'outstanding',
       'expenses_month',
-      'payroll_paid',
       'net_cash',
-      'active_customers',
     ]);
     expect(kpis.find((k) => k.id === 'today_sales')?.value).toContain('1,000');
     expect(kpis.find((k) => k.id === 'month_sales')?.label).toBe(
@@ -394,11 +446,36 @@ describe('Phase 3D financial reports', () => {
           outstanding: 600,
           outstandingLabel: '₹600',
           lastPaymentAtLabel: '1 Oct 2026',
+          oldestOpenDays: 45,
+          ageingBucket: 'days_31_60',
+          ageingLabel: '31–60 days',
           ledgerHref: '/customers/c1',
           collectHref: null,
         },
       ]),
     ).toContain('Shop A');
+    expect(
+      exportReceivablesCsv([
+        {
+          customerId: 'c1',
+          shopName: 'Shop A',
+          phoneLabel: '999',
+          areaLabel: 'North',
+          totalSales: 1000,
+          totalSalesLabel: '₹1,000',
+          totalPaid: 400,
+          totalPaidLabel: '₹400',
+          outstanding: 600,
+          outstandingLabel: '₹600',
+          lastPaymentAtLabel: '1 Oct 2026',
+          oldestOpenDays: 45,
+          ageingBucket: 'days_31_60',
+          ageingLabel: '31–60 days',
+          ledgerHref: '/customers/c1',
+          collectHref: null,
+        },
+      ]),
+    ).toContain('31–60 days');
   });
 
   it('treats empty datasets as zero totals', () => {
@@ -413,5 +490,8 @@ describe('Phase 3D financial reports', () => {
       payrollPaidTotal: 0,
     });
     expect(emptyPl.operatingResult).toBe(0);
+    expect(emptyPl.cogsTotal).toBe(0);
+    expect(emptyPl.grossProfit).toBe(0);
+    expect(emptyPl.grossMarginPercent).toBeNull();
   });
 });

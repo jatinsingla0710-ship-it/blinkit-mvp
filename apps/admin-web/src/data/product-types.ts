@@ -81,6 +81,10 @@ export interface ProductSkuRow {
   containerCustomPrice?: number | null;
   containerDiscountType?: 'none' | 'percent' | 'fixed';
   containerDiscountValue?: number;
+  /** HSN for GST. */
+  hsnCode?: string | null;
+  /** GST rate percent. */
+  gstRatePercent?: number | null;
   currentTradePrice?: number;
   currentTradePriceLabel: string;
   inventoryStatus: InventoryReadinessStatus;

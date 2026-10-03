@@ -16,13 +16,43 @@ export const SALES_SECTION_LINKS = [
     label: 'Collections',
     description: 'Payments and COD custody',
   },
+  {
+    to: '/payments/scan',
+    label: 'Payment proof',
+    description: 'Upload screenshot → review → mark paid',
+  },
 ] as const;
 
 export const ACCOUNTING_SECTION_LINKS = [
   {
+    to: '/brief',
+    label: "Today's brief",
+    description: 'Yesterday · attention · what to do next',
+  },
+  {
+    to: '/dues',
+    label: 'Dues assistant',
+    description: 'Who owes you / whom to pay — from your books',
+  },
+  {
     to: '/receivables',
-    label: 'Receivables',
+    label: 'Money Due',
     description: 'Customer balances due',
+  },
+  {
+    to: '/payables',
+    label: 'Money to Pay',
+    description: 'Supplier balances to pay',
+  },
+  {
+    to: '/purchases/recommend',
+    label: 'What to buy',
+    description: 'Suggested purchases from stock and sales',
+  },
+  {
+    to: '/reports/profit-insights',
+    label: 'Profit insights',
+    description: 'Why profit changed · what looks unusual',
   },
   {
     to: '/purchases',
@@ -40,9 +70,29 @@ export const ACCOUNTING_SECTION_LINKS = [
     description: 'Business money out',
   },
   {
+    to: '/expenses/scan',
+    label: 'Receipt photo',
+    description: 'Upload a receipt → review → expense',
+  },
+  {
     to: '/day-book',
     label: 'Day Book',
     description: 'Daily money in and out',
+  },
+  {
+    to: '/day-book/scan',
+    label: 'Enter daily book',
+    description: 'Paste lines → review → post',
+  },
+  {
+    to: '/cash-bank',
+    label: 'Cash & Bank',
+    description: 'Cash in hand and bank balance',
+  },
+  {
+    to: '/accounting',
+    label: 'Books',
+    description: 'Balanced journals and trial balance',
   },
   {
     to: '/reports',
@@ -81,6 +131,21 @@ export const INVENTORY_SECTION_LINKS = [
     description: 'On-hand and reserved stock',
   },
   {
+    to: '/purchases/recommend',
+    label: 'What to buy',
+    description: 'Suggested purchases from stock and sales',
+  },
+  {
+    to: '/reports/stock',
+    label: 'Valuation',
+    description: 'Stock value at WAC',
+  },
+  {
+    to: '/purchases',
+    label: 'Purchases',
+    description: 'Receive supplier stock',
+  },
+  {
     to: '/warehouses',
     label: 'Warehouses',
     description: 'Storage locations',
@@ -99,14 +164,24 @@ export const TEAM_SECTION_LINKS = [
     description: 'Field team',
   },
   {
+    to: '/salesmen/claims',
+    label: 'Claims',
+    description: 'Pending expenses and returns',
+  },
+  {
     to: '/salesmen/payroll',
     label: 'Payroll',
     description: 'Monthly salary and commission',
   },
   {
     to: '/pricing/commission',
-    label: 'Commission',
-    description: 'Per-SKU commission terms',
+    label: 'Commission terms',
+    description: 'Per-SKU commission rates',
+  },
+  {
+    to: '/settings',
+    label: 'Holidays',
+    description: 'Company holidays for salary days',
   },
 ] as const;
 

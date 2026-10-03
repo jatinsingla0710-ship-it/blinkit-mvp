@@ -28,7 +28,7 @@ export const COMPANY_EXPENSE_CATEGORY_LABELS: Record<
   CompanyExpenseCategory,
   string
 > = {
-  PURCHASE: 'Purchase',
+  PURCHASE: 'Non-stock purchase',
   TRANSPORT: 'Transport',
   RENT: 'Rent',
   SALARY: 'Salary',

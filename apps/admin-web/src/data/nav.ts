@@ -8,7 +8,15 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
   {
     id: 'home',
     label: null,
-    items: [{ id: 'dashboard', label: 'Dashboard', path: '/' }],
+    items: [
+      { id: 'dashboard', label: 'Dashboard', path: '/' },
+      {
+        id: 'brief',
+        label: "Today's brief",
+        path: '/brief',
+        matchPrefixes: ['/brief'],
+      },
+    ],
   },
   {
     id: 'business',
@@ -19,7 +27,7 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
         id: 'sales',
         label: 'Sales',
         path: '/orders',
-        matchPrefixes: ['/orders', '/sales', '/payments'],
+        matchPrefixes: ['/orders', '/sales'],
       },
       {
         id: 'products',
@@ -56,19 +64,44 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
   },
   {
     id: 'accounting',
-    label: 'Accounting',
+    label: 'Money',
     items: [
       {
+        id: 'collections',
+        label: 'Collections',
+        path: '/payments',
+        matchPrefixes: ['/payments'],
+      },
+      {
         id: 'receivables',
-        label: 'Receivables',
+        label: 'Money Due',
         path: '/receivables',
         matchPrefixes: ['/receivables'],
+      },
+      {
+        id: 'payables',
+        label: 'Money to Pay',
+        path: '/payables',
+        matchPrefixes: ['/payables'],
+      },
+      {
+        id: 'dues',
+        label: 'Dues assistant',
+        path: '/dues',
+        matchPrefixes: ['/dues'],
       },
       {
         id: 'purchases',
         label: 'Purchases',
         path: '/purchases',
         matchPrefixes: ['/purchases', '/suppliers'],
+        excludePrefixes: ['/purchases/recommend'],
+      },
+      {
+        id: 'purchase-recommend',
+        label: 'What to buy',
+        path: '/purchases/recommend',
+        matchPrefixes: ['/purchases/recommend'],
       },
       {
         id: 'expenses',
@@ -81,6 +114,18 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
         label: 'Day Book',
         path: '/day-book',
         matchPrefixes: ['/day-book'],
+      },
+      {
+        id: 'cash-bank',
+        label: 'Cash & Bank',
+        path: '/cash-bank',
+        matchPrefixes: ['/cash-bank'],
+      },
+      {
+        id: 'accounting-books',
+        label: 'Books',
+        path: '/accounting',
+        matchPrefixes: ['/accounting'],
       },
     ],
   },

@@ -2,14 +2,17 @@ import type {
   CustomerAccountSummary,
   CustomerAttentionItem,
   CustomerOrderRow,
+  CustomerPaymentRow,
   CustomerTimelineEvent,
 } from '@/data/customers-types';
 import {
   customerOutstandingTotal,
+  oldestOpenReceivableDays,
   type LedgerPaymentInput,
 } from '@/data/customer-ledger';
+import { ageingBucketLabel, receivableAgeingBucket } from '@/data/customer-ageing';
 import { currentFinancialYear } from '@/data/sales-fiscal';
-import { formatInr } from '@/data/live/format';
+import { formatDateTime, formatInr } from '@/data/live/format';
 
 const TERMINAL_STATUSES = new Set(['CANCELLED', 'DELIVERED']);
 
@@ -95,10 +98,33 @@ export function buildCustomerAccountSummary(input: {
   };
 }
 
+export type CustomerAttentionOptions = {
+  outstanding?: number;
+  outstandingLabel?: string | null;
+  oldestOpenDays?: number | null;
+  collectHref?: string | null;
+};
+
 export function buildCustomerAttentionItems(
   orders: readonly CustomerOrderRow[],
+  opts: CustomerAttentionOptions = {},
 ): CustomerAttentionItem[] {
   const items: CustomerAttentionItem[] = [];
+
+  const outstanding = opts.outstanding ?? 0;
+  const oldestOpenDays = opts.oldestOpenDays ?? null;
+  if (outstanding > 0 && oldestOpenDays != null && oldestOpenDays >= 1) {
+    const bucket = receivableAgeingBucket(oldestOpenDays, outstanding);
+    const ageLabel =
+      oldestOpenDays === 1 ? '1 day' : `${oldestOpenDays} days`;
+    items.push({
+      id: 'collection-follow-up',
+      reason: 'Collection follow-up',
+      description: `${opts.outstandingLabel ?? formatInr(outstanding)} due · open ${ageLabel} (${ageingBucketLabel(bucket)}).`,
+      actionLabel: opts.collectHref ? 'Record collection' : 'Open ledger',
+      href: opts.collectHref ?? '#ledger',
+    });
+  }
 
   for (const order of orders) {
     const status = order.fulfillmentStatus.toUpperCase();
@@ -147,6 +173,7 @@ export function getActiveCustomerOrders(
 
 export type CustomerTimelineInput = {
   createdAtLabel: string;
+  createdAtIso?: string | null;
   appLinkSentAtLabel?: string | null;
   appLinkSentByLabel?: string | null;
   orders: readonly Pick<
@@ -154,11 +181,33 @@ export type CustomerTimelineInput = {
     | 'id'
     | 'orderCode'
     | 'placedAtLabel'
+    | 'placedAtIso'
+    | 'invoiceNumber'
     | 'fulfillmentLabel'
     | 'fulfillmentStatus'
   >[];
+  payments?: readonly Pick<
+    CustomerPaymentRow,
+    | 'id'
+    | 'orderCode'
+    | 'amountLabel'
+    | 'methodLabel'
+    | 'status'
+    | 'atLabel'
+    | 'atIso'
+    | 'orderId'
+  >[];
+  outstandingLabel?: string | null;
   digitalAccessVm: { activatedAtLabel?: string | null };
 };
+
+function timelineAtLabel(
+  iso: string | null | undefined,
+  fallback: string,
+): string {
+  if (iso && !Number.isNaN(Date.parse(iso))) return formatDateTime(iso);
+  return fallback;
+}
 
 export function buildCustomerTimeline(
   customer: CustomerTimelineInput,
@@ -166,30 +215,72 @@ export function buildCustomerTimeline(
   const events: CustomerTimelineEvent[] = [
     {
       id: 'created',
-      atLabel: customer.createdAtLabel,
+      atLabel: timelineAtLabel(customer.createdAtIso, customer.createdAtLabel),
       title: 'Customer created',
-      sortKey: customer.createdAtLabel,
+      sortKey: customer.createdAtIso || customer.createdAtLabel,
     },
   ];
 
-  for (const order of customer.orders.slice(0, 8)) {
+  for (const order of customer.orders.slice(0, 12)) {
+    const placedIso = order.placedAtIso;
+    const placedLabel = timelineAtLabel(placedIso, order.placedAtLabel);
+    const placedSort = placedIso || order.placedAtLabel;
+
     events.push({
       id: `order-${order.id}`,
-      atLabel: order.placedAtLabel,
+      atLabel: placedLabel,
       title: `Order ${order.orderCode} placed`,
       detail: order.fulfillmentLabel,
-      sortKey: order.placedAtLabel,
+      sortKey: placedSort,
       href: `/orders/${order.id}`,
     });
-    if (order.fulfillmentStatus.toUpperCase() === 'DELIVERED') {
+
+    if (order.invoiceNumber) {
       events.push({
-        id: `delivered-${order.id}`,
-        atLabel: order.placedAtLabel,
-        title: `Order ${order.orderCode} delivered`,
-        sortKey: order.placedAtLabel,
+        id: `invoice-${order.id}`,
+        atLabel: placedLabel,
+        title: `Invoice ${order.invoiceNumber}`,
+        detail: `For order ${order.orderCode}`,
+        sortKey: `${placedSort}|invoice`,
         href: `/orders/${order.id}`,
       });
     }
+
+    if (order.fulfillmentStatus.toUpperCase() === 'DELIVERED') {
+      events.push({
+        id: `delivered-${order.id}`,
+        atLabel: placedLabel,
+        title: `Order ${order.orderCode} delivered`,
+        sortKey: `${placedSort}|delivered`,
+        href: `/orders/${order.id}`,
+      });
+    }
+  }
+
+  for (const payment of customer.payments ?? []) {
+    if (payment.status === 'UNPAID' || payment.status === 'PENDING') continue;
+    const payIso = payment.atIso;
+    const payLabel = timelineAtLabel(payIso, payment.atLabel);
+    events.push({
+      id: `payment-${payment.id}`,
+      atLabel: payLabel,
+      title: `Payment received · ${payment.amountLabel}`,
+      detail: [payment.methodLabel, payment.orderCode]
+        .filter(Boolean)
+        .join(' · '),
+      sortKey: payIso || payment.atLabel,
+      href: payment.orderId ? `/orders/${payment.orderId}` : undefined,
+    });
+  }
+
+  if (customer.outstandingLabel) {
+    events.push({
+      id: 'balance',
+      atLabel: 'Now',
+      title: `Balance due ${customer.outstandingLabel}`,
+      sortKey: new Date().toISOString(),
+      href: '#ledger',
+    });
   }
 
   return events
@@ -197,9 +288,9 @@ export function buildCustomerTimeline(
       const ta = Date.parse(a.sortKey);
       const tb = Date.parse(b.sortKey);
       if (!Number.isNaN(ta) && !Number.isNaN(tb)) return tb - ta;
-      return 0;
+      return String(b.sortKey).localeCompare(String(a.sortKey));
     })
-    .slice(0, 10);
+    .slice(0, 14);
 }
 
 export function attachAttentionCount(
@@ -211,3 +302,5 @@ export function attachAttentionCount(
     needsAttention: attention.length,
   };
 }
+
+export { oldestOpenReceivableDays };

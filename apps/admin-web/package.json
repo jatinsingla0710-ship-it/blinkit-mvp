@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "GroAurum Admin Dashboard — operational console for wholesale ops.",
+  "description": "RichlyBook owner console for business operations.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

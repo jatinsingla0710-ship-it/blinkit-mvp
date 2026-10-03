@@ -64,6 +64,8 @@ type SkuFormState = {
   orderStep: string;
   isActive: boolean;
   nameManual: boolean;
+  hsnCode: string;
+  gstRatePercent: string;
 };
 
 function emptyForm(): SkuFormState {
@@ -81,6 +83,8 @@ function emptyForm(): SkuFormState {
     orderStep: '1',
     isActive: true,
     nameManual: false,
+    hsnCode: '',
+    gstRatePercent: '',
   };
 }
 
@@ -91,6 +95,9 @@ function skuFormFromRow(sku: ProductSkuRow): SkuFormState {
     name: sku.name,
     isActive: sku.isActive,
     nameManual: true,
+    hsnCode: sku.hsnCode ?? '',
+    gstRatePercent:
+      sku.gstRatePercent != null ? String(sku.gstRatePercent) : '',
   };
 }
 
@@ -383,6 +390,10 @@ export function ProductSkusTab({
           ? stepConverted.packs
           : 1,
       isActive: form.isActive,
+      hsnCode: form.hsnCode.trim() || null,
+      gstRatePercent: form.gstRatePercent.trim()
+        ? Number(form.gstRatePercent)
+        : null,
     };
 
     if (editing) {
@@ -806,6 +817,26 @@ export function ProductSkusTab({
               onChange={(e) =>
                 setForm((f) => ({ ...f, orderStep: e.target.value }))
               }
+            />
+            <TextField
+              label="HSN code"
+              value={form.hsnCode}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, hsnCode: e.target.value }))
+              }
+              hint="Optional · 4–8 digits"
+            />
+            <TextField
+              label="GST %"
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={form.gstRatePercent}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, gstRatePercent: e.target.value }))
+              }
+              hint="Optional"
             />
             {moqConverted && !('error' in moqConverted) ? (
               <p className="ga-sku-form__section-hint">

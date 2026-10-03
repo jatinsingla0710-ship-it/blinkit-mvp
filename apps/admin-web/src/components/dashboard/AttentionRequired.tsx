@@ -15,6 +15,9 @@ const ATTENTION_WHY: Record<string, string> = {
   delivered_unpaid: 'Goods delivered but payment still open.',
   payment_amount_mismatch: 'Collected amount does not match the order total.',
   pending_payments: 'Customer payments still pending collection.',
+  customer_money_due: 'Customer balances are open — follow up on collection.',
+  supplier_money_to_pay: 'Supplier balances are open — record payments due.',
+  draft_purchases: 'Supplier bills are drafted but stock has not been received.',
 };
 
 function severityClass(severity: AttentionAlert['severity']): string {

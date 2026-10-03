@@ -9,6 +9,20 @@
   background: var(--ga-surface-muted, #fafafa);
 }
 
+.ga-inv-adjust__lead {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ga-text-muted);
+  line-height: 1.4;
+}
+
+.ga-inv-adjust__lead {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ga-text-muted);
+  line-height: 1.4;
+}
+
 .ga-inv-adjust__steps {
   margin: 0;
   padding: 0;

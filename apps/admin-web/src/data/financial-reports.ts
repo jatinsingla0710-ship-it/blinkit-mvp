@@ -1,7 +1,8 @@
 /**
- * Phase 3D — owner financial reporting helpers.
- * Reuses Sales / Collections / Receivables / Expenses / Payroll / Day Book sources.
- * No second ledger; no COGS; P&L is an operating result from recorded cash events.
+ * Phase 3D / Phase 5 — owner financial reporting helpers.
+ * Reuses Sales / Collections / Receivables / Expenses / Payroll / Day Book /
+ * inventory movement cost (WAC) sources.
+ * No second ledger. Gross profit uses COGS from stock consumption.
  */
 import { formatInr } from '@/data/live/format';
 import type { DayBookEntry } from '@/data/day-book';
@@ -22,6 +23,60 @@ export type SaleAmountRow = {
   status?: string;
 };
 
+/** Inventory movement rows used to derive Cost of Goods Sold. */
+export type InventoryCogsMovementInput = {
+  movementType: string;
+  quantityDelta: number;
+  unitCost: number | null;
+};
+
+export type InventoryCogsSummary = {
+  /** Net COGS: dispatch cost − return cost. */
+  cogsTotal: number;
+  dispatchCost: number;
+  returnCost: number;
+  /** Movements that affected qty but had no unit_cost. */
+  incompleteMovementCount: number;
+  movementCount: number;
+};
+
+/**
+ * COGS from inventory consumption at stamped WAC.
+ * ORDER_DISPATCH adds cost; RETURN reverses cost. Other types ignored.
+ * Sale invoice totals are never rewritten.
+ */
+export function sumInventoryCogs(
+  movements: readonly InventoryCogsMovementInput[],
+): InventoryCogsSummary {
+  let dispatchCost = 0;
+  let returnCost = 0;
+  let incompleteMovementCount = 0;
+  let movementCount = 0;
+
+  for (const m of movements) {
+    const type = String(m.movementType ?? '').toUpperCase();
+    if (type !== 'ORDER_DISPATCH' && type !== 'RETURN') continue;
+    movementCount += 1;
+    const qty = Math.abs(Number(m.quantityDelta) || 0);
+    if (qty <= 0) continue;
+    if (m.unitCost == null || !Number.isFinite(Number(m.unitCost))) {
+      incompleteMovementCount += 1;
+      continue;
+    }
+    const line = roundMoney(qty * Number(m.unitCost));
+    if (type === 'ORDER_DISPATCH') dispatchCost += line;
+    else returnCost += line;
+  }
+
+  return {
+    cogsTotal: roundMoney(Math.max(dispatchCost - returnCost, 0)),
+    dispatchCost: roundMoney(dispatchCost),
+    returnCost: roundMoney(returnCost),
+    incompleteMovementCount,
+    movementCount,
+  };
+}
+
 export type ProfitLossInput = {
   /** Converted sales in range (REFUNDED sales excluded by caller). */
   salesTotal: number;
@@ -33,6 +88,10 @@ export type ProfitLossInput = {
   expensesTotal: number;
   /** Paid payroll only. */
   payrollPaidTotal: number;
+  /** Cost of goods sold from inventory consumption (WAC). */
+  cogsTotal?: number;
+  /** True when some dispatch/return rows lacked unit_cost. */
+  cogsIncomplete?: boolean;
 };
 
 export type ProfitLossVm = {
@@ -42,16 +101,23 @@ export type ProfitLossVm = {
   collectionsTotalLabel: string;
   refundsTotal: number;
   refundsTotalLabel: string;
+  cogsTotal: number;
+  cogsTotalLabel: string;
+  cogsIncomplete: boolean;
+  grossProfit: number;
+  grossProfitLabel: string;
+  grossMarginPercent: number | null;
+  grossMarginLabel: string;
   expensesTotal: number;
   expensesTotalLabel: string;
   payrollPaidTotal: number;
   payrollPaidTotalLabel: string;
   totalCosts: number;
   totalCostsLabel: string;
-  /** Sales − expenses − paid payroll (not full accounting profit). */
+  /** Sales − COGS − expenses − paid payroll. */
   operatingResult: number;
   operatingResultLabel: string;
-  /** Collections − refunds − expenses − paid payroll. */
+  /** Collections − refunds − expenses − paid payroll (cash, not COGS). */
   netCashMovement: number;
   netCashMovementLabel: string;
   disclaimer: string;
@@ -63,11 +129,28 @@ export function buildProfitLoss(input: ProfitLossInput): ProfitLossVm {
   const refundsTotal = roundMoney(input.refundsTotal);
   const expensesTotal = roundMoney(input.expensesTotal);
   const payrollPaidTotal = roundMoney(input.payrollPaidTotal);
-  const totalCosts = roundMoney(expensesTotal + payrollPaidTotal);
+  const cogsTotal = roundMoney(input.cogsTotal ?? 0);
+  const cogsIncomplete = Boolean(input.cogsIncomplete);
+  const grossProfit = roundMoney(salesTotal - cogsTotal);
+  const grossMarginPercent =
+    salesTotal > 0 ? roundMoney((grossProfit / salesTotal) * 100) : null;
+  const totalCosts = roundMoney(cogsTotal + expensesTotal + payrollPaidTotal);
   const operatingResult = roundMoney(salesTotal - totalCosts);
   const netCashMovement = roundMoney(
     collectionsTotal - refundsTotal - expensesTotal - payrollPaidTotal,
   );
+
+  const disclaimerParts = [
+    'Gross profit = sales − cost of goods sold (stock consumed at weighted average cost).',
+    'Operating result also subtracts company expenses and paid payroll.',
+    'Net cash movement is money in/out only — it does not include COGS.',
+  ];
+  if (cogsIncomplete) {
+    disclaimerParts.push(
+      'Some stock movements in this range had no unit cost, so COGS may be understated until purchase costs cover that stock.',
+    );
+  }
+
   return {
     salesTotal,
     salesTotalLabel: formatInr(salesTotal),
@@ -75,6 +158,14 @@ export function buildProfitLoss(input: ProfitLossInput): ProfitLossVm {
     collectionsTotalLabel: formatInr(collectionsTotal),
     refundsTotal,
     refundsTotalLabel: formatInr(refundsTotal),
+    cogsTotal,
+    cogsTotalLabel: formatInr(cogsTotal),
+    cogsIncomplete,
+    grossProfit,
+    grossProfitLabel: formatInr(grossProfit),
+    grossMarginPercent,
+    grossMarginLabel:
+      grossMarginPercent == null ? '—' : `${grossMarginPercent}%`,
     expensesTotal,
     expensesTotalLabel: formatInr(expensesTotal),
     payrollPaidTotal,
@@ -85,8 +176,7 @@ export function buildProfitLoss(input: ProfitLossInput): ProfitLossVm {
     operatingResultLabel: formatInr(operatingResult),
     netCashMovement,
     netCashMovementLabel: formatInr(netCashMovement),
-    disclaimer:
-      'Operating result based on recorded expenses and paid payroll. Purchase cost (COGS) is not included.',
+    disclaimer: disclaimerParts.join(' '),
   };
 }
 
@@ -97,6 +187,7 @@ export function summarizeDayBookByType(entries: readonly DayBookEntry[]): {
   refundsOut: number;
   expensesOut: number;
   payrollOut: number;
+  supplierPaymentsOut: number;
   moneyIn: number;
   moneyOut: number;
   net: number;
@@ -106,12 +197,14 @@ export function summarizeDayBookByType(entries: readonly DayBookEntry[]): {
   let refundsOut = 0;
   let expensesOut = 0;
   let payrollOut = 0;
+  let supplierPaymentsOut = 0;
   for (const e of entries) {
     if (e.type === 'sale') salesIn += e.moneyIn;
     else if (e.type === 'collection') collectionsIn += e.moneyIn;
     else if (e.type === 'refund') refundsOut += e.moneyOut;
     else if (e.type === 'expense') expensesOut += e.moneyOut;
     else if (e.type === 'payroll') payrollOut += e.moneyOut;
+    else if (e.type === 'supplier_payment') supplierPaymentsOut += e.moneyOut;
   }
   const totals = summarizeDayBook(entries);
   return {
@@ -120,6 +213,7 @@ export function summarizeDayBookByType(entries: readonly DayBookEntry[]): {
     refundsOut: roundMoney(refundsOut),
     expensesOut: roundMoney(expensesOut),
     payrollOut: roundMoney(payrollOut),
+    supplierPaymentsOut: roundMoney(supplierPaymentsOut),
     moneyIn: totals.moneyIn,
     moneyOut: totals.moneyOut,
     net: totals.net,
@@ -221,9 +315,7 @@ export type OwnerFinancialKpisInput = {
   collectionsToday: number;
   outstanding: number;
   expensesMonth: number;
-  payrollPaidMonth: number;
   netCashToday: number;
-  activeCustomers: number;
 };
 
 export function buildOwnerFinancialKpis(
@@ -269,13 +361,6 @@ export function buildOwnerFinancialKpis(
       href: '/reports/expenses',
     },
     {
-      id: 'payroll_paid',
-      label: 'Payroll Paid',
-      value: formatInr(input.payrollPaidMonth),
-      hint: 'This month',
-      href: '/reports/payroll',
-    },
-    {
       id: 'net_cash',
       label: 'Net Cash Today',
       value: formatInr(input.netCashToday),
@@ -283,23 +368,27 @@ export function buildOwnerFinancialKpis(
       tone: input.netCashToday >= 0 ? 'positive' : 'danger',
       href: '/day-book',
     },
-    {
-      id: 'active_customers',
-      label: 'Active Customers',
-      value: `${input.activeCustomers}`,
-      href: '/customers',
-    },
   ];
 }
 
 export function exportReceivablesCsv(rows: readonly ReceivableRow[]): string {
-  const header = ['Customer', 'Sales', 'Paid', 'Outstanding', 'Last Payment'];
+  const header = [
+    'Customer',
+    'Sales',
+    'Paid',
+    'Outstanding',
+    'Age Bucket',
+    'Days Open',
+    'Last Payment',
+  ];
   const lines = rows.map((r) =>
     [
       csvEscape(r.shopName),
       String(r.totalSales),
       String(r.totalPaid),
       String(r.outstanding),
+      csvEscape(r.ageingLabel),
+      r.oldestOpenDays != null ? String(r.oldestOpenDays) : '',
       csvEscape(r.lastPaymentAtLabel ?? ''),
     ].join(','),
   );
@@ -536,9 +625,44 @@ export function aggregateProductSales(
 
 export const REPORT_HUB_LINKS = [
   {
+    to: '/reports/profit-insights',
+    title: 'Profit insights',
+    description: 'Why profit changed · what looks unusual (from your books)',
+  },
+  {
     to: '/reports/profit-loss',
     title: 'Profit & Loss',
-    description: 'Sales vs recorded expenses and paid payroll',
+    description: 'Revenue, COGS, expenses, and net profit from Books',
+  },
+  {
+    to: '/reports/balance-sheet',
+    title: 'Balance Sheet',
+    description: 'Assets, liabilities, equity as of a date',
+  },
+  {
+    to: '/reports/cash-flow',
+    title: 'Cash Flow',
+    description: 'Operating, investing, and financing cash movement',
+  },
+  {
+    to: '/reports/trial-balance',
+    title: 'Trial Balance',
+    description: 'Account debits and credits from Books',
+  },
+  {
+    to: '/reports/general-ledger',
+    title: 'General Ledger',
+    description: 'Account-by-account journal lines',
+  },
+  {
+    to: '/reports/gst',
+    title: 'GST Summary',
+    description: 'Input tax from purchases (CGST / SGST / IGST)',
+  },
+  {
+    to: '/reports/stock',
+    title: 'Stock Valuation',
+    description: 'On-hand value at weighted average cost',
   },
   {
     to: '/reports/sales',
@@ -573,6 +697,6 @@ export const REPORT_HUB_LINKS = [
   {
     to: '/reports/salesmen',
     title: 'Salesman Performance',
-    description: 'Sales, targets, and commission earned',
+    description: 'Sales attribution by salesman (targets on detail)',
   },
 ] as const;

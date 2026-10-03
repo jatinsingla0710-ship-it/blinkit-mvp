@@ -926,6 +926,9 @@ export function useReviewSalesmanExpenseMutation() {
       await queryClient.invalidateQueries({
         queryKey: ['groaurum', 'salesmen', 'claims'],
       });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.snapshot('salesmen'),
+      });
     },
   });
 }
@@ -939,6 +942,23 @@ export function useReviewReturnRequestMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['groaurum', 'salesmen', 'claims'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.snapshot('salesmen'),
+      });
+    },
+  });
+}
+
+export function useUpsertCompanyHolidayMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'settings', 'company-holiday'],
+    mutationFn: (input: Parameters<LiveAdminApi['upsertCompanyHoliday']>[0]) =>
+      requireLiveAdminApi().upsertCompanyHoliday(input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'settings', 'company-holidays'],
       });
     },
   });
@@ -1648,6 +1668,9 @@ function invalidatePurchasingQueries(
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['groaurum', 'suppliers'] }),
     queryClient.invalidateQueries({ queryKey: ['groaurum', 'purchases'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'payables'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'day-book'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'financial'] }),
     queryClient.invalidateQueries({ queryKey: ['groaurum', 'inventory'] }),
     opts?.supplierId
       ? queryClient.invalidateQueries({
@@ -1660,6 +1683,99 @@ function invalidatePurchasingQueries(
         })
       : Promise.resolve(),
   ]);
+}
+
+export function useRecordSupplierPaymentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'suppliers', 'record-payment'],
+    mutationFn: (
+      input: Parameters<LiveAdminApi['recordSupplierPayment']>[0],
+    ) => requireLiveAdminApi().recordSupplierPayment(input),
+    onSuccess: async (payment) =>
+      invalidatePurchasingQueries(queryClient, {
+        supplierId: payment.supplierId,
+        purchaseId: payment.purchaseId ?? undefined,
+      }),
+  });
+}
+
+export function useDeleteSupplierPaymentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'suppliers', 'delete-payment'],
+    mutationFn: (vars: { paymentId: string; supplierId: string }) =>
+      requireLiveAdminApi().deleteSupplierPayment(vars.paymentId),
+    onSuccess: async (_data, vars) =>
+      invalidatePurchasingQueries(queryClient, {
+        supplierId: vars.supplierId,
+      }),
+  });
+}
+
+export function useSyncAccountingJournalsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'accounting', 'sync-journals'],
+    mutationFn: (opts: { dateFrom: string; dateTo: string }) =>
+      requireLiveAdminApi().syncAccountingJournals(opts),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'accounting'],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['groaurum', 'cash-bank'],
+      });
+    },
+  });
+}
+
+export function useRecordCashBankTransferMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'cash-bank', 'transfer'],
+    mutationFn: (
+      input: Parameters<LiveAdminApi['recordCashBankTransfer']>[0],
+    ) => requireLiveAdminApi().recordCashBankTransfer(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['groaurum', 'cash-bank'] }),
+        queryClient.invalidateQueries({ queryKey: ['groaurum', 'accounting'] }),
+      ]);
+    },
+  });
+}
+
+export function useRecordCashBankOpeningMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'cash-bank', 'opening'],
+    mutationFn: (
+      input: Parameters<LiveAdminApi['recordCashBankOpening']>[0],
+    ) => requireLiveAdminApi().recordCashBankOpening(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['groaurum', 'cash-bank'] }),
+        queryClient.invalidateQueries({ queryKey: ['groaurum', 'accounting'] }),
+      ]);
+    },
+  });
+}
+
+export function useRecordCashBankExternalMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'cash-bank', 'external'],
+    mutationFn: (
+      input: Parameters<LiveAdminApi['recordCashBankExternal']>[0],
+    ) => requireLiveAdminApi().recordCashBankExternal(input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['groaurum', 'cash-bank'] }),
+        queryClient.invalidateQueries({ queryKey: ['groaurum', 'accounting'] }),
+      ]);
+    },
+  });
 }
 
 export function useCreateSupplierMutation() {
@@ -1723,5 +1839,386 @@ export function useCancelPurchaseDraftMutation() {
         purchaseId: detail.id,
         supplierId: detail.supplierId,
       }),
+  });
+}
+
+function invalidateBillScanQueries(
+  queryClient: QueryClient,
+  opts?: { scanId?: string; purchaseId?: string },
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ['groaurum', 'purchases', 'bill-scans'],
+    }),
+    opts?.scanId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'purchases', 'bill-scans', opts.scanId],
+        })
+      : Promise.resolve(),
+    invalidatePurchasingQueries(queryClient, {
+      purchaseId: opts?.purchaseId,
+    }),
+  ]);
+}
+
+export function useCreatePurchaseBillScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'bill-scan', 'create'],
+    mutationFn: (notes?: string | null) =>
+      requireLiveAdminApi().createPurchaseBillScan(notes),
+    onSuccess: async (scan) =>
+      invalidateBillScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useUploadPurchaseBillScanImageMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'bill-scan', 'upload'],
+    mutationFn: (vars: {
+      scanId: string;
+      file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string };
+    }) =>
+      requireLiveAdminApi().uploadPurchaseBillScanImage(
+        vars.scanId,
+        vars.file,
+      ),
+    onSuccess: async (scan) =>
+      invalidateBillScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useSavePurchaseBillScanExtractMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'bill-scan', 'save-extract'],
+    mutationFn: (vars: {
+      scanId: string;
+      extract: Parameters<LiveAdminApi['savePurchaseBillScanExtract']>[1];
+    }) =>
+      requireLiveAdminApi().savePurchaseBillScanExtract(
+        vars.scanId,
+        vars.extract,
+      ),
+    onSuccess: async (scan) =>
+      invalidateBillScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useConfirmPurchaseBillScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'bill-scan', 'confirm'],
+    mutationFn: (vars: {
+      scanId: string;
+      draft: Parameters<
+        LiveAdminApi['confirmPurchaseBillScanToDraft']
+      >[0]['draft'];
+    }) => requireLiveAdminApi().confirmPurchaseBillScanToDraft(vars),
+    onSuccess: async (result) =>
+      invalidateBillScanQueries(queryClient, {
+        scanId: result.scan.id,
+        purchaseId: result.purchase.id,
+      }),
+  });
+}
+
+export function useDiscardPurchaseBillScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'bill-scan', 'discard'],
+    mutationFn: (scanId: string) =>
+      requireLiveAdminApi().discardPurchaseBillScan(scanId),
+    onSuccess: async (_data, scanId) =>
+      invalidateBillScanQueries(queryClient, { scanId }),
+  });
+}
+
+function invalidateExpenseReceiptScanQueries(
+  queryClient: QueryClient,
+  opts?: { scanId?: string; expenseId?: string },
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ['groaurum', 'expenses', 'receipt-scans'],
+    }),
+    opts?.scanId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'expenses', 'receipt-scans', opts.scanId],
+        })
+      : Promise.resolve(),
+    invalidateCompanyExpenseQueries(queryClient),
+    opts?.expenseId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'company-expenses', 'detail', opts.expenseId],
+        })
+      : Promise.resolve(),
+  ]);
+}
+
+export function useCreateExpenseReceiptScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'expenses', 'receipt-scan', 'create'],
+    mutationFn: (notes?: string | null) =>
+      requireLiveAdminApi().createExpenseReceiptScan(notes),
+    onSuccess: async (scan) =>
+      invalidateExpenseReceiptScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useUploadExpenseReceiptScanImageMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'expenses', 'receipt-scan', 'upload'],
+    mutationFn: (vars: {
+      scanId: string;
+      file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string };
+    }) =>
+      requireLiveAdminApi().uploadExpenseReceiptScanImage(
+        vars.scanId,
+        vars.file,
+      ),
+    onSuccess: async (scan) =>
+      invalidateExpenseReceiptScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useSaveExpenseReceiptScanExtractMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'expenses', 'receipt-scan', 'save-extract'],
+    mutationFn: (vars: {
+      scanId: string;
+      extract: Parameters<LiveAdminApi['saveExpenseReceiptScanExtract']>[1];
+    }) =>
+      requireLiveAdminApi().saveExpenseReceiptScanExtract(
+        vars.scanId,
+        vars.extract,
+      ),
+    onSuccess: async (scan) =>
+      invalidateExpenseReceiptScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useConfirmExpenseReceiptScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'expenses', 'receipt-scan', 'confirm'],
+    mutationFn: (vars: {
+      scanId: string;
+      expense: Parameters<
+        LiveAdminApi['confirmExpenseReceiptScanToExpense']
+      >[0]['expense'];
+    }) => requireLiveAdminApi().confirmExpenseReceiptScanToExpense(vars),
+    onSuccess: async (result) =>
+      invalidateExpenseReceiptScanQueries(queryClient, {
+        scanId: result.scan.id,
+        expenseId: result.expense.id,
+      }),
+  });
+}
+
+export function useDiscardExpenseReceiptScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'expenses', 'receipt-scan', 'discard'],
+    mutationFn: (scanId: string) =>
+      requireLiveAdminApi().discardExpenseReceiptScan(scanId),
+    onSuccess: async (_data, scanId) =>
+      invalidateExpenseReceiptScanQueries(queryClient, { scanId }),
+  });
+}
+
+function invalidateDayBookScanQueries(
+  queryClient: QueryClient,
+  opts?: { scanId?: string },
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ['groaurum', 'day-book', 'scans'],
+    }),
+    opts?.scanId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'day-book', 'scans', opts.scanId],
+        })
+      : Promise.resolve(),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'day-book'] }),
+    queryClient.invalidateQueries({
+      queryKey: ['groaurum', 'company-expenses'],
+    }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'payables'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'suppliers'] }),
+  ]);
+}
+
+export function useCreateDayBookScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'day-book', 'scan', 'create'],
+    mutationFn: (input?: { sourceText?: string | null; notes?: string | null }) =>
+      requireLiveAdminApi().createDayBookScan(input),
+    onSuccess: async (scan) =>
+      invalidateDayBookScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useUploadDayBookScanImageMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'day-book', 'scan', 'upload'],
+    mutationFn: (vars: {
+      scanId: string;
+      file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string };
+    }) =>
+      requireLiveAdminApi().uploadDayBookScanImage(vars.scanId, vars.file),
+    onSuccess: async (scan) =>
+      invalidateDayBookScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useSaveDayBookScanExtractMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'day-book', 'scan', 'save-extract'],
+    mutationFn: (vars: {
+      scanId: string;
+      extract: Parameters<LiveAdminApi['saveDayBookScanExtract']>[1];
+      sourceText?: string | null;
+    }) =>
+      requireLiveAdminApi().saveDayBookScanExtract(
+        vars.scanId,
+        vars.extract,
+        vars.sourceText,
+      ),
+    onSuccess: async (scan) =>
+      invalidateDayBookScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useConfirmDayBookScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'day-book', 'scan', 'confirm'],
+    mutationFn: (vars: {
+      scanId: string;
+      extract: Parameters<LiveAdminApi['confirmDayBookScan']>[0]['extract'];
+    }) => requireLiveAdminApi().confirmDayBookScan(vars),
+    onSuccess: async (scan) =>
+      invalidateDayBookScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useDiscardDayBookScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'day-book', 'scan', 'discard'],
+    mutationFn: (scanId: string) =>
+      requireLiveAdminApi().discardDayBookScan(scanId),
+    onSuccess: async (_data, scanId) =>
+      invalidateDayBookScanQueries(queryClient, { scanId }),
+  });
+}
+
+function invalidatePaymentProofScanQueries(
+  queryClient: QueryClient,
+  opts?: { scanId?: string; orderId?: string },
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ['groaurum', 'payments', 'proof-scans'],
+    }),
+    opts?.scanId
+      ? queryClient.invalidateQueries({
+          queryKey: ['groaurum', 'payments', 'proof-scans', opts.scanId],
+        })
+      : Promise.resolve(),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'payments'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'orders'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'receivables'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'customers'] }),
+    queryClient.invalidateQueries({ queryKey: ['groaurum', 'day-book'] }),
+    opts?.orderId
+      ? queryClient.invalidateQueries({
+          queryKey: queryKeys.detail('orders', opts.orderId),
+        })
+      : Promise.resolve(),
+  ]);
+}
+
+export function useCreatePaymentProofScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payments', 'proof-scan', 'create'],
+    mutationFn: (notes?: string | null) =>
+      requireLiveAdminApi().createPaymentProofScan(notes),
+    onSuccess: async (scan) =>
+      invalidatePaymentProofScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useUploadPaymentProofScanImageMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payments', 'proof-scan', 'upload'],
+    mutationFn: (vars: {
+      scanId: string;
+      file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string };
+    }) =>
+      requireLiveAdminApi().uploadPaymentProofScanImage(
+        vars.scanId,
+        vars.file,
+      ),
+    onSuccess: async (scan) =>
+      invalidatePaymentProofScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useSavePaymentProofScanExtractMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payments', 'proof-scan', 'save-extract'],
+    mutationFn: (vars: {
+      scanId: string;
+      extract: Parameters<LiveAdminApi['savePaymentProofScanExtract']>[1];
+    }) =>
+      requireLiveAdminApi().savePaymentProofScanExtract(
+        vars.scanId,
+        vars.extract,
+      ),
+    onSuccess: async (scan) =>
+      invalidatePaymentProofScanQueries(queryClient, { scanId: scan.id }),
+  });
+}
+
+export function useConfirmPaymentProofScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payments', 'proof-scan', 'confirm'],
+    mutationFn: (vars: {
+      scanId: string;
+      extract: Parameters<
+        LiveAdminApi['confirmPaymentProofScan']
+      >[0]['extract'];
+      orderId: string;
+      shopId?: string | null;
+    }) => requireLiveAdminApi().confirmPaymentProofScan(vars),
+    onSuccess: async (result, vars) =>
+      invalidatePaymentProofScanQueries(queryClient, {
+        scanId: result.scan.id,
+        orderId: vars.orderId,
+      }),
+  });
+}
+
+export function useDiscardPaymentProofScanMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'payments', 'proof-scan', 'discard'],
+    mutationFn: (scanId: string) =>
+      requireLiveAdminApi().discardPaymentProofScan(scanId),
+    onSuccess: async (_data, scanId) =>
+      invalidatePaymentProofScanQueries(queryClient, { scanId }),
   });
 }

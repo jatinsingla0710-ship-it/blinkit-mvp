@@ -15,6 +15,9 @@
   gap: 4px;
   min-height: 72px;
   text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
   transition:
     border-color 0.15s ease,
     background 0.15s ease;

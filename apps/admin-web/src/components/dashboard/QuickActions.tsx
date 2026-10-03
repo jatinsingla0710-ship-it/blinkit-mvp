@@ -5,14 +5,28 @@ import './QuickActions.css';
 
 type Props = {
   actions: DashboardQuickAction[];
+  onAction?: (action: DashboardQuickAction) => void;
 };
 
-export function QuickActions({ actions }: Props) {
+export function QuickActions({ actions, onAction }: Props) {
   return (
     <Card title="Quick Actions">
       <div className="ga-quick-grid">
         {actions.map((action) => {
           if (action.comingSoon || !action.href) {
+            if (!action.comingSoon && onAction) {
+              return (
+                <button
+                  key={action.id}
+                  type="button"
+                  className="ga-quick-action"
+                  onClick={() => onAction(action)}
+                >
+                  <span className="ga-quick-action__label">{action.label}</span>
+                  <span className="ga-quick-action__desc">{action.description}</span>
+                </button>
+              );
+            }
             return (
               <span
                 key={action.id}

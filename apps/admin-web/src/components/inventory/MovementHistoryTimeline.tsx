@@ -53,6 +53,7 @@ export function MovementHistoryTimeline({ rows }: Props) {
             <p className="ga-inv-timeline__meta">
               {row.warehouseName}
               {row.referenceLabel ? ` · ${row.referenceLabel}` : ''}
+              {row.unitCostLabel ? ` · unit cost ${row.unitCostLabel}` : ''}
             </p>
             <p className="ga-inv-timeline__when">
               {row.atLabel} · {row.recordedByLabel}

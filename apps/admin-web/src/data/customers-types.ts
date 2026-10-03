@@ -82,6 +82,10 @@ export interface CustomerOrderRow {
   fulfillmentStatus: string;
   paymentStatus: PaymentStatusVm;
   placedAtLabel: string;
+  /** ISO timestamp for sorting / ageing / timeline (preferred over label). */
+  placedAtIso?: string;
+  /** Pre-sale / order invoice number when present. */
+  invoiceNumber?: string | null;
   totalAmount: number;
 }
 
@@ -122,6 +126,9 @@ export interface CustomerPaymentRow {
   amountLabel: string;
   status: PaymentStatusVm;
   atLabel: string;
+  /** ISO timestamp for timeline sorting. */
+  atIso?: string;
+  orderId?: string;
 }
 
 export interface CustomerAddressRow {

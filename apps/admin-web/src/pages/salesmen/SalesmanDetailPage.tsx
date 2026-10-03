@@ -8,6 +8,7 @@ import { SalesmanOverviewTab } from '@/components/salesmen/SalesmanOverviewTab';
 import { SalesmanPerformanceTab } from '@/components/salesmen/SalesmanPerformanceTab';
 import { SalesmanPayrollTab } from '@/components/salesmen/SalesmanPayrollTab';
 import { SalesmanSalaryTab } from '@/components/salesmen/SalesmanSalaryTab';
+import { SalesmanCommissionLedger } from '@/components/salesmen/SalesmanCommissionLedger';
 import { SalesmanClaimsPanel } from '@/components/salesmen/SalesmanClaimsPanel';
 import { SalesmanMessagesPanel } from '@/components/salesmen/SalesmanMessagesPanel';
 import { SalesmanTargetPanel } from '@/components/salesmen/SalesmanTargetPanel';
@@ -174,14 +175,17 @@ export function SalesmanDetailPage() {
                 </>
               ) : null}
               {tab === 'earnings' ? (
-                <SalesmanSalaryTab
-                  profileId={salesman.id}
-                  earningModel={salesman.employment?.earningModel ?? 'SALARY'}
-                  salaryMonth={salesman.salaryMonth}
-                  currentSalary={salesman.currentSalary}
-                  salaryHistory={salesman.salaryHistory}
-                  canManage={canManageSalesmen}
-                />
+                <>
+                  <SalesmanSalaryTab
+                    profileId={salesman.id}
+                    earningModel={salesman.employment?.earningModel ?? 'SALARY'}
+                    salaryMonth={salesman.salaryMonth}
+                    currentSalary={salesman.currentSalary}
+                    salaryHistory={salesman.salaryHistory}
+                    canManage={canManageSalesmen}
+                  />
+                  <SalesmanCommissionLedger profileId={salesman.id} />
+                </>
               ) : null}
               {tab === 'payroll' ? (
                 <SalesmanPayrollTab

@@ -1,0 +1,87 @@
+.ga-profit-insights__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-end;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ga-color-border, #e4e7ec);
+}
+
+.ga-profit-insights__summary-label {
+  font-size: 0.85rem;
+  color: var(--ga-color-muted, #667085);
+}
+
+.ga-profit-insights__summary-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.ga-profit-insights__as-of {
+  margin-left: auto;
+}
+
+.ga-profit-insights__answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ga-profit-insights__answer-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ga-profit-insights__answer-summary {
+  margin: 0;
+}
+
+.ga-profit-insights__honesty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ga-color-muted, #667085);
+}
+
+.ga-profit-insights__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ga-profit-insights__finding {
+  padding: 10px 12px;
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 8px;
+}
+
+.ga-profit-insights__finding--attention {
+  border-color: #f97066;
+}
+
+.ga-profit-insights__finding--watch {
+  border-color: #fdb022;
+}
+
+.ga-profit-insights__finding-title {
+  font-weight: 600;
+}
+
+.ga-profit-insights__finding-detail {
+  margin-top: 4px;
+  font-size: 0.92rem;
+  color: var(--ga-color-text, #101828);
+}
+
+.ga-profit-insights__finding-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
+.ga-profit-insights__footer {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+}

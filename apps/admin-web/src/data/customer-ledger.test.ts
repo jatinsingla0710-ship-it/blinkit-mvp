@@ -4,6 +4,7 @@ import {
   buildReceivableRow,
   buildReceivablesSnapshot,
   customerOutstandingTotal,
+  exportCustomerStatementCsv,
   filterReceivableRows,
   orderOutstandingResidual,
   paymentCollectedAmount,
@@ -271,8 +272,45 @@ describe('receivables', () => {
         },
       ],
       payments: [],
+      asOfIso: '2026-10-01T10:00:00.000Z',
     });
     expect(row.ledgerHref).toBe('/customers/c1#ledger');
     expect(row.collectHref).toBe('/orders/o9');
+    expect(row.oldestOpenDays).toBe(92);
+    expect(row.ageingBucket).toBe('days_61_plus');
+  });
+
+  it('exports a chronological customer statement CSV', () => {
+    const ledger = buildCustomerLedger({
+      orders: [
+        {
+          id: 'o1',
+          status: 'DELIVERED',
+          total: 500,
+          created_at: '2026-09-01T10:00:00.000Z',
+          order_code: 'GA-1',
+        },
+      ],
+      payments: [
+        {
+          id: 'p1',
+          order_id: 'o1',
+          status: 'PAYMENT_PENDING',
+          amount: 500,
+          cash_collected_amount: 200,
+          online_collected_amount: 0,
+          paid_at: '2026-09-10T10:00:00.000Z',
+        },
+      ],
+    });
+    const csv = exportCustomerStatementCsv({
+      shopName: 'Alpha Mart',
+      phoneLabel: '999',
+      generatedAtIso: '2026-10-01T00:00:00.000Z',
+      ledger,
+    });
+    expect(csv).toContain('Customer,Alpha Mart');
+    expect(csv).toContain('Outstanding,300');
+    expect(csv.indexOf('Sale')).toBeLessThan(csv.indexOf('Payment'));
   });
 });

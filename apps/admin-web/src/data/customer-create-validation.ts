@@ -3,6 +3,7 @@ import type { ServiceAreaListItem } from './service-area-model';
 import type { SalesmanListRow } from './salesmen-types';
 import { lookupPinServiceability } from './customer-pin-lookup';
 import { pinBelongsToServiceArea } from './live-entity-helpers';
+import { parseOptionalGstin } from './gst';
 
 export type CustomerCreateFormValues = {
   tradeName: string;
@@ -18,6 +19,7 @@ export type CustomerCreateFormValues = {
   deliveryPinCode: string;
   deliveryLat?: number | null;
   deliveryLng?: number | null;
+  gstin?: string;
 };
 
 export function validateCustomerCreateForm(
@@ -85,6 +87,11 @@ export function validateCustomerCreateForm(
     };
   }
 
+  const gstinParsed = parseOptionalGstin(values.gstin);
+  if (!gstinParsed.ok) {
+    return { ok: false, message: gstinParsed.error };
+  }
+
   const parsed = customerCreateSchema.safeParse({
     tradeName: values.tradeName,
     legalName: values.legalName.trim() || undefined,
@@ -99,6 +106,7 @@ export function validateCustomerCreateForm(
     deliveryPinCode: values.deliveryPinCode.trim(),
     deliveryLat: hasLat ? values.deliveryLat : undefined,
     deliveryLng: hasLng ? values.deliveryLng : undefined,
+    gstin: gstinParsed.value,
     isActive: true,
   });
   if (!parsed.success) {

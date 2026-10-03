@@ -4,6 +4,12 @@
   gap: 16px;
 }
 
+.ga-cust-ledger__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .ga-cust-ledger__summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -57,4 +63,10 @@
   margin: 0;
   font-size: 0.75rem;
   color: var(--ga-color-text-muted, #667085);
+}
+
+@media print {
+  .ga-cust-ledger__print-hide {
+    display: none !important;
+  }
 }

@@ -10,8 +10,8 @@ export function TaxesSection({ rows }: Props) {
   if (rows.length === 0) {
     return (
       <EmptyState
-        title="No tax mappings"
-        detail="GST and HSN mappings by category will appear here."
+        title="No tax mappings yet"
+        detail="Set HSN and GST % on product SKUs. Mappings appear here for reference — this is not a GSTR filing tool."
       />
     );
   }

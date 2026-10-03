@@ -57,6 +57,8 @@ type SkuRow = {
   container_custom_price?: number | null;
   container_discount_type?: string | null;
   container_discount_value?: number | null;
+  hsn_code?: string | null;
+  gst_rate_percent?: number | null;
   moq: number;
   quantity_step: number;
   is_active: boolean;
@@ -132,6 +134,9 @@ function mapSku(row: SkuRow): Sku {
         : undefined,
     containerDiscountType: (row.container_discount_type ?? 'none') as Sku['containerDiscountType'],
     containerDiscountValue: Number(row.container_discount_value ?? 0),
+    hsnCode: row.hsn_code ?? null,
+    gstRatePercent:
+      row.gst_rate_percent != null ? Number(row.gst_rate_percent) : null,
     moq: Number(row.moq),
     quantityStep: Number(row.quantity_step),
     isActive: row.is_active,
@@ -360,6 +365,8 @@ export function createSkusRepository(
       moq: input.moq ?? 1,
       quantity_step: input.quantityStep ?? 1,
       is_active: input.isActive ?? true,
+      hsn_code: input.hsnCode?.trim() || null,
+      gst_rate_percent: input.gstRatePercent ?? null,
     }),
     toUpdate: (input) => ({
       ...(input.skuCode !== undefined ? { sku_code: input.skuCode } : {}),
@@ -409,6 +416,12 @@ export function createSkusRepository(
         ? { quantity_step: input.quantityStep }
         : {}),
       ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
+      ...(input.hsnCode !== undefined
+        ? { hsn_code: input.hsnCode?.trim() || null }
+        : {}),
+      ...(input.gstRatePercent !== undefined
+        ? { gst_rate_percent: input.gstRatePercent }
+        : {}),
     }),
   });
 }

@@ -1,3 +1,11 @@
+import {
+  ageingBucketLabel,
+  daysBetween,
+  receivableAgeingBucket,
+  summarizeAgeingOutstanding,
+  type AgeingTotals,
+  type ReceivableAgeingBucket,
+} from '@/data/customer-ageing';
 import { formatDate, formatDateTime, formatInr } from '@/data/live/format';
 
 /** Order statuses excluded from receivables / ledger sales. */
@@ -69,6 +77,10 @@ export type ReceivableRow = {
   outstanding: number;
   outstandingLabel: string;
   lastPaymentAtLabel: string | null;
+  /** Days since oldest open order; null when paid up. */
+  oldestOpenDays: number | null;
+  ageingBucket: ReceivableAgeingBucket;
+  ageingLabel: string;
   ledgerHref: string;
   collectHref: string | null;
 };
@@ -78,6 +90,7 @@ export type ReceivablesSnapshot = {
   rows: ReceivableRow[];
   totalOutstanding: number;
   totalOutstandingLabel: string;
+  ageingTotals: AgeingTotals;
 };
 
 function roundMoney(value: number): number {
@@ -324,6 +337,31 @@ export function buildCustomerLedger(input: {
   };
 }
 
+/** Oldest unpaid order age in calendar days (null when nothing due). */
+export function oldestOpenReceivableDays(
+  orders: readonly LedgerOrderInput[],
+  payments: readonly LedgerPaymentInput[],
+  asOfIso: string = new Date().toISOString(),
+): number | null {
+  const byOrder = indexPaymentsByOrder(payments);
+  let oldestIso: string | null = null;
+  for (const order of orders) {
+    const residual = orderOutstandingResidual(
+      order,
+      byOrder.get(order.id) ?? null,
+    );
+    if (residual <= 0) continue;
+    if (
+      !oldestIso ||
+      Date.parse(order.created_at) < Date.parse(oldestIso)
+    ) {
+      oldestIso = order.created_at;
+    }
+  }
+  if (!oldestIso) return null;
+  return daysBetween(oldestIso, asOfIso);
+}
+
 export function buildReceivableRow(input: {
   customerId: string;
   shopName: string;
@@ -331,7 +369,9 @@ export function buildReceivableRow(input: {
   areaLabel: string;
   orders: readonly LedgerOrderInput[];
   payments: readonly LedgerPaymentInput[];
+  asOfIso?: string;
 }): ReceivableRow {
+  const asOfIso = input.asOfIso ?? new Date().toISOString();
   const ledger = buildCustomerLedger({
     orders: input.orders,
     payments: input.payments,
@@ -343,6 +383,15 @@ export function buildReceivableRow(input: {
         Date.parse(b.paid_at || b.created_at || '') -
         Date.parse(a.paid_at || a.created_at || ''),
     )[0];
+  const oldestOpenDays = oldestOpenReceivableDays(
+    input.orders,
+    input.payments,
+    asOfIso,
+  );
+  const ageingBucket = receivableAgeingBucket(
+    oldestOpenDays,
+    ledger.outstanding,
+  );
 
   return {
     customerId: input.customerId,
@@ -358,6 +407,9 @@ export function buildReceivableRow(input: {
     lastPaymentAtLabel: lastPayment
       ? formatDate(lastPayment.paid_at || lastPayment.created_at || null)
       : null,
+    oldestOpenDays,
+    ageingBucket,
+    ageingLabel: ageingBucketLabel(ageingBucket),
     ledgerHref: `/customers/${input.customerId}#ledger`,
     collectHref: ledger.collectHref,
   };
@@ -375,7 +427,9 @@ export function buildReceivablesSnapshot(input: {
   }[];
 }): ReceivablesSnapshot {
   const rows = input.customers
-    .map((customer) => buildReceivableRow(customer))
+    .map((customer) =>
+      buildReceivableRow({ ...customer, asOfIso: input.generatedAtIso }),
+    )
     .filter((row) => row.totalSales > 0 || row.outstanding > 0)
     .sort((a, b) => b.outstanding - a.outstanding || a.shopName.localeCompare(b.shopName));
 
@@ -388,7 +442,55 @@ export function buildReceivablesSnapshot(input: {
     rows,
     totalOutstanding,
     totalOutstandingLabel: formatInr(totalOutstanding),
+    ageingTotals: summarizeAgeingOutstanding(rows),
   };
+}
+
+function csvEscape(value: string): string {
+  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+/** Printable / downloadable customer account statement from the derived ledger. */
+export function exportCustomerStatementCsv(input: {
+  shopName: string;
+  phoneLabel?: string | null;
+  generatedAtIso: string;
+  ledger: CustomerLedgerVm;
+}): string {
+  const header = [
+    'Date',
+    'Type',
+    'Reference',
+    'Debit',
+    'Credit',
+    'Balance',
+  ];
+  // Entries are newest-first in the VM; reverse for chronological statement.
+  const chronological = [...input.ledger.entries].reverse();
+  const lines = chronological.map((row) =>
+    [
+      csvEscape(row.atLabel),
+      csvEscape(row.typeLabel),
+      csvEscape(row.reference),
+      String(row.debit),
+      String(row.credit),
+      String(row.balance),
+    ].join(','),
+  );
+  const meta = [
+    `Customer,${csvEscape(input.shopName)}`,
+    input.phoneLabel
+      ? `Phone,${csvEscape(input.phoneLabel)}`
+      : null,
+    `Generated,${csvEscape(formatDateTime(input.generatedAtIso))}`,
+    `Outstanding,${String(input.ledger.outstanding)}`,
+    `Sales,${String(input.ledger.totalSales)}`,
+    `Paid,${String(input.ledger.totalPaid)}`,
+    '',
+  ].filter((line): line is string => line != null);
+
+  return [...meta, header.join(','), ...lines].join('\n');
 }
 
 export function filterReceivableRows(

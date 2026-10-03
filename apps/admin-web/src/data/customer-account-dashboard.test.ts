@@ -107,6 +107,18 @@ describe('customer account dashboard', () => {
     );
   });
 
+  it('adds collection follow-up when balance is aged', () => {
+    const items = buildCustomerAttentionItems([], {
+      outstanding: 1500,
+      outstandingLabel: '₹1,500',
+      oldestOpenDays: 45,
+      collectHref: '/orders/o1',
+    });
+    expect(items[0]?.reason).toBe('Collection follow-up');
+    expect(items[0]?.description).toContain('45 days');
+    expect(items[0]?.href).toBe('/orders/o1');
+  });
+
   it('filters active orders for current activity', () => {
     const orders: CustomerOrderRow[] = [
       {
@@ -153,13 +165,46 @@ describe('customer account dashboard', () => {
   it('builds timeline from customer detail fields', () => {
     const customer = {
       createdAtLabel: '01 Jan 2026',
+      createdAtIso: '2026-01-01T10:00:00.000Z',
       appLinkSentAtLabel: '02 Jan 2026',
-      orders: [],
+      orders: [
+        {
+          id: 'o1',
+          orderCode: 'GA-1',
+          placedAtLabel: '10 Jan 2026',
+          placedAtIso: '2026-01-10T10:00:00.000Z',
+          invoiceNumber: 'INV-1',
+          fulfillmentLabel: 'Delivered',
+          fulfillmentStatus: 'DELIVERED',
+        },
+      ],
+      payments: [
+        {
+          id: 'p1',
+          orderCode: 'GA-1',
+          orderId: 'o1',
+          amountLabel: '₹500',
+          methodLabel: 'Cash',
+          status: 'PAID' as const,
+          atLabel: '12 Jan 2026',
+          atIso: '2026-01-12T10:00:00.000Z',
+        },
+      ],
+      outstandingLabel: '₹200',
       digitalAccessVm: { activatedAtLabel: '03 Jan 2026' },
     };
 
     const events = buildCustomerTimeline(customer);
     expect(events.some((event) => event.title === 'Customer created')).toBe(true);
+    expect(events.some((event) => event.title.includes('Invoice INV-1'))).toBe(
+      true,
+    );
+    expect(
+      events.some((event) => event.title.includes('Payment received')),
+    ).toBe(true);
+    expect(events.some((event) => event.title.includes('Balance due'))).toBe(
+      true,
+    );
     expect(events.some((event) => event.title === 'App link sent')).toBe(false);
     expect(events.some((event) => event.title === 'Customer App activated')).toBe(
       false,

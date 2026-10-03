@@ -19,6 +19,11 @@ import {
   PURCHASING_SECTION_LINKS,
   type PurchaseItemInput,
 } from '@/data/purchasing';
+import {
+  GST_SUPPLY_TYPE_LABELS,
+  splitGstTaxAmount,
+  type GstSupplyType,
+} from '@/data/gst';
 import '@groaurum/ui/styles/data-table.css';
 import './PurchasingPages.css';
 
@@ -64,6 +69,7 @@ export function PurchaseFormPage() {
   const [purchaseDate, setPurchaseDate] = useState(todayYmd());
   const [billNumber, setBillNumber] = useState('');
   const [taxAmount, setTaxAmount] = useState('0');
+  const [supplyType, setSupplyType] = useState<GstSupplyType>('UNSET');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<LineDraft[]>([]);
   const [skuId, setSkuId] = useState('');
@@ -93,6 +99,7 @@ export function PurchaseFormPage() {
     setPurchaseDate(p.purchaseDate);
     setBillNumber(p.billNumber);
     setTaxAmount(String(p.taxAmount));
+    setSupplyType(p.supplyType ?? 'UNSET');
     setNotes(p.notes ?? '');
     setLines(
       p.items.map((item) => ({
@@ -118,6 +125,11 @@ export function PurchaseFormPage() {
   const totals = useMemo(
     () => purchaseTotals(lines, Number(taxAmount) || 0),
     [lines, taxAmount],
+  );
+
+  const taxSplit = useMemo(
+    () => splitGstTaxAmount(Number(taxAmount) || 0, supplyType),
+    [taxAmount, supplyType],
   );
 
   const addLine = () => {
@@ -172,6 +184,10 @@ export function PurchaseFormPage() {
         purchaseDate,
         billNumber,
         taxAmount: Number(taxAmount) || 0,
+        supplyType,
+        cgstAmount: taxSplit.cgstAmount,
+        sgstAmount: taxSplit.sgstAmount,
+        igstAmount: taxSplit.igstAmount,
         notes,
         items: lines.map((l) => ({
           skuId: l.skuId,
@@ -272,7 +288,29 @@ export function PurchaseFormPage() {
               onChange={(e) => setTaxAmount(e.target.value)}
             />
           </label>
+          <label>
+            GST supply
+            <select
+              value={supplyType}
+              onChange={(e) => setSupplyType(e.target.value as GstSupplyType)}
+            >
+              {(Object.keys(GST_SUPPLY_TYPE_LABELS) as GstSupplyType[]).map(
+                (key) => (
+                  <option key={key} value={key}>
+                    {GST_SUPPLY_TYPE_LABELS[key]}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
         </div>
+        {Number(taxAmount) > 0 && supplyType !== 'UNSET' ? (
+          <p className="ga-purchasing__hint">
+            Split: CGST {formatInr(taxSplit.cgstAmount)} · SGST{' '}
+            {formatInr(taxSplit.sgstAmount)} · IGST{' '}
+            {formatInr(taxSplit.igstAmount)}
+          </p>
+        ) : null}
         <label>
           Notes
           <textarea

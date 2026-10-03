@@ -24,6 +24,8 @@ export interface Shop {
   deliveryPinCode: string;
   deliveryLat?: number;
   deliveryLng?: number;
+  /** Optional customer GSTIN. */
+  gstin?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

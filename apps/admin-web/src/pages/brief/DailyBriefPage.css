@@ -1,0 +1,82 @@
+.ga-daily-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 880px;
+}
+
+.ga-daily-brief__hero {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ga-color-border, #e4e7ec);
+}
+
+.ga-daily-brief__greeting {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.ga-daily-brief__meta,
+.ga-daily-brief__honesty,
+.ga-daily-brief__section-meta,
+.ga-daily-brief__muted,
+.ga-daily-brief__item-detail {
+  color: var(--ga-color-muted, #667085);
+}
+
+.ga-daily-brief__honesty,
+.ga-daily-brief__section-meta,
+.ga-daily-brief__item-detail {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.ga-daily-brief__section-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ga-daily-brief__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.ga-daily-brief__metrics dt {
+  font-size: 0.85rem;
+  color: var(--ga-color-muted, #667085);
+}
+
+.ga-daily-brief__metrics dd {
+  margin: 2px 0 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.ga-daily-brief__list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ga-daily-brief__item {
+  padding: 10px 12px;
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 8px;
+}
+
+.ga-daily-brief__item-title {
+  font-weight: 600;
+}
+
+.ga-daily-brief__link,
+.ga-daily-brief__footer {
+  font-size: 0.9rem;
+}
+
+.ga-daily-brief__footer {
+  margin: 0;
+}

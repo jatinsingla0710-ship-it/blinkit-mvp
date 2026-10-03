@@ -27,7 +27,10 @@ export function AdminShell() {
 
   return (
     <div className="ga-shell">
-      <TopNav onMenuClick={() => setSidebarOpen((v) => !v)} />
+      <TopNav
+        groups={groups}
+        onMenuClick={() => setSidebarOpen((v) => !v)}
+      />
       <div className="ga-shell__body">
         <Sidebar
           groups={groups}

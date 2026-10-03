@@ -74,6 +74,7 @@ export function CustomerDetailPage() {
                 <CustomerLedgerPanel
                   ledger={customer.ledger}
                   shopName={customer.shopName}
+                  phoneLabel={customer.phoneLabel}
                 />
               </Card>
 

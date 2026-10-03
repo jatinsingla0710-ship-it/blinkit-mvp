@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { executiveOpsKpisWithoutDuplicateSales } from '@/data/financial-reports';
 import { mapOpsDashboardKpisToExecutive } from '@/data/dashboard-ops-kpis';
+import { DASHBOARD_FIXTURE } from '@/data/dashboard-fixtures';
 
 /**
  * Phase 4A — dashboard presentation honesty (composition helpers).
@@ -36,17 +37,17 @@ describe('Phase 4A dashboard composition', () => {
   });
 
   it('documents owner dashboard quick action routes', () => {
-    const quickActions = [
-      { id: 'add_product', href: '/products' },
-      { id: 'update_price', href: '/pricing' },
-      { id: 'add_customer', href: '/customers' },
-      { id: 'create_route', href: '/delivery' },
-    ];
-    expect(quickActions.map((a) => a.href)).toEqual([
-      '/products',
-      '/pricing',
-      '/customers',
-      '/delivery',
+    expect(DASHBOARD_FIXTURE.quickActions.map((action) => action.id)).toEqual([
+      'new_sale',
+      'new_purchase',
+      'record_expense',
+      'collect_payment',
+    ]);
+    expect(DASHBOARD_FIXTURE.quickActions.map((action) => action.href)).toEqual([
+      undefined,
+      '/purchases/new',
+      '/expenses?create=1',
+      '/payments?tab=all&focus=ofd_unpaid',
     ]);
   });
 });

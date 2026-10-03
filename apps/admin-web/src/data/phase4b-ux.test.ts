@@ -3,7 +3,7 @@ import { SIDEBAR_NAV_GROUPS, isSidebarItemActive } from '@/data/nav';
 import { ACCOUNTING_SECTION_LINKS, SALES_SECTION_LINKS } from '@/data/section-links';
 
 describe('Phase 4B Admin UX navigation honesty', () => {
-  it('keeps top-level nav compact without Pricing/Commission/Payments/Warehouses', () => {
+  it('keeps top-level nav compact with owner-facing money labels', () => {
     const labels = SIDEBAR_NAV_GROUPS.flatMap((g) => g.items.map((i) => i.label));
     expect(labels).toEqual([
       'Dashboard',
@@ -13,10 +13,14 @@ describe('Phase 4B Admin UX navigation honesty', () => {
       'Inventory',
       'Delivery',
       'Salesmen',
-      'Receivables',
+      'Collections',
+      'Money Due',
+      'Money to Pay',
       'Purchases',
       'Expenses',
       'Day Book',
+      'Cash & Bank',
+      'Books',
       'Reports',
       'Settings',
     ]);
@@ -42,7 +46,11 @@ describe('Phase 4B Admin UX navigation honesty', () => {
     const sales = SIDEBAR_NAV_GROUPS.flatMap((g) => g.items).find(
       (i) => i.id === 'sales',
     )!;
-    expect(isSidebarItemActive('/payments', sales)).toBe(true);
+    const collections = SIDEBAR_NAV_GROUPS.flatMap((g) => g.items).find(
+      (i) => i.id === 'collections',
+    )!;
+    expect(isSidebarItemActive('/payments', sales)).toBe(false);
+    expect(isSidebarItemActive('/payments', collections)).toBe(true);
     expect(isSidebarItemActive('/orders/abc', sales)).toBe(true);
 
     const products = SIDEBAR_NAV_GROUPS.flatMap((g) => g.items).find(

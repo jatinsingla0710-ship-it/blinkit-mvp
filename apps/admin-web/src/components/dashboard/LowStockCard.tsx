@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { LowStockItem } from '@/data/dashboard-types';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -7,13 +8,22 @@ type Props = {
   items: LowStockItem[];
 };
 
+/** Compact low-stock list — deep-links into Inventory filters. */
 export function LowStockCard({ items }: Props) {
   return (
-    <Card title="Low Stock">
+    <Card
+      title="Low Stock"
+      className="ga-low-stock-card"
+      action={
+        <Link to="/inventory?status=low" className="ga-low-stock-card__link">
+          View all
+        </Link>
+      }
+    >
       {items.length === 0 ? (
         <EmptyState
           title="No low-stock SKUs"
-          detail="Inventory thresholds will appear here."
+          detail="Items under the 10-pack threshold appear here."
         />
       ) : (
         <div className="ga-table-wrap">
@@ -24,13 +34,19 @@ export function LowStockCard({ items }: Props) {
                 <th>Code</th>
                 <th>Available</th>
                 <th>Threshold</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
                 <tr key={item.id}>
                   <td>
-                    <span className="ga-table__primary">{item.skuName}</span>
+                    <Link
+                      to={`/inventory/${item.id}`}
+                      className="ga-table__primary"
+                    >
+                      {item.skuName}
+                    </Link>
                   </td>
                   <td className="ga-table__mono">{item.skuCode}</td>
                   <td>
@@ -38,6 +54,9 @@ export function LowStockCard({ items }: Props) {
                   </td>
                   <td>
                     {item.threshold} {item.unit}
+                  </td>
+                  <td>
+                    <Link to="/purchases">Purchase</Link>
                   </td>
                 </tr>
               ))}

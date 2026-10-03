@@ -11,6 +11,11 @@ import { LoginPage } from '@/pages/LoginPage';
 const DashboardPage = lazy(() =>
   import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 );
+const DailyBriefPage = lazy(() =>
+  import('@/pages/brief/DailyBriefPage').then((m) => ({
+    default: m.DailyBriefPage,
+  })),
+);
 const SettingsPage = lazy(() =>
   import('@/pages/settings/SettingsPage').then((m) => ({
     default: m.SettingsPage,
@@ -131,14 +136,44 @@ const PaymentsPage = lazy(() =>
     default: m.PaymentsPage,
   })),
 );
+const PaymentProofUploadPage = lazy(() =>
+  import('@/pages/payments/PaymentProofUploadPage').then((m) => ({
+    default: m.PaymentProofUploadPage,
+  })),
+);
+const PaymentProofReviewPage = lazy(() =>
+  import('@/pages/payments/PaymentProofReviewPage').then((m) => ({
+    default: m.PaymentProofReviewPage,
+  })),
+);
 const ReceivablesPage = lazy(() =>
   import('@/pages/receivables/ReceivablesPage').then((m) => ({
     default: m.ReceivablesPage,
   })),
 );
+const PayablesPage = lazy(() =>
+  import('@/pages/payables/PayablesPage').then((m) => ({
+    default: m.PayablesPage,
+  })),
+);
+const DuesAssistantPage = lazy(() =>
+  import('@/pages/dues/DuesAssistantPage').then((m) => ({
+    default: m.DuesAssistantPage,
+  })),
+);
 const ExpensesPage = lazy(() =>
   import('@/pages/expenses/ExpensesPage').then((m) => ({
     default: m.ExpensesPage,
+  })),
+);
+const ExpenseScanUploadPage = lazy(() =>
+  import('@/pages/expenses/ExpenseScanUploadPage').then((m) => ({
+    default: m.ExpenseScanUploadPage,
+  })),
+);
+const ExpenseScanReviewPage = lazy(() =>
+  import('@/pages/expenses/ExpenseScanReviewPage').then((m) => ({
+    default: m.ExpenseScanReviewPage,
   })),
 );
 const ExpenseDetailPage = lazy(() =>
@@ -151,12 +186,67 @@ const DayBookPage = lazy(() =>
     default: m.DayBookPage,
   })),
 );
+const DayBookScanUploadPage = lazy(() =>
+  import('@/pages/day-book/DayBookScanUploadPage').then((m) => ({
+    default: m.DayBookScanUploadPage,
+  })),
+);
+const DayBookScanReviewPage = lazy(() =>
+  import('@/pages/day-book/DayBookScanReviewPage').then((m) => ({
+    default: m.DayBookScanReviewPage,
+  })),
+);
+const AccountingPage = lazy(() =>
+  import('@/pages/accounting/AccountingPage').then((m) => ({
+    default: m.AccountingPage,
+  })),
+);
+const CashBankPage = lazy(() =>
+  import('@/pages/cash-bank/CashBankPage').then((m) => ({
+    default: m.CashBankPage,
+  })),
+);
 const ReportsPage = lazy(() =>
   import('@/pages/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
 const ProfitLossPage = lazy(() =>
   import('@/pages/reports/ProfitLossPage').then((m) => ({
     default: m.ProfitLossPage,
+  })),
+);
+const ProfitInsightsPage = lazy(() =>
+  import('@/pages/reports/ProfitInsightsPage').then((m) => ({
+    default: m.ProfitInsightsPage,
+  })),
+);
+const BalanceSheetPage = lazy(() =>
+  import('@/pages/reports/BalanceSheetPage').then((m) => ({
+    default: m.BalanceSheetPage,
+  })),
+);
+const CashFlowPage = lazy(() =>
+  import('@/pages/reports/CashFlowPage').then((m) => ({
+    default: m.CashFlowPage,
+  })),
+);
+const TrialBalancePage = lazy(() =>
+  import('@/pages/reports/TrialBalancePage').then((m) => ({
+    default: m.TrialBalancePage,
+  })),
+);
+const GeneralLedgerPage = lazy(() =>
+  import('@/pages/reports/GeneralLedgerPage').then((m) => ({
+    default: m.GeneralLedgerPage,
+  })),
+);
+const GstReportPage = lazy(() =>
+  import('@/pages/reports/GstReportPage').then((m) => ({
+    default: m.GstReportPage,
+  })),
+);
+const StockValuationReportPage = lazy(() =>
+  import('@/pages/reports/StockValuationReportPage').then((m) => ({
+    default: m.StockValuationReportPage,
   })),
 );
 const SalesReportPage = lazy(() =>
@@ -209,6 +299,11 @@ const SalesmenPayrollPage = lazy(() =>
     default: m.SalesmenPayrollPage,
   })),
 );
+const SalesmenClaimsPage = lazy(() =>
+  import('@/pages/salesmen/SalesmenClaimsPage').then((m) => ({
+    default: m.SalesmenClaimsPage,
+  })),
+);
 const PurchasesListPage = lazy(() =>
   import('@/pages/purchases/PurchasesListPage').then((m) => ({
     default: m.PurchasesListPage,
@@ -222,6 +317,21 @@ const PurchaseDetailPage = lazy(() =>
 const PurchaseFormPage = lazy(() =>
   import('@/pages/purchases/PurchaseFormPage').then((m) => ({
     default: m.PurchaseFormPage,
+  })),
+);
+const PurchaseRecommendPage = lazy(() =>
+  import('@/pages/purchases/PurchaseRecommendPage').then((m) => ({
+    default: m.PurchaseRecommendPage,
+  })),
+);
+const BillScanUploadPage = lazy(() =>
+  import('@/pages/purchases/BillScanUploadPage').then((m) => ({
+    default: m.BillScanUploadPage,
+  })),
+);
+const BillScanReviewPage = lazy(() =>
+  import('@/pages/purchases/BillScanReviewPage').then((m) => ({
+    default: m.BillScanReviewPage,
   })),
 );
 const SuppliersListPage = lazy(() =>
@@ -251,6 +361,10 @@ export function AppRoutes() {
         }
       >
         <Route index element={guard('dashboard', <DashboardPage />)} />
+        <Route
+          path="brief"
+          element={guard('dashboard', <DailyBriefPage />)}
+        />
         <Route path="orders" element={guard('orders', <OrdersListPage />)} />
         <Route
           path="orders/:orderId"
@@ -311,6 +425,10 @@ export function AppRoutes() {
           element={guard('salesmen', <SalesmenPayrollPage />)}
         />
         <Route
+          path="salesmen/claims"
+          element={guard('salesmen', <SalesmenClaimsPage />)}
+        />
+        <Route
           path="salesmen/:salesmanId"
           element={guard('salesmen', <SalesmanDetailPage />)}
         />
@@ -336,12 +454,40 @@ export function AppRoutes() {
         />
         <Route path="payments" element={guard('payments', <PaymentsPage />)} />
         <Route
+          path="payments/scan"
+          element={guard('payments', <PaymentProofUploadPage />)}
+        />
+        <Route
+          path="payments/scan/:scanId"
+          element={guard('payments', <PaymentProofReviewPage />)}
+        />
+        <Route
           path="receivables"
           element={guard('payments', <ReceivablesPage />)}
         />
         <Route
+          path="payables"
+          element={guard('payments', <PayablesPage />)}
+        />
+        <Route
+          path="dues"
+          element={guard('payments', <DuesAssistantPage />)}
+        />
+        <Route
           path="purchases"
           element={guard('payments', <PurchasesListPage />)}
+        />
+        <Route
+          path="purchases/recommend"
+          element={guard('payments', <PurchaseRecommendPage />)}
+        />
+        <Route
+          path="purchases/scan"
+          element={guard('payments', <BillScanUploadPage />)}
+        />
+        <Route
+          path="purchases/scan/:scanId"
+          element={guard('payments', <BillScanReviewPage />)}
         />
         <Route
           path="purchases/new"
@@ -365,10 +511,34 @@ export function AppRoutes() {
         />
         <Route path="expenses" element={guard('payments', <ExpensesPage />)} />
         <Route
+          path="expenses/scan"
+          element={guard('payments', <ExpenseScanUploadPage />)}
+        />
+        <Route
+          path="expenses/scan/:scanId"
+          element={guard('payments', <ExpenseScanReviewPage />)}
+        />
+        <Route
           path="expenses/:expenseId"
           element={guard('payments', <ExpenseDetailPage />)}
         />
         <Route path="day-book" element={guard('payments', <DayBookPage />)} />
+        <Route
+          path="day-book/scan"
+          element={guard('payments', <DayBookScanUploadPage />)}
+        />
+        <Route
+          path="day-book/scan/:scanId"
+          element={guard('payments', <DayBookScanReviewPage />)}
+        />
+        <Route
+          path="cash-bank"
+          element={guard('payments', <CashBankPage />)}
+        />
+        <Route
+          path="accounting"
+          element={guard('payments', <AccountingPage />)}
+        />
         <Route
           path="service-areas"
           element={guard('service_areas', <ServiceAreasListPage />)}
@@ -379,8 +549,36 @@ export function AppRoutes() {
         />
         <Route path="reports" element={guard('reports', <ReportsPage />)} />
         <Route
+          path="reports/profit-insights"
+          element={guard('reports', <ProfitInsightsPage />)}
+        />
+        <Route
           path="reports/profit-loss"
           element={guard('reports', <ProfitLossPage />)}
+        />
+        <Route
+          path="reports/balance-sheet"
+          element={guard('reports', <BalanceSheetPage />)}
+        />
+        <Route
+          path="reports/cash-flow"
+          element={guard('reports', <CashFlowPage />)}
+        />
+        <Route
+          path="reports/trial-balance"
+          element={guard('reports', <TrialBalancePage />)}
+        />
+        <Route
+          path="reports/general-ledger"
+          element={guard('reports', <GeneralLedgerPage />)}
+        />
+        <Route
+          path="reports/gst"
+          element={guard('reports', <GstReportPage />)}
+        />
+        <Route
+          path="reports/stock"
+          element={guard('reports', <StockValuationReportPage />)}
         />
         <Route
           path="reports/sales"

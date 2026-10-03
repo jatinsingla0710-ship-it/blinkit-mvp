@@ -14,6 +14,7 @@ import {
 } from '@/components/settings/SettingsQuickActions';
 import { SystemPreferencesSection } from '@/components/settings/SystemPreferencesSection';
 import { TaxesSection } from '@/components/settings/TaxesSection';
+import { CompanyHolidaysSection } from '@/components/settings/CompanyHolidaysSection';
 import { UserRolesSection } from '@/components/settings/UserRolesSection';
 import { WarehousesSection } from '@/components/settings/WarehousesSection';
 import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
@@ -34,7 +35,9 @@ const TABS: TabItem<SettingsSectionId>[] = [
   { id: 'payments', label: 'Payments' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'taxes', label: 'Taxes' },
-  { id: 'roles', label: 'Roles & Permissions' },  { id: 'preferences', label: 'Preferences' },
+  { id: 'holidays', label: 'Holidays' },
+  { id: 'roles', label: 'Roles & Permissions' },
+  { id: 'preferences', label: 'Preferences' },
 ];
 
 /**
@@ -130,6 +133,9 @@ export function SettingsPage() {
               ) : null}
               {section === 'taxes' ? (
                 <TaxesSection rows={snapshot.taxes} />
+              ) : null}
+              {section === 'holidays' ? (
+                <CompanyHolidaysSection canManage={canEditCompany} />
               ) : null}
               {section === 'roles' ? (
                 <UserRolesSection rows={snapshot.roles} />

@@ -48,6 +48,112 @@
   background: var(--ga-color-surface-muted, #f9fafb);
 }
 
+.ga-expenses__card {
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+}
+
+.ga-expenses__card h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.ga-expenses__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ga-expenses__card-head h2 {
+  margin: 0;
+}
+
+.ga-expenses__form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ga-expenses__form-grid label,
+.ga-expenses__card > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-expenses__form-grid input,
+.ga-expenses__form-grid select,
+.ga-expenses__card textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.ga-expenses__note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-expenses__muted {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-expenses__error {
+  color: var(--ga-color-danger, #b42318);
+  margin: 0;
+  font-size: 13px;
+}
+
+.ga-expenses__upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-expenses__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ga-expenses__scan-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+  gap: 20px;
+}
+
+.ga-expenses__receipt-image {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border: 1px solid var(--ga-color-border, #e4e7ec);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+@media (max-width: 720px) {
+  .ga-expenses__scan-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ga-sr-only {
   position: absolute;
   width: 1px;

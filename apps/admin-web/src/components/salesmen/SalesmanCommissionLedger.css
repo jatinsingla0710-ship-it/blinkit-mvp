@@ -1,0 +1,23 @@
+.ga-sm-commission {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 1.25rem;
+}
+
+.ga-sm-commission h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ga-sm-commission__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ga-color-text-muted, #667085);
+}
+
+.ga-sm-commission__error {
+  margin: 0;
+  color: var(--ga-color-danger, #b42318);
+  font-size: 0.875rem;
+}

@@ -797,6 +797,116 @@ export function useReceivablesSnapshotQuery() {
   };
 }
 
+export function useSupplierPayablesSnapshotQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'payables', 'snapshot'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.supplierPayablesSnapshot();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => !data || data.rows.length === 0,
+    }),
+  };
+}
+
+export function useDuesAssistantSnapshotQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'dues', 'assistant'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.duesAssistantSnapshot();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => !data,
+    }),
+  };
+}
+
+export function usePurchaseRecommendationsSnapshotQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'purchases', 'recommendations'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.purchaseRecommendationsSnapshot();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => !data,
+    }),
+  };
+}
+
+export function useProfitAnomalyAssistantSnapshotQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'reports', 'profit-insights'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.profitAnomalyAssistantSnapshot();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => !data,
+    }),
+  };
+}
+
+export function useDailyBusinessBriefSnapshotQuery() {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'brief', 'daily'],
+    enabled: Boolean(client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.dailyBusinessBriefSnapshot();
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => !data,
+    }),
+  };
+}
+
 export function useCompanyExpensesSnapshotQuery() {
   const client = useAdminDataClient();
   const query = useQuery({
@@ -890,7 +1000,14 @@ export function useSalesmanPayrollQuery(salesmanId: string | undefined) {
 export function useDayBookSnapshotQuery(opts: {
   dateFrom: string;
   dateTo: string;
-  type?: 'all' | 'sale' | 'collection' | 'expense' | 'refund' | 'payroll';
+  type?:
+    | 'all'
+    | 'sale'
+    | 'collection'
+    | 'expense'
+    | 'refund'
+    | 'payroll'
+    | 'supplier_payment';
   paymentMethod?: string;
 }) {
   const client = useAdminDataClient();
@@ -952,6 +1069,123 @@ export function useProfitLossQuery(opts: { dateFrom: string; dateTo: string }) {
     queryFn: () => {
       if (!client.liveApi) throw new Error('Live API required');
       return client.liveApi.profitLossSnapshot(opts);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useAccountingSnapshotQuery(opts: {
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: [
+      'groaurum',
+      'accounting',
+      'snapshot',
+      opts.dateFrom,
+      opts.dateTo,
+    ],
+    enabled: Boolean(client.liveApi && opts.dateFrom && opts.dateTo),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.accountingSnapshot(opts);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useCashBankSnapshotQuery(opts: { asOfDate: string }) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'cash-bank', 'snapshot', opts.asOfDate],
+    enabled: Boolean(client.liveApi && opts.asOfDate),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.cashBankSnapshot(opts);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useLedgerStatementsQuery(opts: {
+  dateFrom: string;
+  dateTo: string;
+  glAccountCode?: string | null;
+}) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: [
+      'groaurum',
+      'financial',
+      'ledger-statements',
+      opts.dateFrom,
+      opts.dateTo,
+      opts.glAccountCode ?? 'all',
+    ],
+    enabled: Boolean(client.liveApi && opts.dateFrom && opts.dateTo),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.ledgerStatementsSnapshot(opts);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useGstTaxSummaryQuery(opts: {
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: [
+      'groaurum',
+      'financial',
+      'gst-summary',
+      opts.dateFrom,
+      opts.dateTo,
+    ],
+    enabled: Boolean(client.liveApi && opts.dateFrom && opts.dateTo),
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.gstTaxSummary(opts);
     },
   });
   return {
@@ -1109,4 +1343,104 @@ export function usePurchaseDetailQuery(purchaseId: string | undefined) {
       isEmpty: (data) => data == null,
     }),
   };
+}
+
+export function usePurchaseBillScanQuery(scanId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'purchases', 'bill-scans', scanId ?? ''],
+    enabled: Boolean(scanId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !scanId) throw new Error('Live API required');
+      return client.liveApi.getPurchaseBillScan(scanId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useExpenseReceiptScanQuery(scanId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'expenses', 'receipt-scans', scanId ?? ''],
+    enabled: Boolean(scanId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !scanId) throw new Error('Live API required');
+      return client.liveApi.getExpenseReceiptScan(scanId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useDayBookScanQuery(scanId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'day-book', 'scans', scanId ?? ''],
+    enabled: Boolean(scanId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !scanId) throw new Error('Live API required');
+      return client.liveApi.getDayBookScan(scanId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function usePaymentProofScanQuery(scanId: string | undefined) {
+  const client = useAdminDataClient();
+  const query = useQuery({
+    queryKey: ['groaurum', 'payments', 'proof-scans', scanId ?? ''],
+    enabled: Boolean(scanId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !scanId) throw new Error('Live API required');
+      return client.liveApi.getPaymentProofScan(scanId);
+    },
+  });
+  return {
+    ...query,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
+export function useUnpaidOrderCandidatesQuery(shopId: string | undefined) {
+  const client = useAdminDataClient();
+  return useQuery({
+    queryKey: ['groaurum', 'payments', 'unpaid-orders', shopId ?? ''],
+    enabled: Boolean(shopId && client.liveApi),
+    queryFn: () => {
+      if (!client.liveApi || !shopId) throw new Error('Live API required');
+      return client.liveApi.unpaidOrderCandidatesForShop(shopId);
+    },
+  });
 }

@@ -65,8 +65,24 @@ export function CompanyProfileSection({
           label="GST Number"
           name="gstNumber"
           value={form.gstNumber}
-          onChange={(e) => setField('gstNumber', e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setField('gstNumber', value);
+            const digits = value.replace(/\s+/g, '').slice(0, 2);
+            if (/^\d{2}$/.test(digits) && !form.gstStateCode) {
+              setField('gstStateCode', digits);
+            }
+          }}
           disabled={disabled}
+          className="ga-st-mono-input"
+        />
+        <TextField
+          label="GST state code"
+          name="gstStateCode"
+          value={form.gstStateCode}
+          onChange={(e) => setField('gstStateCode', e.target.value)}
+          disabled={disabled}
+          placeholder="07"
           className="ga-st-mono-input"
         />
         <TextField
