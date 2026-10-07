@@ -16,6 +16,11 @@ const DailyBriefPage = lazy(() =>
     default: m.DailyBriefPage,
   })),
 );
+const BusinessChatPage = lazy(() =>
+  import('@/pages/ask/BusinessChatPage').then((m) => ({
+    default: m.BusinessChatPage,
+  })),
+);
 const SettingsPage = lazy(() =>
   import('@/pages/settings/SettingsPage').then((m) => ({
     default: m.SettingsPage,
@@ -364,6 +369,10 @@ export function AppRoutes() {
         <Route
           path="brief"
           element={guard('dashboard', <DailyBriefPage />)}
+        />
+        <Route
+          path="ask"
+          element={guard('dashboard', <BusinessChatPage />)}
         />
         <Route path="orders" element={guard('orders', <OrdersListPage />)} />
         <Route

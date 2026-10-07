@@ -1,9 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { usePermissions } from '@groaurum/auth/react';
 import { queryKeys, toQueryState } from '@groaurum/data';
 import { useAdminDataClient } from '@/data/AdminDataProviders';
 import { requireLiveAdminApi } from '@/data/adminDataClient';
 import type { SkuCommissionRowVm } from '@/data/commission-types';
 import { inventoryDetailLookupKey } from '@/data/inventory-detail-key';
+import type { BusinessChatAnswer } from '@/data/business-chat';
+import { matchBusinessChatIntent } from '@/data/business-chat';
+import {
+  buildBusinessChatPermissionDeniedAnswer,
+  canAnswerBusinessChatIntent,
+} from '@/data/ai-tool-permissions';
+import { AI_READONLY_STALE_MS } from '@/data/ux-performance';
 
 export function useCategoriesListQuery() {
   const { repositories } = useAdminDataClient();
@@ -824,6 +832,7 @@ export function useDuesAssistantSnapshotQuery() {
   const query = useQuery({
     queryKey: ['groaurum', 'dues', 'assistant'],
     enabled: Boolean(client.liveApi),
+    staleTime: AI_READONLY_STALE_MS,
     queryFn: () => {
       if (!client.liveApi) throw new Error('Live API required');
       return client.liveApi.duesAssistantSnapshot();
@@ -846,6 +855,7 @@ export function usePurchaseRecommendationsSnapshotQuery() {
   const query = useQuery({
     queryKey: ['groaurum', 'purchases', 'recommendations'],
     enabled: Boolean(client.liveApi),
+    staleTime: AI_READONLY_STALE_MS,
     queryFn: () => {
       if (!client.liveApi) throw new Error('Live API required');
       return client.liveApi.purchaseRecommendationsSnapshot();
@@ -868,6 +878,7 @@ export function useProfitAnomalyAssistantSnapshotQuery() {
   const query = useQuery({
     queryKey: ['groaurum', 'reports', 'profit-insights'],
     enabled: Boolean(client.liveApi),
+    staleTime: AI_READONLY_STALE_MS,
     queryFn: () => {
       if (!client.liveApi) throw new Error('Live API required');
       return client.liveApi.profitAnomalyAssistantSnapshot();
@@ -890,6 +901,7 @@ export function useDailyBusinessBriefSnapshotQuery() {
   const query = useQuery({
     queryKey: ['groaurum', 'brief', 'daily'],
     enabled: Boolean(client.liveApi),
+    staleTime: AI_READONLY_STALE_MS,
     queryFn: () => {
       if (!client.liveApi) throw new Error('Live API required');
       return client.liveApi.dailyBusinessBriefSnapshot();
@@ -905,6 +917,22 @@ export function useDailyBusinessBriefSnapshotQuery() {
       isEmpty: (data) => !data,
     }),
   };
+}
+
+export function useAnswerBusinessChatMutation() {
+  const client = useAdminDataClient();
+  const { hasPermission } = usePermissions();
+  return useMutation({
+    mutationKey: ['groaurum', 'ask', 'business-chat'],
+    mutationFn: (query: string): Promise<BusinessChatAnswer> => {
+      if (!client.liveApi) throw new Error('Live API required');
+      const intent = matchBusinessChatIntent(query);
+      if (!canAnswerBusinessChatIntent(intent, hasPermission)) {
+        return Promise.resolve(buildBusinessChatPermissionDeniedAnswer(intent));
+      }
+      return client.liveApi.answerBusinessChat(query);
+    },
+  });
 }
 
 export function useCompanyExpensesSnapshotQuery() {

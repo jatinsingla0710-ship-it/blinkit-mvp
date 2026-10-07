@@ -1,0 +1,97 @@
+.ga-business-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 880px;
+}
+
+.ga-business-chat__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-business-chat__chip {
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ga-business-chat__chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ga-business-chat__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ga-business-chat__label {
+  font-size: 0.85rem;
+  color: var(--ga-color-muted, #667085);
+}
+
+.ga-business-chat__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-business-chat__row input {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.ga-business-chat__answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--ga-color-border, #e4e7ec);
+}
+
+.ga-business-chat__answer-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ga-business-chat__summary {
+  margin: 0;
+}
+
+.ga-business-chat__honesty,
+.ga-business-chat__unsupported {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ga-color-muted, #667085);
+}
+
+.ga-business-chat__lines {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.ga-business-chat__lines dt {
+  font-size: 0.85rem;
+  color: var(--ga-color-muted, #667085);
+}
+
+.ga-business-chat__lines dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.ga-business-chat__links {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}

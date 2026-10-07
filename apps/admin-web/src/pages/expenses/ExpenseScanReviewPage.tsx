@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@groaurum/ui';
 import { usePermissions } from '@groaurum/auth/react';
 import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
+import { MatchConfidenceBadge } from '@/components/ai/MatchConfidenceBadge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useExpenseReceiptScanQuery } from '@/data/hooks';
@@ -206,7 +207,11 @@ export function ExpenseScanReviewPage() {
                   />
                 </label>
                 <label>
-                  Category
+                  Category{' '}
+                  <MatchConfidenceBadge
+                    confidence={extract.categoryMatchConfidence}
+                    fieldLabel="Category match"
+                  />
                   <select
                     value={extract.category ?? 'OTHER'}
                     disabled={readOnly}
@@ -221,11 +226,6 @@ export function ExpenseScanReviewPage() {
                     {COMPANY_EXPENSE_CATEGORIES.map((key) => (
                       <option key={key} value={key}>
                         {COMPANY_EXPENSE_CATEGORY_LABELS[key]}
-                        {extract.category === key &&
-                        extract.categoryMatchConfidence &&
-                        extract.categoryMatchConfidence !== 'none'
-                          ? ` (${extract.categoryMatchConfidence})`
-                          : ''}
                       </option>
                     ))}
                   </select>

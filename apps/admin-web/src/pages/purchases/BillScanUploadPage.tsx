@@ -12,6 +12,7 @@ import {
 import { formatMutationError } from '@/data/mutation-errors';
 import { runManualBillExtractor } from '@/data/bill-extract';
 import { PURCHASING_SECTION_LINKS } from '@/data/purchasing';
+import { scanImageInputAttrs } from '@/data/ux-performance';
 import './PurchasingPages.css';
 
 export function BillScanUploadPage() {
@@ -80,7 +81,7 @@ export function BillScanUploadPage() {
           <span>Bill photo (JPEG, PNG, or WebP)</span>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            {...scanImageInputAttrs()}
             disabled={busy}
             onChange={(e) => {
               const file = e.target.files?.[0] ?? null;

@@ -12,6 +12,7 @@ import {
 import { formatMutationError } from '@/data/mutation-errors';
 import { runManualReceiptExtractor } from '@/data/receipt-extract';
 import { ACCOUNTING_SECTION_LINKS } from '@/data/section-links';
+import { scanImageInputAttrs } from '@/data/ux-performance';
 import './ExpensesPage.css';
 
 export function ExpenseScanUploadPage() {
@@ -82,7 +83,7 @@ export function ExpenseScanUploadPage() {
           <span>Receipt photo (JPEG, PNG, or WebP)</span>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            {...scanImageInputAttrs()}
             disabled={busy}
             onChange={(e) => {
               const file = e.target.files?.[0] ?? null;

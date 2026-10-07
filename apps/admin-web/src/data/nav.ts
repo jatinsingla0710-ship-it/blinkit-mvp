@@ -16,6 +16,12 @@ export const SIDEBAR_NAV_GROUPS: NavGroup[] = [
         path: '/brief',
         matchPrefixes: ['/brief'],
       },
+      {
+        id: 'ask',
+        label: 'Ask your books',
+        path: '/ask',
+        matchPrefixes: ['/ask'],
+      },
     ],
   },
   {

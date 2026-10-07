@@ -42,12 +42,16 @@ describe('Phase 4A dashboard composition', () => {
       'new_purchase',
       'record_expense',
       'collect_payment',
+      'scan_bill',
+      'ask_ai',
     ]);
     expect(DASHBOARD_FIXTURE.quickActions.map((action) => action.href)).toEqual([
       undefined,
       '/purchases/new',
       '/expenses?create=1',
       '/payments?tab=all&focus=ofd_unpaid',
+      '/purchases/scan',
+      '/ask',
     ]);
   });
 });

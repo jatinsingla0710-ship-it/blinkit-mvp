@@ -27,6 +27,9 @@ export function AdminShell() {
 
   return (
     <div className="ga-shell">
+      <a className="ga-skip-link" href="#ga-main">
+        Skip to main content
+      </a>
       <TopNav
         groups={groups}
         onMenuClick={() => setSidebarOpen((v) => !v)}
@@ -45,7 +48,7 @@ export function AdminShell() {
             onClick={() => setSidebarOpen(false)}
           />
         ) : null}
-        <main className="ga-shell__main">
+        <main id="ga-main" className="ga-shell__main" tabIndex={-1}>
           <Suspense fallback={<PageSkeleton title="Loading page" blocks={2} />}>
             <Outlet />
           </Suspense>

@@ -82,6 +82,18 @@ export const DASHBOARD_FIXTURE: DashboardSnapshot = {
       description: 'Open customer balances awaiting collection',
       href: '/payments?tab=all&focus=ofd_unpaid',
     },
+    {
+      id: 'scan_bill',
+      label: 'Scan Bill',
+      description: 'Photo a supplier bill — review before it posts',
+      href: '/purchases/scan',
+    },
+    {
+      id: 'ask_ai',
+      label: 'Ask AI',
+      description: 'Ask your books — typed tools only, confirm when speaking',
+      href: '/ask',
+    },
   ],
   recentActivity: [],
 };

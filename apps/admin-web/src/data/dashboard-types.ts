@@ -94,7 +94,9 @@ export type QuickActionId =
   | 'new_sale'
   | 'new_purchase'
   | 'record_expense'
-  | 'collect_payment';
+  | 'collect_payment'
+  | 'scan_bill'
+  | 'ask_ai';
 
 export interface DashboardQuickAction {
   id: QuickActionId;

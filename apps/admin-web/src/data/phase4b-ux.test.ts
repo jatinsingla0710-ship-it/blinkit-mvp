@@ -8,6 +8,7 @@ describe('Phase 4B Admin UX navigation honesty', () => {
     expect(labels).toEqual([
       'Dashboard',
       "Today's brief",
+      'Ask your books',
       'Customers',
       'Sales',
       'Products',

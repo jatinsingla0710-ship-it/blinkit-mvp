@@ -19,7 +19,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import './DashboardPage.css';
 
 /**
- * Admin Dashboard — owner control center.
+ * Admin Dashboard — owner control center (Phase 23).
  * Hierarchy: Brief → Money → Needs attention → Operations → Quick actions.
  */
 export function DashboardPage() {
@@ -65,15 +65,17 @@ export function DashboardPage() {
             (alert) => alert.id !== 'pending_payments',
           ),
         ];
-        const quickActions = snapshot.quickActions.filter((action) =>
-          action.id === 'new_sale' ? canManageOrders : canManageMoney,
-        );
+        const quickActions = snapshot.quickActions.filter((action) => {
+          if (action.id === 'new_sale') return canManageOrders;
+          if (action.id === 'ask_ai') return true;
+          return canManageMoney;
+        });
 
         return (
           <div className="ga-dashboard">
             <PageHeader
-              title="Dashboard"
-              subtitle="How the business is doing today"
+              title="Owner control center"
+              subtitle="Money, attention, operations, and quick actions — including Scan Bill and Ask AI"
               meta={snapshot.generatedAtLabel}
             />
 
@@ -86,9 +88,14 @@ export function DashboardPage() {
                   <h2 className="ga-dashboard__section-title">
                     {brief.data.greeting}
                   </h2>
-                  <Link to="/brief" className="ga-dashboard__section-link">
-                    Full brief →
-                  </Link>
+                  <div className="ga-dashboard__section-links">
+                    <Link to="/brief" className="ga-dashboard__section-link">
+                      Full brief →
+                    </Link>
+                    <Link to="/ask" className="ga-dashboard__section-link">
+                      Ask AI →
+                    </Link>
+                  </div>
                 </div>
                 {brief.data.yesterday ? (
                   <p className="ga-dashboard__brief-line">

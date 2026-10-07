@@ -30,6 +30,11 @@ export const ACCOUNTING_SECTION_LINKS = [
     description: 'Yesterday · attention · what to do next',
   },
   {
+    to: '/ask',
+    label: 'Ask your books',
+    description: 'Owner questions answered from typed books tools',
+  },
+  {
     to: '/dues',
     label: 'Dues assistant',
     description: 'Who owes you / whom to pay — from your books',

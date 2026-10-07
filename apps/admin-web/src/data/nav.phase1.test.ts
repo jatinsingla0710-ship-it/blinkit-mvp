@@ -19,6 +19,7 @@ describe('Phase 1 Admin navigation', () => {
     expect(labels).toEqual([
       'Dashboard',
       "Today's brief",
+      'Ask your books',
       'Customers',
       'Sales',
       'Products',
@@ -111,6 +112,7 @@ describe('Phase 1 Admin navigation', () => {
     ]);
     expect(ACCOUNTING_SECTION_LINKS.map((l) => l.to)).toEqual([
       '/brief',
+      '/ask',
       '/dues',
       '/receivables',
       '/payables',

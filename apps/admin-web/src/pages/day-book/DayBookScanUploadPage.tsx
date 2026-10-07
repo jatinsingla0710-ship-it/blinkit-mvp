@@ -17,6 +17,7 @@ import {
 import { todayExpenseDate } from '@/data/company-expenses';
 import { useAdminDataClient } from '@/data/AdminDataProviders';
 import { ACCOUNTING_SECTION_LINKS } from '@/data/section-links';
+import { scanImageInputAttrs } from '@/data/ux-performance';
 import './DayBookPage.css';
 
 export function DayBookScanUploadPage() {
@@ -158,7 +159,7 @@ export function DayBookScanUploadPage() {
           <span>Optional photo (archive only — type the lines above)</span>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            {...scanImageInputAttrs()}
             disabled={busy}
             onChange={(e) => {
               const file = e.target.files?.[0] ?? null;

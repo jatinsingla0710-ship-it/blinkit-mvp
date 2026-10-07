@@ -69,6 +69,13 @@ import {
   type DailyBusinessBriefSnapshot,
 } from '../daily-business-brief';
 import {
+  buildBusinessChatAnswer,
+  matchBusinessChatIntent,
+  parseOutstandingThreshold,
+  type BusinessChatAnswer,
+  type BusinessChatToolBundle,
+} from '../business-chat';
+import {
   buildCompanyExpensesSnapshot,
   mapCompanyExpenseRow,
   validateCompanyExpenseInput,
@@ -343,12 +350,15 @@ import type {
   DashboardSnapshot,
   OperationsMetric,
   AttentionAlert,
-  DashboardQuickAction,
   BusinessActivityItem,
   BusinessActivityKind,
   SalesmanWorkingTodayRow,
   SalesmenWorkingTodaySnapshot,
 } from '../dashboard-types';
+import {
+  buildUnreviewedAiDocumentsAlert,
+  OWNER_CONTROL_QUICK_ACTIONS,
+} from '../owner-control-center';
 import {
   mapOpsDashboardKpisToExecutive,
   parseOpsDashboardKpisRpc,
@@ -3665,6 +3675,157 @@ export class LiveAdminApi {
         ? `${unusualExpense.title}: ${unusualExpense.detail}`
         : null,
     });
+  }
+
+  /**
+   * Phase 21 — answer an owner question via typed intents + existing API tools.
+   * Never runs SQL generated from the prompt.
+   */
+  async answerBusinessChat(query: string): Promise<BusinessChatAnswer> {
+    const intent = matchBusinessChatIntent(query);
+    const threshold = parseOutstandingThreshold(query);
+    const asOf = new Date();
+    const today = ymdInBusinessTz(asOf);
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const yesterdayRange = dateRangeForPreset('yesterday', undefined, asOf);
+    const thisMonthRange = dateRangeForPreset('this_month', undefined, asOf);
+    const toYmd = (d: Date | null): string =>
+      d ? ymdInBusinessTz(d) : today;
+    const yFrom = toYmd(yesterdayRange.from);
+    const yTo = toYmd(yesterdayRange.to);
+    const mFrom = toYmd(thisMonthRange.from);
+    const mTo = toYmd(thisMonthRange.to);
+
+    const [
+      plYesterday,
+      plMonth,
+      dayBookToday,
+      receivables,
+      payables,
+      expensesSnap,
+      productSales,
+      purchaseRecs,
+      profitInsights,
+    ] = await Promise.all([
+      this.profitLossSnapshot({ dateFrom: yFrom, dateTo: yTo }),
+      this.profitLossSnapshot({ dateFrom: mFrom, dateTo: mTo }),
+      this.dayBookSnapshot({ dateFrom: today, dateTo: today }),
+      this.receivablesSnapshot(),
+      this.supplierPayablesSnapshot(),
+      this.companyExpensesSnapshot(),
+      this.productSalesReport({ dateFrom: mFrom, dateTo: mTo }),
+      this.purchaseRecommendationsSnapshot().catch(() => null),
+      this.profitAnomalyAssistantSnapshot().catch(() => null),
+    ]);
+
+    const byTypeToday = summarizeDayBookByType(dayBookToday.entries);
+    const cashTodayTotal = byTypeToday.collectionsIn + byTypeToday.salesIn;
+
+    const monthExpenses = filterExpensesByDate(
+      expensesSnap.rows,
+      monthStart,
+      today,
+    );
+    const transportTotal = monthExpenses
+      .filter((r) => r.category === 'TRANSPORT')
+      .reduce((s, r) => s + r.amount, 0);
+    const fuelMentionTotal = monthExpenses
+      .filter((r) => {
+        const d = r.description.toLowerCase();
+        return (
+          d.includes('fuel') ||
+          d.includes('petrol') ||
+          d.includes('diesel') ||
+          d.includes('cng')
+        );
+      })
+      .reduce((s, r) => s + r.amount, 0);
+
+    const customersDue = receivables.rows
+      .filter((r) => r.outstanding > 0)
+      .slice()
+      .sort((a, b) => b.outstanding - a.outstanding);
+    const customersAbove = customersDue.filter(
+      (r) => r.outstanding >= threshold,
+    );
+    const suppliersDue = payables.rows
+      .filter((r) => r.outstanding > 0)
+      .slice()
+      .sort((a, b) => b.outstanding - a.outstanding);
+
+    const expenseFinding =
+      profitInsights?.answers.what_looks_unusual.findings.find(
+        (f) =>
+          f.id === 'expense-spike' ||
+          f.id.startsWith('expense-') ||
+          f.id === 'margin-drop',
+      ) ?? null;
+
+    const topPurchase = purchaseRecs?.rows[0]
+      ? {
+          productName: purchaseRecs.rows[0].productName,
+          recommendedQtyLabel: purchaseRecs.rows[0].recommendedQtyLabel,
+          reason: purchaseRecs.rows[0].reason,
+          href: purchaseRecs.rows[0].purchaseHref,
+        }
+      : null;
+
+    const moneyRound = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+
+    const bundle: BusinessChatToolBundle = {
+      salesYesterdayLabel: plYesterday.profitLoss.salesTotalLabel,
+      salesYesterdayTotal: plYesterday.profitLoss.salesTotal,
+      cashTodayLabel: formatInr(moneyRound(cashTodayTotal)),
+      cashTodayTotal: moneyRound(cashTodayTotal),
+      receivablesTotal: receivables.totalOutstanding,
+      receivablesTotalLabel: receivables.totalOutstandingLabel,
+      customersWithDues: customersDue.length,
+      topCustomersDue: customersDue.slice(0, 5).map((r) => ({
+        name: r.shopName,
+        outstandingLabel: r.outstandingLabel,
+        href: r.ledgerHref,
+      })),
+      customersAbove: customersAbove.map((r) => ({
+        name: r.shopName,
+        outstanding: r.outstanding,
+        outstandingLabel: r.outstandingLabel,
+        href: r.ledgerHref,
+      })),
+      payablesTotal: payables.totalOutstanding,
+      payablesTotalLabel: payables.totalOutstandingLabel,
+      suppliersWithDues: payables.suppliersWithDues,
+      topSuppliersDue: suppliersDue.slice(0, 5).map((r) => ({
+        name: r.supplierName,
+        outstandingLabel: r.outstandingLabel,
+        href: r.payHref,
+      })),
+      profitMonth: {
+        salesLabel: plMonth.profitLoss.salesTotalLabel,
+        cogsLabel: plMonth.profitLoss.cogsTotalLabel,
+        grossProfitLabel: plMonth.profitLoss.grossProfitLabel,
+        grossMarginLabel: plMonth.profitLoss.grossMarginLabel,
+        expensesLabel: plMonth.profitLoss.expensesTotalLabel,
+        operatingResultLabel: plMonth.profitLoss.operatingResultLabel,
+        rangeLabel: plMonth.rangeLabel || thisMonthRange.label,
+      },
+      topProducts: productSales.rows.slice(0, 5).map((r) => ({
+        product: r.product,
+        sku: r.sku,
+        quantity: r.quantity,
+        salesValueLabel: formatInr(moneyRound(r.salesValue)),
+      })),
+      topPurchase,
+      transportExpensesMonthTotal: moneyRound(transportTotal),
+      transportExpensesMonthLabel: formatInr(moneyRound(transportTotal)),
+      fuelMentionExpensesTotal: moneyRound(fuelMentionTotal),
+      fuelMentionExpensesLabel: formatInr(moneyRound(fuelMentionTotal)),
+      expenseInsightSummary: expenseFinding
+        ? `${expenseFinding.title}: ${expenseFinding.detail}`
+        : null,
+      thresholdUsed: threshold,
+    };
+
+    return buildBusinessChatAnswer(intent, bundle);
   }
 
   async supplierDetail(id: string): Promise<{
@@ -9815,6 +9976,7 @@ export class LiveAdminApi {
       parseOpsDashboardKpisRpc(kpiRaw),
     );
 
+    const pendingScanStatuses = ['UPLOADED', 'REVIEWING'] as const;
     const [
       ordersRes,
       shopsRes,
@@ -9829,6 +9991,10 @@ export class LiveAdminApi {
       recentShopsRes,
       skusRes,
       purchasesRes,
+      billScansRes,
+      receiptScansRes,
+      dayBookScansRes,
+      paymentProofScansRes,
     ] = await Promise.all([
       this.sb
         .from('orders')
@@ -9892,6 +10058,23 @@ export class LiveAdminApi {
         .limit(8),
       this.sb.from('skus').select('id, name, sku_code'),
       this.sb.from('purchases').select('id, status'),
+      // Scan tables may be missing until hosted migrations — treat errors as zero.
+      this.sb
+        .from('purchase_bill_scans')
+        .select('id')
+        .in('status', [...pendingScanStatuses]),
+      this.sb
+        .from('expense_receipt_scans')
+        .select('id')
+        .in('status', [...pendingScanStatuses]),
+      this.sb
+        .from('day_book_scans')
+        .select('id')
+        .in('status', [...pendingScanStatuses]),
+      this.sb
+        .from('payment_proof_scans')
+        .select('id')
+        .in('status', [...pendingScanStatuses]),
     ]);
 
     if (ordersRes.error) throw ordersRes.error;
@@ -10087,31 +10270,26 @@ export class LiveAdminApi {
         href: '/purchases',
       });
     }
-    const quickActions: DashboardQuickAction[] = [
-      {
-        id: 'new_sale',
-        label: 'New Sale',
-        description: 'Create an assisted customer order',
-      },
-      {
-        id: 'new_purchase',
-        label: 'New Purchase',
-        description: 'Record a supplier bill and receive stock',
-        href: '/purchases/new',
-      },
-      {
-        id: 'record_expense',
-        label: 'Record Expense',
-        description: 'Add business money spent',
-        href: '/expenses?create=1',
-      },
-      {
-        id: 'collect_payment',
-        label: 'Collect Payment',
-        description: 'Open customer balances awaiting collection',
-        href: '/payments?tab=all&focus=ofd_unpaid',
-      },
-    ];
+    const unreviewedDocs = buildUnreviewedAiDocumentsAlert({
+      billScans: billScansRes.error
+        ? 0
+        : ((billScansRes.data ?? []) as Row[]).length,
+      receiptScans: receiptScansRes.error
+        ? 0
+        : ((receiptScansRes.data ?? []) as Row[]).length,
+      dayBookScans: dayBookScansRes.error
+        ? 0
+        : ((dayBookScansRes.data ?? []) as Row[]).length,
+      paymentProofScans: paymentProofScansRes.error
+        ? 0
+        : ((paymentProofScansRes.data ?? []) as Row[]).length,
+    });
+    if (unreviewedDocs) {
+      attentionAlerts.push(unreviewedDocs);
+    }
+    const quickActions = OWNER_CONTROL_QUICK_ACTIONS.map((action) => ({
+      ...action,
+    }));
 
     const actorIds = new Set<string>();
     for (const e of orderEvents) {

@@ -18,6 +18,8 @@ const ATTENTION_WHY: Record<string, string> = {
   customer_money_due: 'Customer balances are open — follow up on collection.',
   supplier_money_to_pay: 'Supplier balances are open — record payments due.',
   draft_purchases: 'Supplier bills are drafted but stock has not been received.',
+  unreviewed_ai_documents:
+    'Confirm scanned bills, receipts, day book, or payment proofs before they post.',
 };
 
 function severityClass(severity: AttentionAlert['severity']): string {

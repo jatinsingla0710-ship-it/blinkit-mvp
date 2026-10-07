@@ -1,0 +1,28 @@
+.ga-ai-confidence {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.ga-ai-confidence--high {
+  color: #067647;
+  background: #ecfdf3;
+  border: 1px solid #abefc6;
+}
+
+.ga-ai-confidence--medium {
+  color: #b54708;
+  background: #fffaeb;
+  border: 1px solid #fedf89;
+}
+
+.ga-ai-confidence--low {
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+}

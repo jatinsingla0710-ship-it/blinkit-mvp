@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@groaurum/ui';
 import { usePermissions } from '@groaurum/auth/react';
 import { SectionRelatedLinks } from '@/components/layout/SectionRelatedLinks';
+import { MatchConfidenceBadge } from '@/components/ai/MatchConfidenceBadge';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import { useAdminDataClient } from '@/data/AdminDataProviders';
@@ -314,7 +315,11 @@ export function BillScanReviewPage() {
                   />
                 </label>
                 <label>
-                  Matched supplier
+                  Matched supplier{' '}
+                  <MatchConfidenceBadge
+                    confidence={extract.supplierMatchConfidence}
+                    fieldLabel="Supplier match"
+                  />
                   <select
                     value={extract.matchedSupplierId ?? ''}
                     disabled={readOnly}
@@ -337,10 +342,6 @@ export function BillScanReviewPage() {
                       .map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
-                          {extract.supplierMatchConfidence &&
-                          extract.matchedSupplierId === s.id
-                            ? ` (${extract.supplierMatchConfidence})`
-                            : ''}
                         </option>
                       ))}
                   </select>
@@ -481,6 +482,7 @@ export function BillScanReviewPage() {
                       <th>Description</th>
                       <th>SKU code hint</th>
                       <th>Matched SKU</th>
+                      <th>Match</th>
                       <th>Qty</th>
                       <th>Unit cost</th>
                       <th />
@@ -528,13 +530,15 @@ export function BillScanReviewPage() {
                             {skuOptions.map((o) => (
                               <option key={o.id} value={o.id}>
                                 {o.label}
-                                {line.matchedSkuId === o.id &&
-                                line.matchConfidence
-                                  ? ` (${line.matchConfidence})`
-                                  : ''}
                               </option>
                             ))}
                           </select>
+                        </td>
+                        <td>
+                          <MatchConfidenceBadge
+                            confidence={line.matchConfidence}
+                            fieldLabel="SKU match"
+                          />
                         </td>
                         <td>
                           <input

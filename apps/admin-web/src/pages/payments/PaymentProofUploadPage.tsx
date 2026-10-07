@@ -12,6 +12,7 @@ import {
 import { formatMutationError } from '@/data/mutation-errors';
 import { runManualPaymentProofExtractor } from '@/data/payment-proof-extract';
 import { SALES_SECTION_LINKS } from '@/data/section-links';
+import { scanImageInputAttrs } from '@/data/ux-performance';
 import './PaymentsPage.css';
 
 export function PaymentProofUploadPage() {
@@ -79,7 +80,7 @@ export function PaymentProofUploadPage() {
           <span>Payment screenshot (JPEG, PNG, or WebP)</span>
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            {...scanImageInputAttrs()}
             disabled={busy}
             onChange={(e) => {
               const file = e.target.files?.[0] ?? null;

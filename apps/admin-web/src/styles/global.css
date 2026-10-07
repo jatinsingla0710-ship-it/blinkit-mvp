@@ -1,1 +1,47 @@
 /* Admin-shell-only overrides. Tokens + base reset come from @groaurum/ui via main.tsx. */
+
+/* Phase 25 — skip link (visible on keyboard focus only). */
+.ga-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  padding: 0.65rem 1rem;
+  background: var(--ga-color-surface, #fff);
+  color: var(--ga-color-text, #101828);
+  border: 2px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 0 0 8px 0;
+  font: inherit;
+  text-decoration: none;
+}
+
+.ga-skip-link:focus {
+  left: 0;
+}
+
+.ga-skip-link:focus-visible {
+  outline: 2px solid var(--ga-color-focus, #1570ef);
+  outline-offset: 2px;
+}
+
+/* Clear keyboard focus for interactive controls Admin-wide. */
+.ga-shell a:focus-visible,
+.ga-shell button:focus-visible,
+.ga-shell input:focus-visible,
+.ga-shell select:focus-visible,
+.ga-shell textarea:focus-visible,
+.ga-shell [tabindex]:focus-visible {
+  outline: 2px solid var(--ga-color-focus, #1570ef);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ga-shell *,
+  .ga-shell *::before,
+  .ga-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

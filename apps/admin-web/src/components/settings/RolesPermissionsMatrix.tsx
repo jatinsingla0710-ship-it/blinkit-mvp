@@ -29,7 +29,7 @@ function RoleSourceBadge({ row }: { row: RoleMatrixRow }) {
 }
 
 /**
- * Read-only Admin RBAC matrix — Phase 1 honest view.
+ * Read-only Admin RBAC matrix — Phase 1 honest view + Phase 24 security context.
  * No create/edit/delete; sourced from AppRole constants.
  */
 export function RolesPermissionsMatrix() {

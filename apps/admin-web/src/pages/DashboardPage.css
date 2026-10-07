@@ -25,6 +25,13 @@
   text-decoration: none;
 }
 
+.ga-dashboard__section-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+}
+
 .ga-dashboard__section-link:hover {
   text-decoration: underline;
 }
