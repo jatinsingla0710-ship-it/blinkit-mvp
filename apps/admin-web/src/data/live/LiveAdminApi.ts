@@ -288,6 +288,7 @@ import type {
   PriceRecordRow,
   PriceRecordStatus,
 } from '../pricing-types';
+import type { CounterSaleResult } from '../counter-sale';
 import type {
   InventorySnapshot,
   InventoryListRow,
@@ -1730,6 +1731,16 @@ export class LiveAdminApi {
       if (!liveMap.has(sid)) liveMap.set(sid, p);
     }
 
+    const { data: balances } = await this.sb
+      .from('inventory_balances')
+      .select('sku_id, available_quantity')
+      .in('sku_id', skuIds);
+    const invMap = new Map<string, number>();
+    for (const b of (balances ?? []) as Row[]) {
+      const sid = str(b['sku_id']);
+      invMap.set(sid, num(b['available_quantity']) + (invMap.get(sid) ?? 0));
+    }
+
     return (skus as unknown as Row[]).map((s) => {
       const sid = str(s['id']);
       const live = liveMap.get(sid);
@@ -1741,6 +1752,7 @@ export class LiveAdminApi {
             netQuantityUnit: str(s['net_quantity_unit']) || null,
           })
         : null;
+      const sellingUnit = str(s['selling_unit']) || 'UNIT';
       return {
         id: sid,
         skuId: sid,
@@ -1751,6 +1763,10 @@ export class LiveAdminApi {
         currentPriceLabel: tradePrice != null ? formatInrPrecise(tradePrice) : '—',
         currentTradePrice: tradePrice,
         unitPriceLabel: unit?.unitPriceLabel,
+        sellingUnitLabel: humanizeSellingUnit(sellingUnit) || sellingUnit,
+        moq: num(s['moq']) || 1,
+        quantityStep: num(s['quantity_step']) || 1,
+        availableQuantity: invMap.get(sid) ?? 0,
         status: (live ? 'live' : 'unpriced') as PriceRecordStatus,
         updatedAtLabel: formatDateTime(
           str(live?.['created_at'] ?? s['updated_at']),
@@ -7312,6 +7328,74 @@ export class LiveAdminApi {
       invoiceNumber: str(row['invoiceNumber']),
       convertedAt: str(row['convertedAt'] ?? new Date().toISOString()),
       alreadyConverted: Boolean(row['alreadyConverted']),
+    };
+  }
+
+  /**
+   * Counter sale — single authoritative RPC. No client financial mutations.
+   */
+  async completeCounterSale(input: {
+    shop: Record<string, unknown>;
+    lines: Array<Record<string, unknown>>;
+    payment: { amountPaid: number; method: string };
+    billDiscount?: number;
+    notes?: string | null;
+    clientRequestId?: string | null;
+  }): Promise<CounterSaleResult> {
+    const { data, error } = await this.sb.rpc('admin_complete_counter_sale', {
+      p_shop: input.shop as never,
+      p_lines: input.lines as never,
+      p_payment: input.payment as never,
+      p_bill_discount: input.billDiscount ?? 0,
+      p_notes: input.notes ?? null,
+      p_client_request_id: input.clientRequestId ?? null,
+    });
+    if (error) throwRpcError(error, 'Could not complete sale');
+    const row = (data ?? {}) as Record<string, unknown>;
+    return {
+      orderId: str(row['orderId']),
+      saleId: str(row['saleId']),
+      paymentId: str(row['paymentId']),
+      invoiceNumber: str(row['invoiceNumber']),
+      shopId: str(row['shopId']),
+      subtotal: num(row['subtotal']),
+      discount: num(row['discount']),
+      total: num(row['total']),
+      amountPaid: num(row['amountPaid']),
+      amountDue: num(row['amountDue']),
+      paymentStatus: str(row['paymentStatus']),
+      itemCount: num(row['itemCount']),
+      idempotentReplay: Boolean(row['idempotentReplay']),
+    };
+  }
+
+  /**
+   * Record a later collection against an open counter / order payment.
+   */
+  async recordOrderCollection(input: {
+    orderId: string;
+    amount: number;
+    method: string;
+    note?: string | null;
+  }): Promise<{
+    paymentId: string;
+    amountPaid: number;
+    amountDue: number;
+    paymentStatus: string;
+  }> {
+    const { data, error } = await this.sb.rpc('admin_record_order_collection', {
+      p_order_id: input.orderId,
+      p_amount: input.amount,
+      p_method: input.method,
+      p_note: input.note ?? null,
+    });
+    if (error) throwRpcError(error, 'Could not record collection');
+    const row = (data ?? {}) as Record<string, unknown>;
+    return {
+      paymentId: str(row['paymentId'] ?? row['payment_id']),
+      amountPaid: num(row['amountPaid'] ?? row['amount_paid']),
+      amountDue: num(row['amountDue'] ?? row['amount_due']),
+      paymentStatus: str(row['paymentStatus'] ?? row['payment_status']),
     };
   }
 

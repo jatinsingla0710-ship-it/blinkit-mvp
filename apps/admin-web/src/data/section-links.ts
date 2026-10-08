@@ -2,6 +2,11 @@
 
 export const SALES_SECTION_LINKS = [
   {
+    to: '/sales/new',
+    label: 'New Sale',
+    description: 'Counter billing — customer, items, payment',
+  },
+  {
     to: '/orders',
     label: 'Orders',
     description: 'Open and in-progress orders',

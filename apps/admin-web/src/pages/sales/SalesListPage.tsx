@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { SalesRegister } from '@/components/orders/SalesRegister';
 import { SalesDashboardKpis } from '@/components/sales/SalesDashboardKpis';
 import { MonthlySalesChart } from '@/components/sales/MonthlySalesChart';
@@ -78,6 +79,9 @@ export function SalesListPage() {
         }
         actions={
           <div className="ga-sales-list__toolbar">
+            <Link to="/sales/new">
+              <Button variant="primary">+ New Sale</Button>
+            </Link>
             <label className="ga-sales-list__search">
               <span aria-hidden>⌕</span>
               <input

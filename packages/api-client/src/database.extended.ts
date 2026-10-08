@@ -1634,6 +1634,30 @@ type AdminDashboardPaymentsFunctions = {
   };
 };
 
+/** Counter sale backend RPCs (20261008120100). */
+type CounterSaleFunctions = {
+  admin_complete_counter_sale: {
+    Args: {
+      p_shop: Json;
+      p_lines: Json;
+      p_payment: Json;
+      p_bill_discount?: number;
+      p_notes?: string | null;
+      p_client_request_id?: string | null;
+    };
+    Returns: Json;
+  };
+  admin_record_order_collection: {
+    Args: {
+      p_order_id: string;
+      p_amount: number;
+      p_method: string;
+      p_note?: string | null;
+    };
+    Returns: Json;
+  };
+};
+
 /** Order lifecycle automation RPCs (20260827150000). */
 type OrderLifecycleFunctions = {
   admin_create_order_invoice: {
@@ -2721,7 +2745,8 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       DeliveryH5Functions &
       AdminDashboardPaymentsFunctions &
       OrderLifecycleFunctions &
-      CustomerApprovalFunctions;
+      CustomerApprovalFunctions &
+      CounterSaleFunctions;
     Enums: Omit<GeneratedDatabase['public']['Enums'], 'staff_role'> & {
       staff_role:
         | 'CUSTOMER'

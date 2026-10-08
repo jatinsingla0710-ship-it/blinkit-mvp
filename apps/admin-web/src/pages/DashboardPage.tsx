@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { usePermissions } from '@groaurum/auth/react';
 import { ExecutiveKpiCards } from '@/components/dashboard/ExecutiveKpiCards';
 import { KpiCards } from '@/components/dashboard/KpiCards';
@@ -7,7 +6,6 @@ import { OperationsAtGlance } from '@/components/dashboard/OperationsAtGlance';
 import { AttentionRequired } from '@/components/dashboard/AttentionRequired';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { RecentBusinessActivity } from '@/components/dashboard/RecentBusinessActivity';
-import { SalesmanOrderFormModal } from '@/components/salesmen/SalesmanOrderFormModal';
 import { QueryStateGate } from '@/data/QueryStateGate';
 import {
   useDashboardSnapshotQuery,
@@ -27,8 +25,6 @@ export function DashboardPage() {
   const financial = useOwnerFinancialOverviewQuery();
   const brief = useDailyBusinessBriefSnapshotQuery();
   const { hasPermission } = usePermissions();
-  const navigate = useNavigate();
-  const [createOrderOpen, setCreateOrderOpen] = useState(false);
   const canManageOrders = hasPermission('orders:manage');
   const canManageMoney = hasPermission('payments:manage');
 
@@ -159,23 +155,10 @@ export function DashboardPage() {
             </section>
 
             <section aria-label="Quick actions">
-              <QuickActions
-                actions={quickActions}
-                onAction={(action) => {
-                  if (action.id === 'new_sale') setCreateOrderOpen(true);
-                }}
-              />
+              <QuickActions actions={quickActions} />
             </section>
 
             <RecentBusinessActivity items={snapshot.recentActivity} />
-
-            {canManageOrders ? (
-              <SalesmanOrderFormModal
-                open={createOrderOpen}
-                onClose={() => setCreateOrderOpen(false)}
-                onSuccess={(orderId) => navigate(`/orders/${orderId}`)}
-              />
-            ) : null}
           </div>
         );
       }}

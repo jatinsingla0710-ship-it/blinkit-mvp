@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Button } from '@groaurum/ui';
 import {
   buildAttentionCardCopy,
   buildOrdersAttentionResult,
@@ -142,6 +143,11 @@ export function OrdersListPage() {
             title="Orders"
             subtitle="Open and in-progress wholesale orders"
             meta={snapshot.generatedAtLabel}
+            actions={
+              <Link to="/sales/new">
+                <Button variant="primary">+ New Sale</Button>
+              </Link>
+            }
           />
 
           <SectionRelatedLinks

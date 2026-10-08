@@ -14,7 +14,8 @@ export const OWNER_CONTROL_QUICK_ACTIONS: readonly DashboardQuickAction[] = [
   {
     id: 'new_sale',
     label: 'New Sale',
-    description: 'Create an assisted customer order',
+    description: 'Bill a counter sale — customer, items, payment',
+    href: '/sales/new',
   },
   {
     id: 'new_purchase',

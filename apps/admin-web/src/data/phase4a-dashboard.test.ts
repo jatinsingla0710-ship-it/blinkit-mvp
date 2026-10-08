@@ -46,7 +46,7 @@ describe('Phase 4A dashboard composition', () => {
       'ask_ai',
     ]);
     expect(DASHBOARD_FIXTURE.quickActions.map((action) => action.href)).toEqual([
-      undefined,
+      '/sales/new',
       '/purchases/new',
       '/expenses?create=1',
       '/payments?tab=all&focus=ofd_unpaid',

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>RichlyBook 2.0 — Core Sales UX Audit</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  :root {
+    --ink: #1a1a1a;
+    --muted: #555;
+    --line: #d0d0d0;
+    --crit: #8b1a1a;
+    --high: #9a4a00;
+    --med: #6b5a00;
+    --ok: #1a5c2e;
+    --bg: #f7f7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: var(--ink);
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    font-size: 20pt;
+    margin: 0 0 4pt;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: 13pt;
+    margin: 22pt 0 8pt;
+    padding-bottom: 4pt;
+    border-bottom: 1.5pt solid var(--ink);
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11pt;
+    margin: 14pt 0 6pt;
+    page-break-after: avoid;
+  }
+  p, li { margin: 0 0 6pt; }
+  .meta {
+    color: var(--muted);
+    font-size: 9.5pt;
+    margin-bottom: 14pt;
+  }
+  .verdict {
+    background: var(--bg);
+    border-left: 4px solid var(--ink);
+    padding: 10pt 12pt;
+    margin: 12pt 0 18pt;
+  }
+  .verdict strong { display: block; margin-bottom: 4pt; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin: 8pt 0 14pt;
+    page-break-inside: auto;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 5pt 6pt;
+    vertical-align: top;
+    text-align: left;
+  }
+  th {
+    background: #efefed;
+    font-weight: 600;
+  }
+  tr { page-break-inside: avoid; }
+  code, .path {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 8.5pt;
+  }
+  .path { word-break: break-all; }
+  .sev-c { color: var(--crit); font-weight: 700; }
+  .sev-h { color: var(--high); font-weight: 700; }
+  .sev-m { color: var(--med); font-weight: 600; }
+  .status { font-weight: 600; white-space: nowrap; }
+  .flow {
+    font-family: Consolas, monospace;
+    font-size: 8.5pt;
+    background: var(--bg);
+    padding: 10pt;
+    white-space: pre-wrap;
+    margin: 8pt 0 14pt;
+    border: 1px solid var(--line);
+  }
+  ul.compact li { margin-bottom: 3pt; }
+  .footer-note {
+    margin-top: 24pt;
+    padding-top: 10pt;
+    border-top: 1px solid var(--line);
+    font-size: 9pt;
+    color: var(--muted);
+  }
+  .toc { margin: 10pt 0 18pt; }
+  .toc li { margin-bottom: 2pt; }
+</style>
+</head>
+<body>
+
+<h1>RichlyBook 2.0 — Core Sales UX Audit</h1>
+<p class="meta">
+  Phase 1: New Sale + Customer + Product<br />
+  Audit only — no code, schema, or migrations changed<br />
+  Date: 7 October 2026 &nbsp;·&nbsp; Vyapar used as UX/workflow benchmark only (not a UI copy)
+</p>
+
+<div class="verdict">
+  <strong>Verdict</strong>
+  RichlyBook is a <em>wholesale assisted-order ERP</em> (order → approve/reserve → pack → deliver → full pay → convert), not a Vyapar-style one-screen retail counter sale.
+  Dashboard “New Sale” opens a minimal assisted-order modal. Most backend pieces for catalogue sales, payments, invoices, stock, and books exist — but owner New Sale UX is the wrong product shape for a shop counter.
+</div>
+
+<ol class="toc">
+  <li>Current Architecture</li>
+  <li>New Sale — Current State</li>
+  <li>Customer — Current State</li>
+  <li>Product — Current State</li>
+  <li>Custom Item — Current State</li>
+  <li>Payment &amp; Credit — Current State</li>
+  <li>Bill / Invoice — Current State</li>
+  <li>Inventory &amp; Accounting Flow</li>
+  <li>UX Problems</li>
+  <li>Vyapar-Style Gaps</li>
+  <li>Missing Features</li>
+  <li>Broken / Misleading Features</li>
+  <li>Duplicate / Conflicting Implementations</li>
+  <li>Recommended Reuse</li>
+  <li>Recommended Changes</li>
+  <li>Priority Order + First Implementation</li>
+</ol>
+
+<h2>1. Current Architecture</h2>
+<table>
+  <thead><tr><th>Layer</th><th>Location</th></tr></thead>
+  <tbody>
+    <tr><td>Admin app</td><td class="path">apps/admin-web</td></tr>
+    <tr><td>Salesman app</td><td class="path">apps/sales-pwa</td></tr>
+    <tr><td>Delivery app</td><td class="path">apps/delivery-pwa</td></tr>
+    <tr><td>Shared UI / API</td><td class="path">packages/ui, packages/api, packages/api-client</td></tr>
+    <tr><td>Admin data adapter</td><td class="path">apps/admin-web/src/data/live/LiveAdminApi.ts</td></tr>
+    <tr><td>Mutations / hooks</td><td class="path">mutations.ts, hooks.ts</td></tr>
+    <tr><td>Routing / nav</td><td class="path">App.tsx, nav.ts (Sales → /orders)</td></tr>
+    <tr><td>Database / RPCs</td><td class="path">supabase/migrations/*</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Core sales spine (trusted):</strong></p>
+<div class="flow">Dashboard "New Sale" / Salesmen "Create Order"
+  → SalesmanOrderFormModal (1 SKU)
+  → place_assisted_order
+  → AWAITING_CUSTOMER_CONFIRMATION (no stock yet)
+  → Approve → STOCK_RESERVED (_reserve_order_inventory)
+  → Process / Pack / Assign / Deliver…
+  → admin_mark_payment_received (full PAID; default CASH_ON_DELIVERY)
+  → admin_convert_order_to_sale (+ consume reserved stock ORDER_DISPATCH)
+  → /sales register + Day Book + admin_sync_accounting_journals</div>
+
+<h2>2. New Sale — Current State</h2>
+<h3>User flow (Admin)</h3>
+<ol class="compact">
+  <li>Dashboard Quick Action “New Sale” <em>or</em> Salesmen → Create Order</li>
+  <li>Modal “Create Assisted Order”: salesman + customer shop + <strong>one SKU</strong> + qty</li>
+  <li>RPC <code>place_assisted_order</code> → awaiting customer confirmation</li>
+  <li>Order detail multi-step workflow → Receive Payment → Convert to Sale</li>
+  <li>History: <code>/sales</code>, <code>/sales/:saleId</code></li>
+</ol>
+<p><strong>Orders list has no “+ New Sale” CTA.</strong> Modal hint claiming “starts as Stock Reserved” is <strong>stale</strong>.</p>
+
+<table>
+  <thead>
+    <tr><th>#</th><th>Capability</th><th>Status</th><th>Notes</th><th>Severity</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td>Where owner starts</td><td class="status">WORKING BUT UX POOR</td><td>Dashboard / Salesmen only; not on Orders</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>2</td><td>Clear “+ New Sale”</td><td class="status">PARTIALLY WORKING</td><td>Label says New Sale; modal is assisted order</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>3</td><td>Select existing customer</td><td class="status">WORKING</td><td>Active shops with service area</td><td>—</td></tr>
+    <tr><td>4</td><td>Quick-create customer</td><td class="status">MISSING</td><td>Only on Customers list</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>5</td><td>Walk-in Customer</td><td class="status">MISSING</td><td>No counter / cash party</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>6</td><td>Search products</td><td class="status">WORKING BUT UX POOR</td><td>Admin dropdown; Sales PWA has catalogue</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>7</td><td>Multiple products</td><td class="status">PARTIALLY WORKING</td><td>Create = 1 line; edit later; Sales PWA multi-line</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>8</td><td>Qty change quickly</td><td class="status">WORKING BUT UX POOR</td><td>After create on Items tab</td><td class="sev-m">MEDIUM</td></tr>
+    <tr><td>9</td><td>Units</td><td class="status">WORKING</td><td>Pack / selling-unit snapshots</td><td>—</td></tr>
+    <tr><td>10</td><td>Change selling price</td><td class="status">UI ONLY / BROKEN INTENT</td><td>Inputs exist; server overwrites with trade price</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>11</td><td>Discount</td><td class="status">PARTIALLY WORKING</td><td>SKU pack discounts; no ad-hoc sale discount UI</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>12</td><td>GST / tax</td><td class="status">PARTIALLY WORKING</td><td>SKU HSN/GST fields; invoice has no tax break-up</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>13–14</td><td>Custom / non-catalogue item</td><td class="status">MISSING</td><td>sku_id required</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>15–18</td><td>Cash / UPI / Bank / Credit</td><td class="status">PARTIALLY WORKING</td><td>Copy mentions methods; UI defaults COD; no picker</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>19</td><td>Partial payment</td><td class="status">MISSING</td><td>Marks full order.total PAID</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>20</td><td>Totals calc</td><td class="status">PARTIALLY WORKING</td><td>Subtotal/discount/total/collected/due; no tax; no partial</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>21</td><td>Save draft</td><td class="status">MISSING</td><td>Sales PWA local draft only; Admin posts immediately</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>22</td><td>Complete sale</td><td class="status">WORKING BUT UX POOR</td><td>Many steps; convert needs DELIVERED + PAID</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>23–26</td><td>Bill print / PDF / download / share</td><td class="status">PARTIALLY WORKING</td><td>Browser print; no stored PDF; no share</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>27</td><td>WhatsApp share</td><td class="status">MISSING</td><td>—</td><td class="sev-m">MEDIUM</td></tr>
+    <tr><td>28</td><td>Stock reduce</td><td class="status">WORKING</td><td>Reserve on approve; consume on convert</td><td>—</td></tr>
+    <tr><td>29</td><td>Customer outstanding</td><td class="status">WORKING</td><td>Derived orders − payments</td><td>—</td></tr>
+    <tr><td>30</td><td>Accounting / day book</td><td class="status">WORKING BUT UX POOR</td><td>Sync journals; not necessarily same-click as convert</td><td class="sev-m">MEDIUM</td></tr>
+    <tr><td>31–32</td><td>Sale history / reopen</td><td class="status">WORKING</td><td>/sales</td><td>—</td></tr>
+    <tr><td>33</td><td>Cancel</td><td class="status">WORKING</td><td>admin_cancel_order</td><td>—</td></tr>
+    <tr><td>34</td><td>Returns</td><td class="status">PARTIALLY WORKING</td><td>Full-order refund only</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>35–37</td><td>Network / RPC errors</td><td class="status">WORKING</td><td>Surfaced; optimistic pay rollback</td><td class="sev-m">LOW</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Key paths:</strong>
+<span class="path">SalesmanOrderFormModal.tsx</span>,
+<span class="path">OrderDetailPage.tsx</span>,
+<span class="path">OrderItemsTab.tsx</span>,
+<span class="path">OrderPaymentTab.tsx</span>,
+<span class="path">sales-pwa CreateOrderPage.tsx</span>
+</p>
+
+<h2>3. Customer — Current State</h2>
+<table>
+  <thead><tr><th>Capability</th><th>Status</th><th>Severity</th><th>Notes / paths</th></tr></thead>
+  <tbody>
+    <tr><td>List / search</td><td class="status">WORKING</td><td>—</td><td>CustomersListPage, customer-list-filters</td></tr>
+    <tr><td>Filters</td><td class="status">WORKING BUT UX POOR</td><td class="sev-m">MEDIUM</td><td>active/inactive only</td></tr>
+    <tr><td>Add customer</td><td class="status">WORKING BUT UX POOR</td><td class="sev-h">HIGH</td><td>Wholesale fields (area, salesman, pin, GSTIN)</td></tr>
+    <tr><td>Edit</td><td class="status">WORKING</td><td>—</td><td>CustomerEditModal</td></tr>
+    <tr><td>Mobile / address</td><td class="status">WORKING / PARTIAL</td><td class="sev-m">MEDIUM</td><td>Addresses tab mostly read-only</td></tr>
+    <tr><td>GSTIN</td><td class="status">PARTIALLY WORKING</td><td class="sev-h">HIGH</td><td>Create only; not on detail/edit</td></tr>
+    <tr><td>Opening balance</td><td class="status">MISSING</td><td class="sev-c">CRITICAL</td><td>No party AR opening</td></tr>
+    <tr><td>Ledger / outstanding</td><td class="status">WORKING</td><td>—</td><td>CustomerLedgerPanel, receivables</td></tr>
+    <tr><td>Sales / payments history</td><td class="status">WORKING BUT UX POOR</td><td class="sev-m">MEDIUM</td><td>Limited / read-only tabs</td></tr>
+    <tr><td>Statement print / CSV</td><td class="status">WORKING</td><td>—</td><td>No PDF/WhatsApp</td></tr>
+    <tr><td>WhatsApp share</td><td class="status">BACKEND ONLY</td><td class="sev-h">HIGH</td><td>Helpers exist; no customer UI</td></tr>
+    <tr><td>Bill photo / camera / OCR on customer</td><td class="status">MISSING</td><td class="sev-c">CRITICAL</td><td>Documents tab deferred; OCR = supplier bills only</td></tr>
+    <tr><td>Quick-create from New Sale</td><td class="status">MISSING</td><td class="sev-h">HIGH</td><td>—</td></tr>
+    <tr><td>Archive / delete</td><td class="status">BACKEND ONLY</td><td class="sev-h">HIGH</td><td>softDeleteCustomer; no Admin UI</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Product — Current State</h2>
+<table>
+  <thead><tr><th>Capability</th><th>Status</th><th>Severity</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td>List / search / categories</td><td class="status">WORKING</td><td>—</td><td>No barcode search</td></tr>
+    <tr><td>Add / edit</td><td class="status">WORKING BUT UX POOR</td><td class="sev-h">HIGH</td><td>Multi-step wizard vs quick add</td></tr>
+    <tr><td>Name / SKU / image</td><td class="status">WORKING</td><td>—</td><td>—</td></tr>
+    <tr><td>Barcode</td><td class="status">MISSING</td><td class="sev-h">HIGH</td><td>No schema/UI found</td></tr>
+    <tr><td>Purchase / selling / MRP</td><td class="status">PARTIALLY WORKING</td><td class="sev-h">HIGH</td><td>Selling works; no MRP</td></tr>
+    <tr><td>Unit / qty step / MOQ</td><td class="status">WORKING</td><td>—</td><td>Pack model</td></tr>
+    <tr><td>GST / HSN</td><td class="status">PARTIALLY WORKING</td><td class="sev-h">HIGH</td><td>Packs tab only; not create wizard</td></tr>
+    <tr><td>Opening / current / min stock</td><td class="status">PARTIALLY WORKING</td><td class="sev-h">HIGH</td><td>Min stock heuristic; reorder level weak</td></tr>
+    <tr><td>Adjustment / movements</td><td class="status">WORKING</td><td>—</td><td>admin_adjust_inventory_balance</td></tr>
+    <tr><td>Active / inactive</td><td class="status">WORKING</td><td>—</td><td>—</td></tr>
+    <tr><td>Archive</td><td class="status">PARTIALLY WORKING</td><td class="sev-c">CRITICAL</td><td>“Archive” = isActive false (draft semantics)</td></tr>
+    <tr><td>Create during sale / custom item</td><td class="status">MISSING</td><td class="sev-h">HIGH</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h2>5. Custom Item — Current State</h2>
+<table>
+  <thead><tr><th>Mode</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>A. Permanent catalogue SKU on sale</td><td class="status">WORKING (required path)</td></tr>
+    <tr><td>B. One-time custom item without product</td><td class="status">MISSING — CRITICAL</td></tr>
+  </tbody>
+</table>
+<p>Evidence: assisted lines are <code>{ skuId, quantity }</code>; <code>order_lines.sku_id NOT NULL</code>. Example “Special Grocery Item / 2 Kg / ₹180” cannot be sold without creating a product first.</p>
+
+<h2>6. Payment &amp; Credit — Current State</h2>
+<table>
+  <thead><tr><th>Capability</th><th>Status</th><th>Backend</th><th>Severity</th></tr></thead>
+  <tbody>
+    <tr><td>Mark full payment received</td><td class="status">WORKING</td><td>admin_mark_payment_received</td><td>—</td></tr>
+    <tr><td>Cash/UPI/Bank/Credit picker</td><td class="status">UI ONLY / PARTIAL</td><td>Defaults CASH_ON_DELIVERY</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>Leave unpaid (credit outstanding)</td><td class="status">WORKING</td><td>Don’t mark paid</td><td>—</td></tr>
+    <tr><td>Convert unpaid / credit sale</td><td class="status">MISSING</td><td>Convert requires PAID</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Partial payment</td><td class="status">MISSING</td><td>Full order.total only</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Payment history / ledger</td><td class="status">WORKING</td><td>customer-ledger.ts</td><td>—</td></tr>
+    <tr><td>Full return/refund</td><td class="status">PARTIALLY WORKING</td><td>admin_refund_converted_sale</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>Day book / journals</td><td class="status">WORKING</td><td>sync accounting journals</td><td class="sev-m">MEDIUM</td></tr>
+  </tbody>
+</table>
+
+<h2>7. Bill / Invoice — Current State</h2>
+<table>
+  <thead><tr><th>Capability</th><th>Status</th><th>Notes</th><th>Severity</th></tr></thead>
+  <tbody>
+    <tr><td>Invoice numbering</td><td class="status">WORKING</td><td>admin_create_order_invoice + sale invoice</td><td>—</td></tr>
+    <tr><td>Company / buyer / lines</td><td class="status">WORKING</td><td>OrderInvoicePrint</td><td>—</td></tr>
+    <tr><td>GST break-up (CGST/SGST/HSN)</td><td class="status">MISSING</td><td>Seller GSTIN only</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>Print / Save as PDF</td><td class="status">WORKING</td><td>Browser print; no stored file</td><td>—</td></tr>
+    <tr><td>Download / share / WhatsApp</td><td class="status">MISSING</td><td>—</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>Suitable for Indian GST retail</td><td class="status">PARTIALLY</td><td>Wholesale skeleton only</td><td class="sev-h">HIGH</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Inventory &amp; Accounting Flow</h2>
+<div class="flow">place_assisted_order → orders + order_lines (no reserve)
+  → approve → STOCK_RESERVED (_reserve_order_inventory)
+  → … pack / deliver …
+  → admin_mark_payment_received → payments (full amount)
+  → admin_convert_order_to_sale → sales + sale_items
+       + _consume_reserved_inventory_for_order (ORDER_DISPATCH)
+  → admin_sync_accounting_journals
+       sale: Dr AR(1100) / Cr Sales(4000) + optional COGS
+       collection: Dr Cash/Bank / Cr AR
+  → day book / reports</div>
+
+<table>
+  <thead><tr><th>Concern</th><th>Finding</th><th>Severity</th></tr></thead>
+  <tbody>
+    <tr><td>Price authority</td><td>Server ignores client unitPrice / agreedUnitPrice</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Partial outstanding</td><td>Not supported on mark-paid</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Accounting lag</td><td>Journals via date-range sync, not auto on convert click</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>Duplicate create UX</td><td>Admin 1-line vs Sales PWA cart vs replace-lines</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>Convert idempotency</td><td>Good if sale_id already set</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h2>9. UX Problems</h2>
+<ol class="compact">
+  <li>“New Sale” ≠ sale — opens assisted wholesale order.</li>
+  <li>Orders page has no primary create CTA.</li>
+  <li>Too many steps to finish money.</li>
+  <li>Admin create is one SKU; salesman app is better.</li>
+  <li>Price fields look editable but do not stick.</li>
+  <li>Payment method not choosable despite copy.</li>
+  <li>Terminology (Assisted Order, Stock Reserved, Convert) is ops-console language.</li>
+  <li>Customer/product create forms are heavy for counter use.</li>
+  <li>Overall feel is internal admin dashboard, not Indian shop accounting software.</li>
+</ol>
+
+<h2>10. Vyapar-Style Gaps</h2>
+<table>
+  <thead><tr><th>Characteristic</th><th>RichlyBook today</th><th>Gap</th></tr></thead>
+  <tbody>
+    <tr><td>Quick New Sale (1 screen)</td><td>Multi-step wholesale order</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Walk-in</td><td>Missing</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Custom item</td><td>Missing</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Editable price / discount / tax</td><td>Partial / overwritten</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Cash/UPI/Credit + partial</td><td>Full-pay only; method weak</td><td class="sev-c">CRITICAL</td></tr>
+    <tr><td>Invoice print/share</td><td>Print only</td><td class="sev-h">HIGH</td></tr>
+    <tr><td>Customer ledger</td><td>Strong — reuse</td><td>—</td></tr>
+    <tr><td>Purchase / stock</td><td>Strong separately — keep</td><td>—</td></tr>
+  </tbody>
+</table>
+
+<h2>11. Missing Features</h2>
+<ul class="compact">
+  <li>Walk-in customer; custom free-text sale lines</li>
+  <li>True one-screen owner New Sale</li>
+  <li>Partial payment + payment method selection</li>
+  <li>Credit convert without full PAID (if desired)</li>
+  <li>GST tax lines on invoice + sale posting</li>
+  <li>Customer opening balance; customer document photo attach</li>
+  <li>WhatsApp share bill/statement; stored PDF</li>
+  <li>Barcode / MRP; quick-create customer/product from sale</li>
+  <li>Partial returns; Admin draft cart</li>
+</ul>
+
+<h2>12. Broken / Misleading Features</h2>
+<table>
+  <thead><tr><th>Item</th><th>Classification</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Dashboard “New Sale”</td><td>WORKING BUT UX POOR / misleading</td><td>Assisted order, not counter sale</td></tr>
+    <tr><td>Modal “Stock Reserved” hint</td><td>STALE / WRONG</td><td>Starts awaiting confirmation; reserve on approve</td></tr>
+    <tr><td>Unit price edit on order lines</td><td>UI ONLY / broken intent</td><td>RPC overwrites with trade price</td></tr>
+    <tr><td>Receive Payment Cash/UPI/Bank/Credit copy</td><td>UI ONLY mislead</td><td>No picker; defaults COD</td></tr>
+    <tr><td>Customer Documents tab</td><td>UI ONLY / deferred</td><td>Always empty in live</td></tr>
+    <tr><td>Product “Archive”</td><td>PARTIALLY WORKING / misleading</td><td>Sets draft/inactive, not true archive</td></tr>
+    <tr><td>Salesman detail Create Order</td><td>BROKEN CTA</td><td>Only switches tab; does not open modal</td></tr>
+  </tbody>
+</table>
+
+<h2>13. Duplicate / Conflicting Implementations</h2>
+<ol class="compact">
+  <li><strong>Create order:</strong> Admin 1-line modal vs Sales PWA cart vs post-create replace-lines.</li>
+  <li><strong>Invoice:</strong> Pre-sale admin_create_order_invoice vs sale invoice on convert.</li>
+  <li><strong>Payment:</strong> Order mark-paid vs payment proof scan vs delivery COD collect.</li>
+  <li><strong>Bill photo OCR:</strong> Supplier purchases only — not customers.</li>
+  <li><strong>Labels:</strong> Nav “Sales” → Orders; Quick action “New Sale” → Assisted Order.</li>
+</ol>
+
+<h2>14. Recommended Reuse</h2>
+<p>Do <strong>not</strong> rebuild or fork:</p>
+<ul class="compact">
+  <li>place_assisted_order / preview_assisted_order_lines / replace-lines RPCs</li>
+  <li>admin_mark_payment_received, admin_convert_order_to_sale, cancel/refund</li>
+  <li>OrderInvoicePrint + company settings</li>
+  <li>Inventory reserve/consume + movements</li>
+  <li>admin_sync_accounting_journals + day book</li>
+  <li>Customer ledger / receivables / dues</li>
+  <li>Product / SKU / pricing / inventory stack</li>
+  <li>Sales PWA cart patterns as UX reference for Admin New Sale</li>
+</ul>
+
+<h2>15. Recommended Changes (design only)</h2>
+<ol class="compact">
+  <li>Owner New Sale screen that completes money in one flow (reuse RPCs or thin wrappers).</li>
+  <li>Walk-in + quick customer create.</li>
+  <li>Multi-line cart + custom items (schema/RPC decision required).</li>
+  <li>If price override is a product need, change server contract — UI alone is insufficient.</li>
+  <li>Payment: method + amount paid + due (extend mark-paid).</li>
+  <li>Immediate bill print/share after complete; GST on bill when rates present.</li>
+  <li>Keep wholesale long lifecycle for B2B; layer counter-sale path; do not delete.</li>
+</ol>
+
+<h2>16. Priority Order</h2>
+<ol class="compact">
+  <li class="sev-c">CRITICAL — Real New Sale UX on existing spine (multi-line, totals, complete)</li>
+  <li class="sev-c">CRITICAL — Custom item + walk-in</li>
+  <li class="sev-c">CRITICAL — Partial payment + method; decide price-override server policy</li>
+  <li class="sev-h">HIGH — Invoice GST + share/print polish</li>
+  <li class="sev-h">HIGH — Quick customer/product from sale</li>
+  <li class="sev-h">HIGH — Books sync honesty right after sale</li>
+  <li class="sev-m">MEDIUM — Customer document photos (reuse purchase scan later)</li>
+  <li>LOW — Barcode / MRP if retail target</li>
+</ol>
+
+<h3>Recommended First Implementation</h3>
+<ol class="compact">
+  <li>Owner New Sale shell (Admin) — multi-line cart using preview/place + Sales PWA patterns; primary CTA on Sales/Orders.</li>
+  <li>Customer select + quick-create + Walk-in (minimal fields).</li>
+  <li>Catalogue lines + Custom item (backend must allow non-SKU or ephemeral SKU — decide before UI).</li>
+  <li>Payment panel — Cash/UPI/Bank/Credit + amount paid / due.</li>
+  <li>Complete → invoice print (shorten counter path; keep wholesale lifecycle).</li>
+  <li>Confirm stock + outstanding + journal sync still fire from existing RPCs.</li>
+</ol>
+
+<div class="footer-note">
+  Generated from repository discovery audit (Admin + Sales PWA + Supabase RPCs).<br />
+  No application code, database schema, migrations, or packages were modified for this audit.<br />
+  File: docs/audits/richlybook-2.0-core-sales-ux-audit.pdf
+</div>
+
+</body>
+</html>

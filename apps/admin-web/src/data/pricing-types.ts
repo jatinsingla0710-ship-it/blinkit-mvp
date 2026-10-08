@@ -19,6 +19,12 @@ export interface SkuPriceListRow {
   currentTradePrice?: number;
   /** Derived unit price label when pack quantity is available. */
   unitPriceLabel?: string;
+  /** Catalogue selling unit for counter-sale / order UX. */
+  sellingUnitLabel?: string;
+  moq?: number;
+  quantityStep?: number;
+  /** Sum of available inventory across locations when known. */
+  availableQuantity?: number;
   status: PriceRecordStatus;
   updatedAtLabel: string;
 }

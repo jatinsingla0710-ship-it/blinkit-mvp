@@ -105,6 +105,7 @@ describe('Phase 1 Admin navigation', () => {
 
   it('exposes secondary modules through section links', () => {
     expect(SALES_SECTION_LINKS.map((l) => l.to)).toEqual([
+      '/sales/new',
       '/orders',
       '/sales',
       '/payments',

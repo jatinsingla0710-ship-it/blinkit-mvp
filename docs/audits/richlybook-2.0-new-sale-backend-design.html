@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>RichlyBook 2.0 — New Sale Backend / Data Design</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  :root {
+    --ink: #1a1a1a;
+    --muted: #555;
+    --line: #d0d0d0;
+    --crit: #8b1a1a;
+    --bg: #f7f7f5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.45;
+    color: var(--ink);
+    margin: 0;
+    padding: 0;
+  }
+  h1 { font-size: 18pt; margin: 0 0 4pt; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 12.5pt;
+    margin: 20pt 0 8pt;
+    padding-bottom: 4pt;
+    border-bottom: 1.5pt solid var(--ink);
+    page-break-after: avoid;
+  }
+  h3 { font-size: 11pt; margin: 12pt 0 6pt; page-break-after: avoid; }
+  p, li { margin: 0 0 6pt; }
+  .meta { color: var(--muted); font-size: 9.5pt; margin-bottom: 12pt; }
+  .note {
+    background: var(--bg);
+    border-left: 4px solid var(--ink);
+    padding: 8pt 12pt;
+    margin: 10pt 0 16pt;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin: 8pt 0 12pt;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 5pt 6pt;
+    vertical-align: top;
+    text-align: left;
+  }
+  th { background: #efefed; font-weight: 600; }
+  tr { page-break-inside: avoid; }
+  code, .mono {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 8.5pt;
+  }
+  .flow {
+    font-family: Consolas, monospace;
+    font-size: 8.5pt;
+    background: var(--bg);
+    padding: 10pt;
+    white-space: pre-wrap;
+    margin: 8pt 0 12pt;
+    border: 1px solid var(--line);
+  }
+  ul.compact li, ol.compact li { margin-bottom: 3pt; }
+  .footer-note {
+    margin-top: 22pt;
+    padding-top: 10pt;
+    border-top: 1px solid var(--line);
+    font-size: 9pt;
+    color: var(--muted);
+  }
+  strong.rec { color: var(--crit); }
+</style>
+</head>
+<body>
+
+<h1>RichlyBook 2.0 — New Sale Backend / Data Design</h1>
+<p class="meta">
+  New Sale + Custom Item + Partial Payment<br />
+  Design only — no code, migrations, or UI implemented in this document<br />
+  Date: 8 October 2026
+</p>
+
+<div class="note">
+  <strong>Goal:</strong> Vyapar-like counter completion path while <em>reusing</em>
+  <code>orders → payments → sales</code>, inventory, and journals — not a second sales system.
+</div>
+
+<h2>1. Design principles</h2>
+<ol class="compact">
+  <li><strong>One domain spine</strong> — every counter sale is still an <code>orders</code> row that can become a <code>sales</code> row.</li>
+  <li><strong>Server-authoritative money</strong> — totals, paid, due, stock, journals computed in RPCs.</li>
+  <li><strong>Extend, don’t fork</strong> — new RPC + small schema extensions; no parallel <code>counter_sales</code> tables.</li>
+  <li><strong>Wholesale path stays</strong> — assisted order → approve → pack → deliver unchanged.</li>
+  <li><strong>Catalogue + custom lines coexist</strong> on the same order.</li>
+  <li><strong>Partial pay half-exists</strong> — reuse <code>cash_collected_amount</code> / <code>online_collected_amount</code> + <code>PAYMENT_PENDING</code>; Admin full-pay RPC is the counter gap.</li>
+</ol>
+
+<h2>2. Target owner flow (data view)</h2>
+<div class="flow">Owner New Sale (UI)
+  → admin_complete_counter_sale (single transaction)
+       │
+       ├─ resolve shop (existing | quick-create | Walk-in system shop)
+       ├─ write order + order_lines (catalogue + custom)
+       ├─ reserve/consume stock ONLY for catalogue lines
+       ├─ record collection (0..total) → payments
+       ├─ create sale + sale_items + invoice #
+       └─ optional immediate journal post for Books</div>
+
+<p>Wholesale assisted create (<code>place_assisted_order</code>) remains for salesman / long lifecycle.</p>
+
+<h2>3. New Sale — order model</h2>
+
+<h3>3.1 Fast-path on existing <code>orders</code></h3>
+<table>
+  <thead><tr><th>Decision</th><th>Choice</th></tr></thead>
+  <tbody>
+    <tr><td>Storage</td><td>Same <code>orders</code> / <code>order_lines</code> / <code>payments</code> / <code>sales</code></td></tr>
+    <tr><td>Discriminator</td><td>New <code>order_source</code> value, e.g. <code>COUNTER_SALE</code></td></tr>
+    <tr><td>Lifecycle</td><td>Server short-circuits to complete in one RPC (no OTP / delivery required)</td></tr>
+    <tr><td>Actor</td><td>Admin (<code>is_admin()</code>); <code>created_by_profile_id</code> = owner/operator</td></tr>
+  </tbody>
+</table>
+<p><strong>Why not a new <code>counter_sales</code> table?</strong> Duplicates invoice numbering, outstanding, day book, convert, refund. Audit forbids a second sale system.</p>
+
+<h3>3.2 Status machine for counter sales</h3>
+<table>
+  <thead><tr><th>Step</th><th>Counter path (one TX)</th><th>Wholesale path (unchanged)</th></tr></thead>
+  <tbody>
+    <tr><td>Create</td><td>Insert order</td><td><code>place_assisted_order</code> → awaiting confirmation</td></tr>
+    <tr><td>Stock</td><td>Reserve+consume catalogue lines in finalize TX</td><td>Approve → reserve; convert → consume</td></tr>
+    <tr><td>Payment</td><td>Record 0..total</td><td><code>admin_mark_payment_received</code> / COD</td></tr>
+    <tr><td>Sale</td><td>Always create <code>sales</code> when finalized</td><td>Convert only if DELIVERED + PAID today</td></tr>
+  </tbody>
+</table>
+<p><strong>Credit / partial:</strong> Finalized counter sale <em>must</em> create <code>sales</code> even when <code>payment.status ∈ {UNPAID, PAYMENT_PENDING}</code>. That is the main gate change vs today’s convert RPC.</p>
+
+<h3>3.3 Draft</h3>
+<table>
+  <thead><tr><th>Option</th><th>Recommendation</th></tr></thead>
+  <tbody>
+    <tr><td>A. No DB draft — one-shot finalize</td><td><strong class="rec">v1</strong></td></tr>
+    <tr><td>B. Counter draft status + upsert RPC</td><td>Phase 2 if resume needed</td></tr>
+  </tbody>
+</table>
+<p>v1: local UI draft only (like Sales PWA), not persisted draft rows.</p>
+
+<h3>3.4 Walk-in customer</h3>
+<p><code>orders.shop_id</code> is <strong>NOT NULL</strong> — do not nullable it.</p>
+<table>
+  <thead><tr><th>Option</th><th>Recommendation</th></tr></thead>
+  <tbody>
+    <tr><td>System Walk-in shop (one per business)</td><td><strong class="rec">Preferred</strong> — flag e.g. <code>shops.is_walk_in</code></td></tr>
+    <tr><td>Quick-create real shop from sale</td><td>Supported as alternate input on same RPC</td></tr>
+    <tr><td>Party snapshot on order</td><td>Only if per-bill walk-in name/phone needed later</td></tr>
+  </tbody>
+</table>
+<p>Walk-in ledger aggregates as one bucket (acceptable for retail). Optional later: display-only <code>orders.walk_in_label</code>.</p>
+
+<h2>4. Custom Item — line model</h2>
+
+<h3>4.1 Constraint today</h3>
+<ul class="compact">
+  <li><code>order_lines.sku_id uuid NOT NULL</code></li>
+  <li>Unique <code>(order_id, sku_id)</code></li>
+  <li>Inventory / pricing RPCs assume real SKUs</li>
+  <li><strong><code>sale_items.sku_id</code> is already nullable</strong> — sale snapshot layer is ready</li>
+</ul>
+
+<h3>4.2 Recommended: <code>line_kind</code> + nullable <code>sku_id</code></h3>
+<div class="flow">order_lines
+  + line_kind CHECK IN ('CATALOGUE','CUSTOM') DEFAULT 'CATALOGUE'
+  + sku_id uuid NULL   -- was NOT NULL
+  + line_discount numeric(12,2) DEFAULT 0  -- optional v1
+  CHECK (
+    (line_kind = 'CATALOGUE' AND sku_id IS NOT NULL)
+    OR (line_kind = 'CUSTOM' AND sku_id IS NULL
+        AND product_name_snapshot <> ''
+        AND selling_unit_snapshot <> '')
+  )
+DROP unique (order_id, sku_id)
+CREATE UNIQUE INDEX (order_id, sku_id) WHERE sku_id IS NOT NULL</div>
+
+<p><strong>Custom payload:</strong> <code>{ kind:'CUSTOM', name, unit, quantity, unitPrice, discount? }</code><br />
+<strong>Catalogue:</strong> <code>{ kind:'CATALOGUE', skuId, quantity, unitPrice? }</code></p>
+<p>Snapshots already exist — custom fills <code>product_name_snapshot</code>, <code>selling_unit_snapshot</code>, <code>agreed_unit_price</code>, <code>line_total</code>. Codes can be <code>'CUSTOM'</code>.</p>
+
+<h3>4.3 Rejected alternatives</h3>
+<table>
+  <thead><tr><th>Alternative</th><th>Why reject</th></tr></thead>
+  <tbody>
+    <tr><td>Ephemeral SKU per custom line</td><td>Pollutes catalogue / MOQ / stock</td></tr>
+    <tr><td>Shared “MISC” SKU</td><td>Breaks uniqueness, analytics, stock</td></tr>
+    <tr><td>Separate <code>custom_order_lines</code></td><td>Dual reads on invoice, convert, ledger</td></tr>
+  </tbody>
+</table>
+
+<h3>4.4 Inventory rules</h3>
+<table>
+  <thead><tr><th>Line kind</th><th>Reserve</th><th>Consume</th></tr></thead>
+  <tbody>
+    <tr><td>CATALOGUE</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>CUSTOM</td><td><strong>No</strong></td><td><strong>No</strong></td></tr>
+  </tbody>
+</table>
+<p>Update reserve/consume helpers to skip <code>line_kind = CUSTOM</code>.</p>
+
+<h3>4.5 Pricing / override policy</h3>
+<p>Today server ignores client unit price on assisted place/replace.</p>
+<table>
+  <thead><tr><th>Line</th><th>Price rule</th></tr></thead>
+  <tbody>
+    <tr><td>CATALOGUE</td><td>Default = effective trade price; <strong>allow override</strong> on counter for admin; persist in <code>agreed_unit_price</code></td></tr>
+    <tr><td>CUSTOM</td><td>Agreed price is authoritative (no catalogue resolve)</td></tr>
+  </tbody>
+</table>
+<p>Wholesale RPCs can keep authoritative trade pricing unless an explicit override flag is added later.</p>
+
+<h3>4.6 Convert / invoice / discounts</h3>
+<ul class="compact">
+  <li>Finalize / convert copies custom lines into <code>sale_items</code> with <code>sku_id = NULL</code>.</li>
+  <li>Invoice print uses snapshots — works if UI shows custom name.</li>
+  <li>v1 bill discount via existing <code>orders.adjustments</code>; keep <code>total = subtotal + adjustments</code>.</li>
+</ul>
+
+<h2>5. Partial Payment — payment model</h2>
+
+<h3>5.1 Reuse existing</h3>
+<table>
+  <thead><tr><th>Piece</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td><code>payments.amount</code></td><td>Order total (due basis)</td></tr>
+    <tr><td><code>cash_collected_amount</code> / <code>online_collected_amount</code></td><td>Split collections</td></tr>
+    <tr><td><code>UNPAID</code> → <code>PAYMENT_PENDING</code> → <code>PAID</code></td><td>Partial already used by delivery COD</td></tr>
+    <tr><td><code>payment_events</code></td><td>Audit trail</td></tr>
+    <tr><td>Customer ledger residual</td><td><code>total − cash − online</code> (already)</td></tr>
+  </tbody>
+</table>
+
+<h3>5.2 Gap</h3>
+<p><code>admin_mark_payment_received</code> always sets full <code>PAID</code> for <code>order.total</code>; Admin UI does not pass method/amount.</p>
+
+<h3>5.3 New RPC: <code>admin_record_order_collection</code></h3>
+<p><strong>Input:</strong> <code>p_order_id</code>, <code>p_amount</code> (&gt;0, ≤ remaining), <code>p_method</code> (CASH|UPI|BANK|OTHER), <code>p_note?</code></p>
+<ol class="compact">
+  <li>Ensure <code>payments</code> row with <code>amount = orders.total</code>.</li>
+  <li><code>remaining = amount − cash − online</code>; reject if overpay.</li>
+  <li>Add to cash or online bucket by method.</li>
+  <li>Status: 0 → UNPAID; partial → PAYMENT_PENDING; full → PAID + <code>paid_at</code>.</li>
+  <li>Append <code>payment_events</code>.</li>
+  <li>Keep one payment row per order (<code>payments_unique_order</code>).</li>
+</ol>
+<p><strong>Credit (₹0 at finalize):</strong> payment row UNPAID, collected 0 — sale still created.<br />
+<strong>Full pay:</strong> same RPC with <code>p_amount = remaining</code>.</p>
+
+<h3>5.4 Sale vs payment status</h3>
+<table>
+  <thead><tr><th>Scenario</th><th>payment.status</th><th>Create sale?</th><th>Outstanding</th></tr></thead>
+  <tbody>
+    <tr><td>Full cash/UPI</td><td>PAID</td><td>Yes</td><td>0</td></tr>
+    <tr><td>Partial</td><td>PAYMENT_PENDING</td><td>Yes (counter)</td><td>remaining</td></tr>
+    <tr><td>Credit (0 paid)</td><td>UNPAID</td><td>Yes (counter)</td><td>total</td></tr>
+    <tr><td>Wholesale convert</td><td>Requires PAID today</td><td>Unchanged unless product decides</td><td>—</td></tr>
+  </tbody>
+</table>
+<p><strong>Credit = unpaid residual</strong> — do not invent a CREDIT payment status.</p>
+
+<h3>5.5 <code>sales_payments</code> + journals</h3>
+<ul class="compact">
+  <li>At finalize: <code>sales_payments.amount = cash + online</code> (may be &lt; total); status PAID / PARTIAL / UNPAID.</li>
+  <li>Later collections update <code>payments</code> only; ledger/day book already key off payments.</li>
+  <li>Sale journal: Dr AR / Cr Sales for <em>full invoice total</em>.</li>
+  <li>Collection journal: Dr Cash/Bank / Cr AR for <em>delta collected</em>.</li>
+  <li>Prefer post-in-RPC for counter finalize so Books feel immediate.</li>
+</ul>
+
+<h3>5.6 Method mapping</h3>
+<table>
+  <thead><tr><th>Owner</th><th>Bucket</th><th>collection_method</th></tr></thead>
+  <tbody>
+    <tr><td>Cash</td><td>cash_collected</td><td>CASH_ON_DELIVERY or new CASH_COUNTER</td></tr>
+    <tr><td>UPI</td><td>online_collected</td><td>UPI_ON_DELIVERY or UPI_COUNTER</td></tr>
+    <tr><td>Bank</td><td>online_collected</td><td>bank-ish / OTHER</td></tr>
+    <tr><td>Credit</td><td>neither (amount 0)</td><td>document as unpaid residual</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Proposed RPC surface (v1)</h2>
+<table>
+  <thead><tr><th>RPC</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>admin_complete_counter_sale</code></td><td>Atomic: shop, lines, stock, payment 0..total, sale+invoice</td></tr>
+    <tr><td><code>admin_record_order_collection</code></td><td>Later collections on open due</td></tr>
+    <tr><td>Reuse</td><td>Invoice allocator inside complete; refund = existing full refund RPC</td></tr>
+    <tr><td>Unchanged</td><td><code>place_assisted_order</code>, wholesale advance/pack/deliver</td></tr>
+  </tbody>
+</table>
+
+<h3><code>admin_complete_counter_sale</code> input shape</h3>
+<div class="flow">shop: { shopId } | { walkIn: true } | { quickCreate: { name, mobile, … } }
+lines: [
+  { kind:'CATALOGUE', skuId, quantity, unitPrice? },
+  { kind:'CUSTOM', name, unit, quantity, unitPrice, discount? }
+]
+payment: { amountPaid, method }   -- method ignored if amountPaid = 0
+billDiscount?   -- → orders.adjustments
+notes?</div>
+
+<p><strong>Output:</strong> <code>orderId, saleId, invoiceNumber, subtotal, discount, total, amountPaid, amountDue, paymentStatus</code></p>
+
+<h2>7. Integrity rules (encode in SQL)</h2>
+<ol class="compact">
+  <li><code>amountPaid + amountDue = total</code> (within rounding).</li>
+  <li><code>cash_collected + online_collected ≤ payments.amount</code>.</li>
+  <li>Custom lines never touch <code>inventory_balances</code>.</li>
+  <li>Catalogue lines fail finalize if insufficient stock.</li>
+  <li>Optional idempotency key (<code>p_client_request_id</code>) against double-submit.</li>
+  <li>Money <code>numeric(12,2)</code>; qty <code>numeric(12,3)</code>.</li>
+  <li><code>FOR UPDATE</code> on order + payment.</li>
+  <li>No client-trusted grand total — server recomputes from lines + adjustments.</li>
+</ol>
+
+<h2>8. Impact on existing features</h2>
+<table>
+  <thead><tr><th>Feature</th><th>Impact</th></tr></thead>
+  <tbody>
+    <tr><td>Customer ledger / receivables</td><td>Works if residual formula unchanged</td></tr>
+    <tr><td>Day book</td><td>Verify credit sale appears with due; partial as collection</td></tr>
+    <tr><td>Sales register</td><td>New rows; optional filter by source</td></tr>
+    <tr><td>Invoice print</td><td>Snapshots + paid/due</td></tr>
+    <tr><td>Assisted wholesale</td><td>Untouched if gated by <code>order_source</code></td></tr>
+    <tr><td>Commission</td><td>Today ties to SALESMAN_ASSISTED — counter skips unless decided</td></tr>
+    <tr><td>GST on lines</td><td>Out of v1; catalogue HSN/rate only</td></tr>
+  </tbody>
+</table>
+
+<h2>9. Explicit non-goals (v1)</h2>
+<ul class="compact">
+  <li>Partial line returns / RMA</li>
+  <li>Stored PDF / WhatsApp</li>
+  <li>Customer bill-photo OCR</li>
+  <li>Barcode / MRP</li>
+  <li>Changing wholesale price-overwrite policy globally</li>
+  <li>Multi-payment history table beyond <code>payment_events</code></li>
+</ul>
+
+<h2>10. Migration sequence (when implementing)</h2>
+<ol class="compact">
+  <li><strong>Schema:</strong> <code>line_kind</code>, nullable <code>sku_id</code>, partial unique index; optional <code>shops.is_walk_in</code>; <code>order_source</code> value.</li>
+  <li><strong>Inventory helpers:</strong> skip custom lines.</li>
+  <li><strong><code>admin_record_order_collection</code></strong> + tests vs COD invariants.</li>
+  <li><strong><code>admin_complete_counter_sale</code></strong> + tests (catalogue, custom, mix, full/partial/credit, stock, idempotency).</li>
+  <li><strong>Relax sale gate</strong> for counter source only.</li>
+  <li><strong>Journal:</strong> post sale + collection for that id.</li>
+  <li><strong>Admin UI last</strong> — bind only to these RPCs.</li>
+</ol>
+
+<h2>11. Decision checklist (lock before coding)</h2>
+<table>
+  <thead><tr><th>#</th><th>Decision</th><th>Recommendation</th></tr></thead>
+  <tbody>
+    <tr><td>D1</td><td>Counter storage</td><td>Same orders/sales + <code>COUNTER_SALE</code> source</td></tr>
+    <tr><td>D2</td><td>Custom lines</td><td>Nullable <code>sku_id</code> + <code>line_kind</code></td></tr>
+    <tr><td>D3</td><td>Draft in DB</td><td>No for v1</td></tr>
+    <tr><td>D4</td><td>Walk-in</td><td>One system shop + optional quick-create</td></tr>
+    <tr><td>D5</td><td>Catalogue price override on counter</td><td>Allowed for admin</td></tr>
+    <tr><td>D6</td><td>Credit/partial can create sale</td><td>Yes for counter; wholesale convert stays PAID</td></tr>
+    <tr><td>D7</td><td>Collection RPC</td><td><code>admin_record_order_collection</code>; reuse cash/online columns</td></tr>
+    <tr><td>D8</td><td>Journals on finalize</td><td>Prefer post-in-RPC for that sale/collection</td></tr>
+  </tbody>
+</table>
+
+<h2>12. Success criteria (backend)</h2>
+<p>A single RPC call can:</p>
+<ol class="compact">
+  <li>Sell 2 catalogue SKUs + 1 custom “Special Grocery Item”.</li>
+  <li>Accept ₹500 of ₹1800 (UPI).</li>
+  <li>Create invoice/sale with due ₹1300.</li>
+  <li>Reduce stock only for catalogue SKUs.</li>
+  <li>Show correct outstanding on customer (or Walk-in) ledger.</li>
+  <li>Not break assisted wholesale orders.</li>
+</ol>
+
+<div class="note">
+  <strong>Next implementation step (later):</strong> lock D1–D8 → schema + two RPCs + db-tests only (no UI) → Admin New Sale UI against <code>admin_complete_counter_sale</code>.
+</div>
+
+<div class="footer-note">
+  Design document — no application code or database changes were made to produce this PDF.<br />
+  File: docs/audits/richlybook-2.0-new-sale-backend-design.pdf
+</div>
+
+</body>
+</html>

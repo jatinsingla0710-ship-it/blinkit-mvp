@@ -35,6 +35,7 @@ export {
   useCreateCustomerMutation,
   useUpdateCustomerMutation,
   useCreateOrderMutation,
+  useCompleteCounterSaleMutation,
   useUpdateOrderStatusMutation,
   useReassignShopSalesmanMutation,
   useCreateSalesVisitMutation,

@@ -81,6 +81,11 @@ const SalesListPage = lazy(() =>
     default: m.SalesListPage,
   })),
 );
+const NewSalePage = lazy(() =>
+  import('@/pages/sales/NewSalePage').then((m) => ({
+    default: m.NewSalePage,
+  })),
+);
 const SaleDetailPage = lazy(() =>
   import('@/pages/sales/SaleDetailPage').then((m) => ({
     default: m.SaleDetailPage,
@@ -380,6 +385,10 @@ export function AppRoutes() {
           element={guard('orders', <OrderDetailPage />)}
         />
         <Route path="sales" element={guard('orders', <SalesListPage />)} />
+        <Route
+          path="sales/new"
+          element={guard('orders', <NewSalePage />)}
+        />
         <Route
           path="sales/:saleId"
           element={guard('orders', <SaleDetailPage />)}

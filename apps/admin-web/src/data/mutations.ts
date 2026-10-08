@@ -391,6 +391,27 @@ export function useCreateOrderMutation() {
   });
 }
 
+export function useCompleteCounterSaleMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'sales', 'completeCounterSale'],
+    mutationFn: (input: {
+      shop: Record<string, unknown>;
+      lines: Array<Record<string, unknown>>;
+      payment: { amountPaid: number; method: string };
+      billDiscount?: number;
+      notes?: string | null;
+      clientRequestId?: string | null;
+    }) => requireLiveAdminApi().completeCounterSale(input),
+    onSuccess: async () => {
+      await invalidateEntity(queryClient, 'orders');
+      await invalidateEntity(queryClient, 'inventory');
+      await invalidateEntity(queryClient, 'customers');
+      await queryClient.invalidateQueries({ queryKey: ['groaurum', 'sales'] });
+    },
+  });
+}
+
 export function useUpdateOrderStatusMutation() {
   const queryClient = useQueryClient();
   return useMutation({
