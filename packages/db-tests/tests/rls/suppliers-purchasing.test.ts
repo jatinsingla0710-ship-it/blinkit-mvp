@@ -111,7 +111,7 @@ describe('RLS: suppliers + purchases (Phase 5A)', () => {
         .eq('sku_id', sku.id)
         .eq('operational_location_id', location.id)
         .eq('movement_type', 'RECEIPT')
-        .eq('reference_type', 'purchase_item');
+        .eq('reference_type', 'purchase_receipt_line');
       const forPurchase = (movements ?? []).filter(
         (m) => Number(m.quantity_delta) === 5,
       );

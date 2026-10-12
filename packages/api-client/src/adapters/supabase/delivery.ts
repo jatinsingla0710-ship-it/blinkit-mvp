@@ -1,3 +1,4 @@
+import type { Database } from '../../database.types';
 import type { GroAurumSupabaseClient } from '../../supabase/client';
 import { DEFAULT_SERVICE_TERRITORY } from '@groaurum/shared-types';
 
@@ -518,7 +519,8 @@ export function createSupabaseDeliveryService(client: GroAurumSupabaseClient) {
     }): Promise<void> {
       const { error } = await client.rpc('delivery_fail_stop', {
         p_stop_id: input.stopId,
-        p_failure_reason: input.failureReason,
+        p_failure_reason:
+          input.failureReason as Database['public']['Enums']['delivery_failure_reason'],
         p_notes: input.notes ?? null,
         p_photo_captured: input.photoCaptured ?? false,
       });
@@ -533,7 +535,8 @@ export function createSupabaseDeliveryService(client: GroAurumSupabaseClient) {
       const { error } = await client.rpc('delivery_collect_cod', {
         p_order_id: input.orderId,
         p_collected_amount: input.amount,
-        p_collection_method: input.method ?? 'CASH_ON_DELIVERY',
+        p_collection_method: (input.method ??
+          'CASH_ON_DELIVERY') as Database['public']['Enums']['payment_collection_method'],
       });
       if (error) throw error;
     },

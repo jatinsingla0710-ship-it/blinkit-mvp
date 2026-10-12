@@ -217,12 +217,72 @@
   color: var(--ga-text-muted, #667085);
 }
 
+.ga-purchasing__ops-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.ga-purchasing__ops-form input[type='number'] {
+  width: min(120px, 100%);
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.ga-purchasing__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ga-text-muted, #667085);
+}
+
+.ga-purchasing__field textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ga-color-border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+  background: #fff;
+}
+
+.ga-purchasing__preview {
+  margin-top: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ga-purchasing__credit {
+  color: var(--ga-color-success, #067647);
+}
+
 @media (max-width: 720px) {
   .ga-table-wrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .ga-purchasing__scan-layout {
     grid-template-columns: 1fr;
+  }
+
+  .ga-purchasing__ops-form input[type='number'] {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .ga-purchasing__field textarea {
+    min-height: 72px;
+  }
+
+  .ga-purchasing__actions .ga-btn,
+  .ga-purchasing__card-head .ga-btn {
+    min-height: 44px;
   }
 }

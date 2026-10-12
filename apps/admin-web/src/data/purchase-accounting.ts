@@ -1,10 +1,12 @@
 /**
- * Phase 3 — purchase accounting composition.
- * Received inventory purchases increase stock and supplier payable.
- * They are NOT company expenses. Payments settle the payable later.
+ * Phase 3 / 6B.2D — purchase accounting composition.
+ * Payable basis follows receipt/return events (or legacy full bill).
+ * purchases.total remains the original bill total.
+ * Overpayment / return-after-pay surfaces as supplier credit on the bill.
  */
 
 import { formatInr } from '@/data/live/format';
+import { computePurchasePayableAmounts } from '@/data/purchase-payable';
 
 export type PurchaseAccountingItemInput = {
   quantity: number;
@@ -21,7 +23,8 @@ export type PurchaseAccountingPaymentInput = {
 };
 
 export type PurchaseAccountingVm = {
-  status: 'DRAFT' | 'RECEIVED' | 'CANCELLED' | string;
+  status: 'DRAFT' | 'RECEIVED' | 'CANCELLED' | 'PARTIALLY_RECEIVED' | string;
+  path: 'none' | 'legacy' | 'receipt_events';
   isInventoryPurchase: true;
   isExpense: false;
   inventoryQuantity: number;
@@ -32,12 +35,22 @@ export type PurchaseAccountingVm = {
   subtotalLabel: string;
   taxAmount: number;
   taxAmountLabel: string;
+  /** Original bill total — never shrunk for partial receipts. */
+  billTotal: number;
+  billTotalLabel: string;
+  receiptTotal: number;
+  receiptTotalLabel: string;
+  returnTotal: number;
+  returnTotalLabel: string;
   payableIncrease: number;
   payableIncreaseLabel: string;
   paidAgainstBill: number;
   paidAgainstBillLabel: string;
+  /** Signed remaining; negative = supplier credit on this bill. */
   remainingOnBill: number;
   remainingOnBillLabel: string;
+  creditOnBill: number;
+  creditOnBillLabel: string;
   effects: Array<{
     id: string;
     label: string;
@@ -57,8 +70,6 @@ function money(value: number): string {
 
 /**
  * Build honest accounting effects for one purchase bill.
- * Payable uses bill total (subtotal + tax). Inventory cost uses item line totals
- * (tax is kept on the payable side until a GST engine exists).
  */
 export function buildPurchaseAccounting(input: {
   status: string;
@@ -67,6 +78,9 @@ export function buildPurchaseAccounting(input: {
   total: number;
   items: readonly PurchaseAccountingItemInput[];
   payments?: readonly PurchaseAccountingPaymentInput[];
+  receiptTotal?: number | null;
+  returnTotal?: number | null;
+  hasReceiptEvents?: boolean;
 }): PurchaseAccountingVm {
   const status = input.status.toUpperCase();
   const inventoryQuantity = roundMoney(
@@ -77,18 +91,26 @@ export function buildPurchaseAccounting(input: {
   );
   const subtotal = roundMoney(input.subtotal);
   const taxAmount = roundMoney(input.taxAmount);
-  const payableIncrease =
-    status === 'RECEIVED' ? roundMoney(input.total) : 0;
+  const billTotal = roundMoney(input.total);
   const paidAgainstBill = roundMoney(
     (input.payments ?? []).reduce(
       (sum, payment) => sum + (Number(payment.amount) || 0),
       0,
     ),
   );
-  const remainingOnBill =
-    status === 'RECEIVED'
-      ? roundMoney(Math.max(payableIncrease - paidAgainstBill, 0))
-      : 0;
+
+  const amounts = computePurchasePayableAmounts({
+    status,
+    billTotal,
+    receiptTotal: input.receiptTotal,
+    returnTotal: input.returnTotal,
+    hasReceiptEvents: input.hasReceiptEvents,
+    linkedPayments: paidAgainstBill,
+  });
+
+  const payableIncrease = amounts.payableBasis;
+  const remainingOnBill = amounts.remaining;
+  const creditOnBill = amounts.creditOnBill;
 
   const effects: PurchaseAccountingVm['effects'] = [];
   if (status === 'DRAFT') {
@@ -105,19 +127,38 @@ export function buildPurchaseAccounting(input: {
       detail: 'Cancelled purchases do not change stock or supplier dues.',
       tone: 'warning',
     });
-  } else if (status === 'RECEIVED') {
+  } else if (
+    status === 'RECEIVED' ||
+    status === 'PARTIALLY_RECEIVED'
+  ) {
     effects.push({
       id: 'inventory',
-      label: 'Inventory increased',
-      detail: `${inventoryQuantity} pack(s) received · stock cost ${money(inventoryCost)}`,
+      label:
+        status === 'PARTIALLY_RECEIVED'
+          ? 'Inventory partially received'
+          : 'Inventory increased',
+      detail: `${inventoryQuantity} pack(s) on bill · stock cost ${money(inventoryCost)}`,
       tone: 'positive',
     });
-    effects.push({
-      id: 'payable',
-      label: 'Supplier payable increased',
-      detail: `You now owe ${money(payableIncrease)} on this bill (includes tax ${money(taxAmount)}).`,
-      tone: 'warning',
-    });
+    if (payableIncrease > 0) {
+      effects.push({
+        id: 'payable',
+        label: 'Supplier payable increased',
+        detail:
+          amounts.path === 'receipt_events'
+            ? `Payable on received value ${money(payableIncrease)} (bill total ${money(billTotal)} unchanged).`
+            : `You now owe ${money(payableIncrease)} on this bill (includes tax ${money(taxAmount)}).`,
+        tone: 'warning',
+      });
+    }
+    if (amounts.returnTotal > 0) {
+      effects.push({
+        id: 'returns',
+        label: 'Supplier returns recorded',
+        detail: `${money(amounts.returnTotal)} returned · reduces payable on this bill.`,
+        tone: 'info',
+      });
+    }
     effects.push({
       id: 'not_expense',
       label: 'Not an expense',
@@ -129,25 +170,47 @@ export function buildPurchaseAccounting(input: {
       effects.push({
         id: 'payments',
         label: 'Payments recorded',
-        detail: `${money(paidAgainstBill)} paid against this bill · remaining ${money(remainingOnBill)}.`,
-        tone: remainingOnBill > 0 ? 'warning' : 'positive',
+        detail:
+          creditOnBill > 0
+            ? `${money(paidAgainstBill)} paid against this bill · supplier credit ${money(creditOnBill)}.`
+            : `${money(paidAgainstBill)} paid against this bill · remaining ${money(Math.max(remainingOnBill, 0))}.`,
+        tone:
+          remainingOnBill > 0
+            ? 'warning'
+            : creditOnBill > 0
+              ? 'info'
+              : 'positive',
+      });
+    } else if (creditOnBill > 0) {
+      effects.push({
+        id: 'credit',
+        label: 'Supplier credit',
+        detail: `Returns/payments leave a ${money(creditOnBill)} credit on this bill (no cash refund invented).`,
+        tone: 'info',
       });
     }
   }
 
-  const ownerSummary =
-    status === 'RECEIVED'
-      ? remainingOnBill > 0
-        ? `Stock received. You still need to pay ${money(remainingOnBill)} on this bill.`
-        : paidAgainstBill > 0
-          ? 'Stock received and this bill is fully paid.'
-          : `Stock received. Payable of ${money(payableIncrease)} is open until you record a payment.`
-      : status === 'DRAFT'
-        ? 'Receive this bill to increase stock and supplier dues.'
-        : 'This purchase does not affect accounting.';
+  let ownerSummary = 'This purchase does not affect accounting.';
+  if (status === 'DRAFT') {
+    ownerSummary = 'Receive this bill to increase stock and supplier dues.';
+  } else if (status === 'CANCELLED') {
+    ownerSummary = 'This purchase does not affect accounting.';
+  } else if (creditOnBill > 0) {
+    ownerSummary = `Supplier credit of ${money(creditOnBill)} on this bill (overpayment or return after payment).`;
+  } else if (remainingOnBill > 0) {
+    ownerSummary = `You still need to pay ${money(remainingOnBill)} on received value for this bill.`;
+  } else if (payableIncrease > 0 && paidAgainstBill > 0) {
+    ownerSummary = 'Received value on this bill is fully paid.';
+  } else if (payableIncrease > 0) {
+    ownerSummary = `Payable of ${money(payableIncrease)} is open until you record a payment.`;
+  } else if (status === 'PARTIALLY_RECEIVED' || status === 'RECEIVED') {
+    ownerSummary = 'No payable remains on received value for this bill.';
+  }
 
   return {
     status,
+    path: amounts.path,
     isInventoryPurchase: true,
     isExpense: false,
     inventoryQuantity,
@@ -158,12 +221,20 @@ export function buildPurchaseAccounting(input: {
     subtotalLabel: money(subtotal),
     taxAmount,
     taxAmountLabel: money(taxAmount),
+    billTotal,
+    billTotalLabel: money(billTotal),
+    receiptTotal: amounts.receiptTotal,
+    receiptTotalLabel: money(amounts.receiptTotal),
+    returnTotal: amounts.returnTotal,
+    returnTotalLabel: money(amounts.returnTotal),
     payableIncrease,
     payableIncreaseLabel: money(payableIncrease),
     paidAgainstBill,
     paidAgainstBillLabel: money(paidAgainstBill),
     remainingOnBill,
     remainingOnBillLabel: money(remainingOnBill),
+    creditOnBill,
+    creditOnBillLabel: money(creditOnBill),
     effects,
     ownerSummary,
   };

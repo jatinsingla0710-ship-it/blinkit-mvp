@@ -7,9 +7,6 @@
 import { formatDate } from '@/data/live/format';
 import type { InventoryHealthStatus, InventoryListRow } from '@/data/inventory-types';
 
-/** Same threshold LiveAdminApi uses for inventory "low" status. */
-export const LOW_STOCK_THRESHOLD_PACKS = 10;
-
 /** Sales lookback window for velocity (calendar days). */
 export const SALES_LOOKBACK_DAYS = 28;
 
@@ -34,6 +31,8 @@ export type PurchaseSkuSignal = {
   availablePacks: number;
   availableLabel: string;
   status: InventoryHealthStatus;
+  /** Persisted min_stock_quantity; null/0 = not configured. */
+  minStockQuantity?: number | null;
   /** Units sold in the lookback window (packs / selling units as recorded). */
   soldLast28Days: number;
   /** Quantity already on DRAFT purchases for this SKU. */
@@ -133,6 +132,7 @@ export function recommendPurchaseQty(
     PurchaseSkuSignal,
     | 'availablePacks'
     | 'status'
+    | 'minStockQuantity'
     | 'soldLast28Days'
     | 'openDraftQty'
     | 'lastPurchaseQty'
@@ -144,6 +144,10 @@ export function recommendPurchaseQty(
   const openDraft = Math.max(0, roundQty(signal.openDraftQty));
   const weeklyVelocity = roundQty(sold / 4);
   const unit = signal.unitLabel;
+  const configuredMin =
+    signal.minStockQuantity != null && signal.minStockQuantity > 0
+      ? signal.minStockQuantity
+      : null;
 
   let safetyStock = 0;
   let targetStock = 0;
@@ -171,11 +175,24 @@ export function recommendPurchaseQty(
       : `Out of stock — no recent sales; restock to ${FALLBACK_RESTOCK_PACKS} units`;
     explainLines.push('Average weekly sales: no sales in last 28 days');
     explainLines.push(`Target restock: ${qtyLabel(targetStock, unit)}`);
-  } else if (signal.status === 'low') {
-    targetStock = LOW_STOCK_THRESHOLD_PACKS * 2;
-    reason = `Low stock (under ${LOW_STOCK_THRESHOLD_PACKS}) — no recent sales; top up toward ${targetStock}`;
+  } else if (signal.status === 'low' && configuredMin != null) {
+    targetStock = ceilQty(configuredMin * 2);
+    reason = `Low stock (below min ${configuredMin}) — no recent sales; top up toward ${targetStock}`;
     explainLines.push('Average weekly sales: no sales in last 28 days');
+    explainLines.push(`Configured minimum stock: ${qtyLabel(configuredMin, unit)}`);
     explainLines.push(`Target restock: ${qtyLabel(targetStock, unit)}`);
+  } else if (signal.status === 'low') {
+    // Status should not be low without a configured minimum; skip rather than invent a threshold.
+    return {
+      recommendedQty: 0,
+      weeklyVelocity: 0,
+      safetyStock: 0,
+      targetStock: 0,
+      reason: '',
+      explainLines: [],
+      priority: 0,
+      include: false,
+    };
   } else {
     // Healthy and no sales velocity — nothing to recommend.
     return {
@@ -277,6 +294,12 @@ export function inventoryRowToSignal(
     availablePacks: row.availablePacks,
     availableLabel: row.availableLabel || row.mixedStockLabel,
     status: row.status,
+    // Optional: InventoryListRow may not expose min_stock until inventory WIP lands.
+    minStockQuantity:
+      'minStockQuantity' in row
+        ? ((row as { minStockQuantity?: number | null }).minStockQuantity ??
+          null)
+        : null,
     soldLast28Days: extras.soldLast28Days,
     openDraftQty: extras.openDraftQty,
     lastSupplierId: extras.lastSupplierId,

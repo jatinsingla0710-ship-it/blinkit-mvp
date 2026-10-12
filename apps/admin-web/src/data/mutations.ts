@@ -1849,6 +1849,34 @@ export function useReceivePurchaseMutation() {
   });
 }
 
+export function useReceivePurchaseLinesMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'receive-lines'],
+    mutationFn: (
+      input: Parameters<LiveAdminApi['receivePurchaseLines']>[0],
+    ) => requireLiveAdminApi().receivePurchaseLines(input),
+    onSuccess: async (result) =>
+      invalidatePurchasingQueries(queryClient, {
+        purchaseId: result.purchaseId,
+      }),
+  });
+}
+
+export function useCreatePurchaseReturnMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['mutation', 'purchases', 'create-return'],
+    mutationFn: (
+      input: Parameters<LiveAdminApi['createPurchaseReturn']>[0],
+    ) => requireLiveAdminApi().createPurchaseReturn(input),
+    onSuccess: async (result) =>
+      invalidatePurchasingQueries(queryClient, {
+        purchaseId: result.purchaseId,
+      }),
+  });
+}
+
 export function useCancelPurchaseDraftMutation() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -9,7 +9,11 @@ import type { SupplierPaymentMethod } from '@/data/supplier-ledger';
 import type { GstSupplyType } from '@/data/gst';
 import { GST_SUPPLY_TYPE_LABELS } from '@/data/gst';
 
-export type PurchaseStatus = 'DRAFT' | 'RECEIVED' | 'CANCELLED';
+export type PurchaseStatus =
+  | 'DRAFT'
+  | 'PARTIALLY_RECEIVED'
+  | 'RECEIVED'
+  | 'CANCELLED';
 
 export type SupplierRow = {
   id: string;
@@ -53,12 +57,25 @@ export type PurchaseItemRow = {
   productName: string;
   skuCode: string;
   skuName: string;
+  /** Ordered quantity on the bill. */
   quantity: number;
   quantityLabel: string;
   unitCost: number;
   unitCostLabel: string;
   lineTotal: number;
   lineTotalLabel: string;
+  /** Cumulative received qty (receipt lines). */
+  receivedQuantity: number;
+  receivedQuantityLabel: string;
+  /** Cumulative returned qty. */
+  returnedQuantity: number;
+  returnedQuantityLabel: string;
+  /** Ordered − received (still to receive). */
+  remainingToReceive: number;
+  remainingToReceiveLabel: string;
+  /** Received − returned (still returnable). */
+  remainingReturnable: number;
+  remainingReturnableLabel: string;
 };
 
 export type PurchaseListRow = {
@@ -94,16 +111,70 @@ export type PurchaseBillPaymentRow = {
   referenceNumber: string | null;
 };
 
+export type PurchaseReceiptHistoryRow = {
+  id: string;
+  receivedAt: string;
+  receivedAtLabel: string;
+  actorLabel: string;
+  taxableAmount: number;
+  taxableAmountLabel: string;
+  taxAmount: number;
+  taxAmountLabel: string;
+  totalAmount: number;
+  totalAmountLabel: string;
+  lines: Array<{
+    purchaseItemId: string;
+    productName: string;
+    quantity: number;
+    quantityLabel: string;
+    unitCostLabel: string;
+    lineTaxableLabel: string;
+  }>;
+};
+
+export type PurchaseReturnHistoryRow = {
+  id: string;
+  returnedAt: string;
+  returnedAtLabel: string;
+  actorLabel: string;
+  reason: string;
+  taxableAmount: number;
+  taxableAmountLabel: string;
+  taxAmount: number;
+  taxAmountLabel: string;
+  totalAmount: number;
+  totalAmountLabel: string;
+  lines: Array<{
+    purchaseItemId: string;
+    productName: string;
+    quantity: number;
+    quantityLabel: string;
+    unitCostLabel: string;
+    lineTotalLabel: string;
+  }>;
+};
+
 export type PurchaseDetail = PurchaseListRow & {
   notes: string | null;
   receivedAtLabel: string | null;
+  firstReceivedAtLabel: string | null;
   items: PurchaseItemRow[];
   subtotalLabel: string;
   taxAmountLabel: string;
   canEdit: boolean;
+  /** True when remaining ordered qty can still be received. */
   canReceive: boolean;
+  /** True when any line has net received qty that can be returned. */
+  canReturn: boolean;
   accounting: PurchaseAccountingVm;
   billPayments: PurchaseBillPaymentRow[];
+  receiptHistory: PurchaseReceiptHistoryRow[];
+  returnHistory: PurchaseReturnHistoryRow[];
+  /** Sum of receipt taxable amounts (for receive/return tax preview). */
+  receiptTaxableAmount: number;
+  receiptTaxAmount: number;
+  returnTaxableAmount: number;
+  returnTaxAmount: number;
 };
 
 export type PurchaseDraftInput = {
@@ -123,9 +194,23 @@ export type PurchaseDraftInput = {
 
 export const PURCHASE_STATUS_LABELS: Record<PurchaseStatus, string> = {
   DRAFT: 'Draft',
+  PARTIALLY_RECEIVED: 'Partially received',
   RECEIVED: 'Received',
   CANCELLED: 'Cancelled',
 };
+
+export function normalizePurchaseStatus(raw: string): PurchaseStatus {
+  const key = raw.toUpperCase();
+  if (
+    key === 'DRAFT' ||
+    key === 'PARTIALLY_RECEIVED' ||
+    key === 'RECEIVED' ||
+    key === 'CANCELLED'
+  ) {
+    return key;
+  }
+  return 'DRAFT';
+}
 
 export function purchaseLineTotal(quantity: number, unitCost: number): number {
   return Math.round((Number(quantity) || 0) * (Number(unitCost) || 0) * 100) / 100;
@@ -226,29 +311,52 @@ export function mapSupplierDbRow(row: {
   };
 }
 
-export function mapPurchaseItemDbRow(row: {
-  id: string;
-  sku_id: string;
-  product_name: string;
-  sku_code: string;
-  sku_name: string;
-  quantity: number;
-  unit_cost: number;
-  line_total: number;
-}): PurchaseItemRow {
+export function mapPurchaseItemDbRow(
+  row: {
+    id: string;
+    sku_id: string;
+    product_name: string;
+    sku_code: string;
+    sku_name: string;
+    quantity: number;
+    unit_cost: number;
+    line_total: number;
+  },
+  qtyOpts?: {
+    receivedQuantity?: number;
+    returnedQuantity?: number;
+  },
+): PurchaseItemRow {
+  const ordered = Number(row.quantity) || 0;
+  const received = Math.max(0, Number(qtyOpts?.receivedQuantity) || 0);
+  const returned = Math.max(0, Number(qtyOpts?.returnedQuantity) || 0);
+  const remainingToReceive = Math.max(0, roundQty(ordered - received));
+  const remainingReturnable = Math.max(0, roundQty(received - returned));
   return {
     id: row.id,
     skuId: row.sku_id,
     productName: row.product_name,
     skuCode: row.sku_code,
     skuName: row.sku_name,
-    quantity: Number(row.quantity) || 0,
-    quantityLabel: String(Number(row.quantity) || 0),
+    quantity: ordered,
+    quantityLabel: String(ordered),
     unitCost: Number(row.unit_cost) || 0,
     unitCostLabel: formatInr(Number(row.unit_cost) || 0),
     lineTotal: Number(row.line_total) || 0,
     lineTotalLabel: formatInr(Number(row.line_total) || 0),
+    receivedQuantity: received,
+    receivedQuantityLabel: String(received),
+    returnedQuantity: returned,
+    returnedQuantityLabel: String(returned),
+    remainingToReceive,
+    remainingToReceiveLabel: String(remainingToReceive),
+    remainingReturnable,
+    remainingReturnableLabel: String(remainingReturnable),
   };
+}
+
+function roundQty(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 export function mapPurchaseListFields(input: {
@@ -269,7 +377,7 @@ export function mapPurchaseListFields(input: {
   supplyType?: string | null;
   total: number;
 }): PurchaseListRow {
-  const status = (input.status.toUpperCase() as PurchaseStatus) || 'DRAFT';
+  const status = normalizePurchaseStatus(input.status);
   const supplyRaw = (input.supplyType ?? 'UNSET').toUpperCase();
   const supplyType: GstSupplyType =
     supplyRaw === 'INTRA' || supplyRaw === 'INTER' || supplyRaw === 'UNSET'
@@ -285,7 +393,7 @@ export function mapPurchaseListFields(input: {
     purchaseDateLabel: formatDate(input.purchaseDate),
     billNumber: input.billNumber,
     status,
-    statusLabel: PURCHASE_STATUS_LABELS[status] ?? status,
+    statusLabel: PURCHASE_STATUS_LABELS[status],
     itemCount: input.itemCount,
     subtotal: input.subtotal,
     taxAmount: input.taxAmount,

@@ -87,6 +87,34 @@ describe('Phase 18 purchase recommendations', () => {
     expect(result.include).toBe(false);
   });
 
+  it('low stock with no sales uses configured min_stock_quantity (not a hard-coded 10)', () => {
+    const result = recommendPurchaseQty(
+      signal({
+        skuId: 'sku-low',
+        status: 'low',
+        availablePacks: 4,
+        soldLast28Days: 0,
+        minStockQuantity: 12,
+      }),
+    );
+    expect(result.include).toBe(true);
+    expect(result.recommendedQty).toBe(20); // target 24 - available 4
+    expect(result.reason).toMatch(/below min 12/i);
+  });
+
+  it('does not recommend from unconfigured low status (no silent threshold of 10)', () => {
+    const result = recommendPurchaseQty(
+      signal({
+        skuId: 'sku-unconfigured',
+        status: 'low',
+        availablePacks: 5,
+        soldLast28Days: 0,
+        minStockQuantity: null,
+      }),
+    );
+    expect(result.include).toBe(false);
+  });
+
   it('builds a ranked snapshot with honesty note and purchase links', () => {
     const snapshot = buildPurchaseRecommendationsSnapshot({
       generatedAtIso: '2026-10-02T12:00:00.000Z',

@@ -142,6 +142,8 @@ describe('Phase 17 dues assistant', () => {
       rows: [],
       totalOutstanding: 0,
       totalOutstandingLabel: '₹0.00',
+      totalSupplierCredit: 0,
+      totalSupplierCreditLabel: '₹0.00',
       suppliersWithDues: 0,
     };
     const snapshot = buildDuesAssistantSnapshot({

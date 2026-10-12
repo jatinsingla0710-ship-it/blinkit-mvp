@@ -1,7 +1,8 @@
 /**
- * Phase 2 — supplier payables ledger.
- * RECEIVED purchases increase amount owed; recorded payments decrease it.
- * Draft/cancelled purchases do not affect balances.
+ * Phase 2 / 6B.2D — supplier payables ledger.
+ * Payable basis: receipt totals − returns (new path), or legacy bill total.
+ * Payments (linked or supplier-level) decrease the running balance.
+ * Negative outstanding = supplier credit / advance — never invent a cash refund.
  */
 
 import {
@@ -11,6 +12,10 @@ import {
   type ReceivableAgeingBucket,
 } from '@/data/customer-ageing';
 import { formatDate, formatInr } from '@/data/live/format';
+import {
+  computePurchasePayableAmounts,
+  isPayablePurchaseStatus,
+} from '@/data/purchase-payable';
 
 export type SupplierPaymentMethod = 'CASH' | 'BANK' | 'UPI' | 'OTHER';
 
@@ -29,9 +34,24 @@ export type SupplierPurchaseLedgerInput = {
   supplierId: string;
   billNumber: string;
   status: string;
+  /** Original bill total — never shrunk for partial receipts. */
   total: number;
   purchaseDate: string;
   receivedAt?: string | null;
+  firstReceivedAt?: string | null;
+  /** Sum of purchase_receipts.total_amount when receipt events exist. */
+  receiptTotal?: number | null;
+  /** Sum of purchase_returns.total_amount. */
+  returnTotal?: number | null;
+  hasReceiptEvents?: boolean;
+};
+
+export type SupplierPaymentJournalSync = {
+  /** synced = journals written/confirmed for payment date; pending = payment saved, books lag */
+  status: 'synced' | 'pending';
+  posted?: number;
+  skipped?: number;
+  error?: string;
 };
 
 export type SupplierPaymentLedgerInput = {
@@ -44,9 +64,14 @@ export type SupplierPaymentLedgerInput = {
   referenceNumber?: string | null;
   notes?: string | null;
   createdAt?: string | null;
+  /**
+   * Best-effort journal sync after recording the payment.
+   * Domain payment always commits; journals use admin_sync (idempotent by source_id).
+   */
+  journalSync?: SupplierPaymentJournalSync;
 };
 
-export type SupplierLedgerEntryType = 'purchase' | 'payment';
+export type SupplierLedgerEntryType = 'purchase' | 'payment' | 'return';
 
 export type SupplierLedgerEntry = {
   id: string;
@@ -72,8 +97,12 @@ export type SupplierLedgerVm = {
   totalPurchasesLabel: string;
   totalPaid: number;
   totalPaidLabel: string;
+  /** Running balance; negative means supplier credit. */
   outstanding: number;
   outstandingLabel: string;
+  /** Explicit credit when outstanding < 0. */
+  supplierCredit: number;
+  supplierCreditLabel: string;
   lastPaymentAtLabel: string | null;
   entries: SupplierLedgerEntry[];
   payHref: string;
@@ -90,8 +119,10 @@ export type SupplierPayableRow = {
   totalPaidLabel: string;
   outstanding: number;
   outstandingLabel: string;
+  supplierCredit: number;
+  supplierCreditLabel: string;
   lastPaymentAtLabel: string | null;
-  /** Days since oldest RECEIVED purchase while still owed; null when paid up. */
+  /** Days since oldest open bill while still owed; null when paid up / in credit. */
   oldestOpenDays: number | null;
   ageingBucket: ReceivableAgeingBucket;
   ageingLabel: string;
@@ -104,6 +135,8 @@ export type SupplierPayablesSnapshot = {
   rows: SupplierPayableRow[];
   totalOutstanding: number;
   totalOutstandingLabel: string;
+  totalSupplierCredit: number;
+  totalSupplierCreditLabel: string;
   suppliersWithDues: number;
 };
 
@@ -121,13 +154,14 @@ function atIsoFromDate(date: string, fallbackIso?: string | null): string {
   return date;
 }
 
+/** @deprecated Prefer isPayablePurchaseStatus + payable basis. */
 export function isPayablePurchase(status: string): boolean {
-  return status.toUpperCase() === 'RECEIVED';
+  return isPayablePurchaseStatus(status);
 }
 
 /**
- * Proxy age for supplier dues: calendar days since the oldest RECEIVED bill
- * while outstanding remains. Not FIFO bill residual (no due-date terms yet).
+ * Proxy age for supplier dues: calendar days since the oldest bill with a
+ * positive payable basis while outstanding remains.
  */
 export function oldestOpenPayableDays(
   purchases: readonly SupplierPurchaseLedgerInput[],
@@ -137,8 +171,18 @@ export function oldestOpenPayableDays(
   if (outstanding <= 0) return null;
   let oldestIso: string | null = null;
   for (const purchase of purchases) {
-    if (!isPayablePurchase(purchase.status)) continue;
-    const iso = atIsoFromDate(purchase.purchaseDate, purchase.receivedAt);
+    const amounts = computePurchasePayableAmounts({
+      status: purchase.status,
+      billTotal: purchase.total,
+      receiptTotal: purchase.receiptTotal,
+      returnTotal: purchase.returnTotal,
+      hasReceiptEvents: purchase.hasReceiptEvents,
+    });
+    if (amounts.payableBasis <= 0) continue;
+    const iso = atIsoFromDate(
+      purchase.purchaseDate,
+      purchase.firstReceivedAt ?? purchase.receivedAt,
+    );
     if (!oldestIso || Date.parse(iso) < Date.parse(oldestIso)) {
       oldestIso = iso;
     }
@@ -174,21 +218,66 @@ export function buildSupplierLedger(input: {
 
   for (const purchase of input.purchases) {
     if (purchase.supplierId !== input.supplierId) continue;
-    if (!isPayablePurchase(purchase.status)) continue;
-    const atIso = atIsoFromDate(
-      purchase.purchaseDate,
-      purchase.receivedAt ?? null,
-    );
-    events.push({
-      id: `purchase-${purchase.id}`,
-      atIso,
-      sortKey: Date.parse(atIso) || 0,
-      type: 'purchase',
-      reference: purchase.billNumber,
-      referenceHref: `/purchases/${purchase.id}`,
-      debit: roundMoney(purchase.total),
-      credit: 0,
+    const amounts = computePurchasePayableAmounts({
+      status: purchase.status,
+      billTotal: purchase.total,
+      receiptTotal: purchase.receiptTotal,
+      returnTotal: purchase.returnTotal,
+      hasReceiptEvents: purchase.hasReceiptEvents,
     });
+
+    if (amounts.path === 'receipt_events') {
+      if (amounts.receiptTotal > 0) {
+        const atIso = atIsoFromDate(
+          purchase.purchaseDate,
+          purchase.firstReceivedAt ?? purchase.receivedAt ?? null,
+        );
+        events.push({
+          id: `purchase-${purchase.id}`,
+          atIso,
+          sortKey: Date.parse(atIso) || 0,
+          type: 'purchase',
+          reference: purchase.billNumber,
+          referenceHref: `/purchases/${purchase.id}`,
+          debit: amounts.receiptTotal,
+          credit: 0,
+        });
+      }
+      if (amounts.returnTotal > 0) {
+        const atIso = atIsoFromDate(
+          purchase.purchaseDate,
+          purchase.receivedAt ?? purchase.firstReceivedAt ?? null,
+        );
+        events.push({
+          id: `return-${purchase.id}`,
+          atIso,
+          sortKey: (Date.parse(atIso) || 0) + 1,
+          type: 'return',
+          reference: `${purchase.billNumber} · return`,
+          referenceHref: `/purchases/${purchase.id}`,
+          debit: 0,
+          credit: amounts.returnTotal,
+        });
+      }
+      continue;
+    }
+
+    if (amounts.path === 'legacy' && amounts.payableBasis > 0) {
+      const atIso = atIsoFromDate(
+        purchase.purchaseDate,
+        purchase.receivedAt ?? null,
+      );
+      events.push({
+        id: `purchase-${purchase.id}`,
+        atIso,
+        sortKey: Date.parse(atIso) || 0,
+        type: 'purchase',
+        reference: purchase.billNumber,
+        referenceHref: `/purchases/${purchase.id}`,
+        debit: amounts.payableBasis,
+        credit: 0,
+      });
+    }
   }
 
   for (const payment of input.payments) {
@@ -225,11 +314,19 @@ export function buildSupplierLedger(input: {
   let totalPaid = 0;
   let lastPaymentAtLabel: string | null = null;
 
+  const typeLabel = (type: SupplierLedgerEntryType): string => {
+    if (type === 'payment') return 'Payment';
+    if (type === 'return') return 'Return';
+    return 'Purchase';
+  };
+
   const entries: SupplierLedgerEntry[] = events.map((event) => {
     running = roundMoney(running + event.debit - event.credit);
-    totalPurchases = roundMoney(totalPurchases + event.debit);
-    totalPaid = roundMoney(totalPaid + event.credit);
+    if (event.type === 'purchase') {
+      totalPurchases = roundMoney(totalPurchases + event.debit);
+    }
     if (event.type === 'payment') {
+      totalPaid = roundMoney(totalPaid + event.credit);
       lastPaymentAtLabel = formatDate(event.atIso);
     }
     return {
@@ -237,7 +334,7 @@ export function buildSupplierLedger(input: {
       atIso: event.atIso,
       atLabel: formatDate(event.atIso),
       type: event.type,
-      typeLabel: event.type === 'purchase' ? 'Purchase' : 'Payment',
+      typeLabel: typeLabel(event.type),
       reference: event.reference,
       referenceHref: event.referenceHref,
       debit: event.debit,
@@ -251,6 +348,7 @@ export function buildSupplierLedger(input: {
   });
 
   const outstanding = running;
+  const supplierCredit = roundMoney(Math.max(0, -outstanding));
   return {
     payable: outstanding,
     payableLabel: moneyLabel(outstanding),
@@ -260,6 +358,8 @@ export function buildSupplierLedger(input: {
     totalPaidLabel: moneyLabel(totalPaid),
     outstanding,
     outstandingLabel: moneyLabel(outstanding),
+    supplierCredit,
+    supplierCreditLabel: moneyLabel(supplierCredit),
     lastPaymentAtLabel,
     entries: [...entries].reverse(),
     payHref: `/suppliers/${input.supplierId}?pay=1`,
@@ -299,7 +399,14 @@ export function buildSupplierPayablesSnapshot(input: {
       purchases: supplierPurchases,
       payments: paymentsBySupplier.get(supplier.id) ?? [],
     });
-    if (ledger.totalPurchases === 0 && ledger.totalPaid === 0) continue;
+    if (
+      ledger.totalPurchases === 0 &&
+      ledger.totalPaid === 0 &&
+      ledger.supplierCredit === 0 &&
+      !ledger.entries.some((e) => e.type === 'return')
+    ) {
+      continue;
+    }
     const oldestOpenDays = oldestOpenPayableDays(
       supplierPurchases,
       ledger.outstanding,
@@ -320,6 +427,8 @@ export function buildSupplierPayablesSnapshot(input: {
       totalPaidLabel: ledger.totalPaidLabel,
       outstanding: ledger.outstanding,
       outstandingLabel: ledger.outstandingLabel,
+      supplierCredit: ledger.supplierCredit,
+      supplierCreditLabel: ledger.supplierCreditLabel,
       lastPaymentAtLabel: ledger.lastPaymentAtLabel,
       oldestOpenDays,
       ageingBucket,
@@ -337,12 +446,17 @@ export function buildSupplierPayablesSnapshot(input: {
   const totalOutstanding = roundMoney(
     rows.reduce((sum, row) => sum + Math.max(row.outstanding, 0), 0),
   );
+  const totalSupplierCredit = roundMoney(
+    rows.reduce((sum, row) => sum + row.supplierCredit, 0),
+  );
 
   return {
     generatedAtLabel: formatDate(input.generatedAtIso),
     rows,
     totalOutstanding,
     totalOutstandingLabel: moneyLabel(totalOutstanding),
+    totalSupplierCredit,
+    totalSupplierCreditLabel: moneyLabel(totalSupplierCredit),
     suppliersWithDues: rows.filter((row) => row.outstanding > 0).length,
   };
 }

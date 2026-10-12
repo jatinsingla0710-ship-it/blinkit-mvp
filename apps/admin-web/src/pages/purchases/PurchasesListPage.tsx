@@ -93,6 +93,7 @@ export function PurchasesListPage() {
               >
                 <option value="all">All</option>
                 <option value="DRAFT">Draft</option>
+                <option value="PARTIALLY_RECEIVED">Partially received</option>
                 <option value="RECEIVED">Received</option>
                 <option value="CANCELLED">Cancelled</option>
               </select>

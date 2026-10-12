@@ -7,6 +7,7 @@ import {
 import { todayExpenseDate } from '@/data/company-expenses';
 import { formatMutationError } from '@/data/mutation-errors';
 import { useRecordSupplierPaymentMutation } from '@/data/mutations';
+import { isPayablePurchaseStatus } from '@/data/purchase-payable';
 
 type PurchaseOption = {
   id: string;
@@ -46,7 +47,9 @@ export function SupplierPaymentModal({
   const [purchaseId, setPurchaseId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const receivedPurchases = purchases.filter((p) => p.status === 'RECEIVED');
+  const receivedPurchases = purchases.filter((p) =>
+    isPayablePurchaseStatus(p.status),
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -108,6 +111,8 @@ export function SupplierPaymentModal({
         <p className="ga-sm-order-form__hint">
           Current amount to pay: <strong>{outstandingLabel}</strong>. This
           records money paid to the supplier — it is not a company expense.
+          Payable updates immediately; the payment journal is synced right after
+          save (retry from Books if sync is pending).
         </p>
         <TextField
           label="Payment date"

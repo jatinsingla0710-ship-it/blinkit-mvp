@@ -1,5 +1,6 @@
 import {
   parseSalesmanTarget,
+  type Database,
   type GroAurumSupabaseClient,
   type SalesmanExpense,
   type SalesmanMessage,
@@ -87,9 +88,12 @@ import {
   mapPurchaseItemDbRow,
   mapPurchaseListFields,
   mapSupplierDbRow,
+  normalizePurchaseStatus,
   type PurchaseDetail,
   type PurchaseDraftInput,
   type PurchaseListRow,
+  type PurchaseReceiptHistoryRow,
+  type PurchaseReturnHistoryRow,
   type PurchaseStatus,
   type SupplierInput,
   type SupplierRow,
@@ -121,6 +125,7 @@ import {
   type UnpaidOrderCandidate,
 } from '../payment-proof-extract';
 import { buildPurchaseAccounting } from '../purchase-accounting';
+import { aggregatePayableEventTotals } from '../purchase-payable';
 import {
   buildPurchaseRecommendationsSnapshot,
   inventoryRowToSignal,
@@ -137,6 +142,7 @@ import {
   type SupplierPayablesSnapshot,
   type SupplierPaymentLedgerInput,
   type SupplierPaymentMethod,
+  type SupplierPurchaseLedgerInput,
 } from '../supplier-ledger';
 import {
   buildDayBookSnapshot,
@@ -3319,11 +3325,82 @@ export class LiveAdminApi {
     }));
   }
 
+  async loadPurchasePayableEventTotals(
+    purchaseIds?: readonly string[],
+  ): Promise<
+    Map<
+      string,
+      {
+        receiptTotal: number;
+        returnTotal: number;
+        hasReceiptEvents: boolean;
+      }
+    >
+  > {
+    let receiptsQuery = this.sb
+      .from('purchase_receipts')
+      .select('purchase_id, total_amount');
+    let returnsQuery = this.sb
+      .from('purchase_returns')
+      .select('purchase_id, total_amount');
+    if (purchaseIds && purchaseIds.length > 0) {
+      receiptsQuery = receiptsQuery.in('purchase_id', [...purchaseIds]);
+      returnsQuery = returnsQuery.in('purchase_id', [...purchaseIds]);
+    }
+    const [receiptsRes, returnsRes] = await Promise.all([
+      receiptsQuery,
+      returnsQuery,
+    ]);
+    if (receiptsRes.error) {
+      throwRpcError(receiptsRes.error, 'Could not load purchase receipts');
+    }
+    if (returnsRes.error) {
+      throwRpcError(returnsRes.error, 'Could not load purchase returns');
+    }
+    return aggregatePayableEventTotals(
+      ((receiptsRes.data ?? []) as Row[]).map((row) => ({
+        purchaseId: str(row['purchase_id']),
+        totalAmount: num(row['total_amount']),
+      })),
+      ((returnsRes.data ?? []) as Row[]).map((row) => ({
+        purchaseId: str(row['purchase_id']),
+        totalAmount: num(row['total_amount']),
+      })),
+    );
+  }
+
+  private toSupplierPurchaseLedgerInputs(
+    purchases: readonly PurchaseListRow[],
+    eventTotals: Map<
+      string,
+      { receiptTotal: number; returnTotal: number; hasReceiptEvents: boolean }
+    >,
+    receivedAtByPurchaseId?: Map<string, string | null>,
+  ): SupplierPurchaseLedgerInput[] {
+    return purchases.map((p) => {
+      const events = eventTotals.get(p.id);
+      return {
+        id: p.id,
+        supplierId: p.supplierId,
+        billNumber: p.billNumber,
+        status: p.status,
+        total: p.total,
+        purchaseDate: p.purchaseDate,
+        receivedAt: receivedAtByPurchaseId?.get(p.id) ?? null,
+        firstReceivedAt: receivedAtByPurchaseId?.get(p.id) ?? null,
+        receiptTotal: events?.receiptTotal ?? 0,
+        returnTotal: events?.returnTotal ?? 0,
+        hasReceiptEvents: events?.hasReceiptEvents ?? false,
+      };
+    });
+  }
+
   async supplierPayablesSnapshot(): Promise<SupplierPayablesSnapshot> {
-    const [suppliers, purchases, payments] = await Promise.all([
+    const [suppliers, purchases, payments, eventTotals] = await Promise.all([
       this.suppliersList(),
       this.purchasesList(),
       this.listSupplierPayments(),
+      this.loadPurchasePayableEventTotals(),
     ]);
     return buildSupplierPayablesSnapshot({
       generatedAtIso: new Date().toISOString(),
@@ -3333,14 +3410,7 @@ export class LiveAdminApi {
         contactPerson: s.contactPerson,
         mobileLabel: s.mobileLabel,
       })),
-      purchases: purchases.map((p) => ({
-        id: p.id,
-        supplierId: p.supplierId,
-        billNumber: p.billNumber,
-        status: p.status,
-        total: p.total,
-        purchaseDate: p.purchaseDate,
-      })),
+      purchases: this.toSupplierPurchaseLedgerInputs(purchases, eventTotals),
       payments,
     });
   }
@@ -3933,11 +4003,12 @@ export class LiveAdminApi {
     });
     if (error) throwRpcError(error, 'Could not record supplier payment');
     const row = data as unknown as Row;
-    return {
+    const paymentDate = str(row['payment_date']);
+    const payment: SupplierPaymentLedgerInput = {
       id: str(row['id']),
       supplierId: str(row['supplier_id']),
       purchaseId: row['purchase_id'] ? str(row['purchase_id']) : null,
-      paymentDate: str(row['payment_date']),
+      paymentDate,
       amount: num(row['amount']),
       paymentMethod: mapSupplierPaymentMethod(str(row['payment_method'])),
       referenceNumber: row['reference_number']
@@ -3946,6 +4017,28 @@ export class LiveAdminApi {
       notes: row['notes'] ? str(row['notes']) : null,
       createdAt: row['created_at'] ? str(row['created_at']) : null,
     };
+
+    // Retain sync architecture (same as expenses/payroll). Best-effort sync for
+    // the payment date; _accounting_post_journal + sync skip prevent duplicates.
+    try {
+      const sync = await this.syncAccountingJournals({
+        dateFrom: paymentDate,
+        dateTo: paymentDate,
+      });
+      payment.journalSync = {
+        status: 'synced',
+        posted: sync.posted,
+        skipped: sync.skipped,
+      };
+    } catch (syncErr) {
+      const message =
+        syncErr instanceof Error && syncErr.message.trim()
+          ? syncErr.message.trim()
+          : 'Accounting sync failed; payment was saved. Retry sync from Books.';
+      payment.journalSync = { status: 'pending', error: message };
+    }
+
+    return payment;
   }
 
   async deleteSupplierPayment(paymentId: string): Promise<void> {
@@ -4116,7 +4209,15 @@ export class LiveAdminApi {
     if (!data) return null;
     const p = data as unknown as Row;
 
-    const [supplierRes, locationRes, itemsRes, paymentsRes] = await Promise.all([
+    const [
+      supplierRes,
+      locationRes,
+      itemsRes,
+      paymentsRes,
+      eventTotals,
+      receiptsRes,
+      returnsRes,
+    ] = await Promise.all([
       this.sb
         .from('suppliers')
         .select('id, name')
@@ -4140,6 +4241,21 @@ export class LiveAdminApi {
         .eq('purchase_id', id)
         .order('payment_date', { ascending: false })
         .order('created_at', { ascending: false }),
+      this.loadPurchasePayableEventTotals([id]),
+      this.sb
+        .from('purchase_receipts')
+        .select(
+          'id, received_at, actor_profile_id, taxable_amount, tax_amount, total_amount, purchase_receipt_lines(id, purchase_item_id, quantity, unit_cost, line_taxable)',
+        )
+        .eq('purchase_id', id)
+        .order('received_at', { ascending: true }),
+      this.sb
+        .from('purchase_returns')
+        .select(
+          'id, returned_at, actor_profile_id, reason, taxable_amount, tax_amount, total_amount, purchase_return_lines(id, purchase_item_id, quantity, unit_cost, line_total)',
+        )
+        .eq('purchase_id', id)
+        .order('returned_at', { ascending: true }),
     ]);
     if (supplierRes.error) {
       throwRpcError(supplierRes.error, 'Could not load purchase supplier');
@@ -4153,19 +4269,170 @@ export class LiveAdminApi {
     if (paymentsRes.error) {
       throwRpcError(paymentsRes.error, 'Could not load bill payments');
     }
+    if (receiptsRes.error) {
+      throwRpcError(receiptsRes.error, 'Could not load purchase receipts');
+    }
+    if (returnsRes.error) {
+      throwRpcError(returnsRes.error, 'Could not load purchase returns');
+    }
 
-    const items = ((itemsRes.data ?? []) as Row[]).map((row) =>
-      mapPurchaseItemDbRow({
-        id: str(row['id']),
-        sku_id: str(row['sku_id']),
-        product_name: str(row['product_name']),
-        sku_code: str(row['sku_code']),
-        sku_name: str(row['sku_name']),
-        quantity: num(row['quantity']),
-        unit_cost: num(row['unit_cost']),
-        line_total: num(row['line_total']),
-      }),
-    );
+    const receivedByItem = new Map<string, number>();
+    const returnedByItem = new Map<string, number>();
+    let receiptTaxableAmount = 0;
+    let receiptTaxAmount = 0;
+    let returnTaxableAmount = 0;
+    let returnTaxAmount = 0;
+
+    for (const receipt of (receiptsRes.data ?? []) as Row[]) {
+      receiptTaxableAmount += num(receipt['taxable_amount']);
+      receiptTaxAmount += num(receipt['tax_amount']);
+      const lines = (receipt['purchase_receipt_lines'] ?? []) as Row[];
+      for (const line of lines) {
+        const itemId = str(line['purchase_item_id']);
+        receivedByItem.set(
+          itemId,
+          (receivedByItem.get(itemId) ?? 0) + num(line['quantity']),
+        );
+      }
+    }
+    for (const ret of (returnsRes.data ?? []) as Row[]) {
+      returnTaxableAmount += num(ret['taxable_amount']);
+      returnTaxAmount += num(ret['tax_amount']);
+      const lines = (ret['purchase_return_lines'] ?? []) as Row[];
+      for (const line of lines) {
+        const itemId = str(line['purchase_item_id']);
+        returnedByItem.set(
+          itemId,
+          (returnedByItem.get(itemId) ?? 0) + num(line['quantity']),
+        );
+      }
+    }
+
+    const itemNameById = new Map<string, string>();
+    const items = ((itemsRes.data ?? []) as Row[]).map((row) => {
+      const itemId = str(row['id']);
+      const productName = str(row['product_name']);
+      itemNameById.set(itemId, productName);
+      return mapPurchaseItemDbRow(
+        {
+          id: itemId,
+          sku_id: str(row['sku_id']),
+          product_name: productName,
+          sku_code: str(row['sku_code']),
+          sku_name: str(row['sku_name']),
+          quantity: num(row['quantity']),
+          unit_cost: num(row['unit_cost']),
+          line_total: num(row['line_total']),
+        },
+        {
+          receivedQuantity: receivedByItem.get(itemId) ?? 0,
+          returnedQuantity: returnedByItem.get(itemId) ?? 0,
+        },
+      );
+    });
+
+    const actorIds = [
+      ...new Set(
+        [
+          ...((receiptsRes.data ?? []) as Row[]).map((r) =>
+            r['actor_profile_id'] ? str(r['actor_profile_id']) : '',
+          ),
+          ...((returnsRes.data ?? []) as Row[]).map((r) =>
+            r['actor_profile_id'] ? str(r['actor_profile_id']) : '',
+          ),
+        ].filter(Boolean),
+      ),
+    ];
+    const actorLabelById = new Map<string, string>();
+    if (actorIds.length > 0) {
+      const { data: actors, error: actorsError } = await this.sb
+        .from('profiles')
+        .select('id, display_name, mobile')
+        .in('id', actorIds);
+      if (actorsError) {
+        throwRpcError(actorsError, 'Could not load receipt actors');
+      }
+      for (const actor of (actors ?? []) as Row[]) {
+        const label =
+          str(actor['display_name']).trim() ||
+          str(actor['mobile']).trim() ||
+          'Admin';
+        actorLabelById.set(str(actor['id']), label);
+      }
+    }
+
+    const receiptHistory: PurchaseReceiptHistoryRow[] = (
+      (receiptsRes.data ?? []) as Row[]
+    ).map((receipt) => {
+      const lines = ((receipt['purchase_receipt_lines'] ?? []) as Row[]).map(
+        (line) => {
+          const purchaseItemId = str(line['purchase_item_id']);
+          return {
+            purchaseItemId,
+            productName: itemNameById.get(purchaseItemId) ?? 'Item',
+            quantity: num(line['quantity']),
+            quantityLabel: String(num(line['quantity'])),
+            unitCostLabel: formatInr(num(line['unit_cost'])),
+            lineTaxableLabel: formatInr(num(line['line_taxable'])),
+          };
+        },
+      );
+      const actorId = receipt['actor_profile_id']
+        ? str(receipt['actor_profile_id'])
+        : '';
+      return {
+        id: str(receipt['id']),
+        receivedAt: str(receipt['received_at']),
+        receivedAtLabel: formatDateTime(str(receipt['received_at'])),
+        actorLabel: actorId
+          ? (actorLabelById.get(actorId) ?? 'Admin')
+          : 'Admin',
+        taxableAmount: num(receipt['taxable_amount']),
+        taxableAmountLabel: formatInr(num(receipt['taxable_amount'])),
+        taxAmount: num(receipt['tax_amount']),
+        taxAmountLabel: formatInr(num(receipt['tax_amount'])),
+        totalAmount: num(receipt['total_amount']),
+        totalAmountLabel: formatInr(num(receipt['total_amount'])),
+        lines,
+      };
+    });
+
+    const returnHistory: PurchaseReturnHistoryRow[] = (
+      (returnsRes.data ?? []) as Row[]
+    ).map((ret) => {
+      const lines = ((ret['purchase_return_lines'] ?? []) as Row[]).map(
+        (line) => {
+          const purchaseItemId = str(line['purchase_item_id']);
+          return {
+            purchaseItemId,
+            productName: itemNameById.get(purchaseItemId) ?? 'Item',
+            quantity: num(line['quantity']),
+            quantityLabel: String(num(line['quantity'])),
+            unitCostLabel: formatInr(num(line['unit_cost'])),
+            lineTotalLabel: formatInr(num(line['line_total'])),
+          };
+        },
+      );
+      const actorId = ret['actor_profile_id']
+        ? str(ret['actor_profile_id'])
+        : '';
+      return {
+        id: str(ret['id']),
+        returnedAt: str(ret['returned_at']),
+        returnedAtLabel: formatDateTime(str(ret['returned_at'])),
+        actorLabel: actorId
+          ? (actorLabelById.get(actorId) ?? 'Admin')
+          : 'Admin',
+        reason: str(ret['reason']),
+        taxableAmount: num(ret['taxable_amount']),
+        taxableAmountLabel: formatInr(num(ret['taxable_amount'])),
+        taxAmount: num(ret['tax_amount']),
+        taxAmountLabel: formatInr(num(ret['tax_amount'])),
+        totalAmount: num(ret['total_amount']),
+        totalAmountLabel: formatInr(num(ret['total_amount'])),
+        lines,
+      };
+    });
 
     const billPayments = ((paymentsRes.data ?? []) as Row[]).map((row) => {
       const method = mapSupplierPaymentMethod(str(row['payment_method']));
@@ -4207,6 +4474,11 @@ export class LiveAdminApi {
     });
 
     const status = list.status;
+    const payableEvents = eventTotals.get(id) ?? {
+      receiptTotal: 0,
+      returnTotal: 0,
+      hasReceiptEvents: false,
+    };
     const accounting = buildPurchaseAccounting({
       status,
       subtotal: list.subtotal,
@@ -4220,7 +4492,15 @@ export class LiveAdminApi {
         paymentMethodLabel: payment.paymentMethodLabel,
         referenceNumber: payment.referenceNumber,
       })),
+      receiptTotal: payableEvents.receiptTotal,
+      returnTotal: payableEvents.returnTotal,
+      hasReceiptEvents: payableEvents.hasReceiptEvents,
     });
+
+    const canReceive =
+      (status === 'DRAFT' || status === 'PARTIALLY_RECEIVED') &&
+      items.some((item) => item.remainingToReceive > 0);
+    const canReturn = items.some((item) => item.remainingReturnable > 0);
 
     return {
       ...list,
@@ -4228,13 +4508,23 @@ export class LiveAdminApi {
       receivedAtLabel: p['received_at']
         ? formatDateTime(str(p['received_at']))
         : null,
+      firstReceivedAtLabel: p['first_received_at']
+        ? formatDateTime(str(p['first_received_at']))
+        : null,
       items,
       subtotalLabel: formatInr(list.subtotal),
       taxAmountLabel: formatInr(list.taxAmount),
       canEdit: status === 'DRAFT',
-      canReceive: status === 'DRAFT' && items.length > 0,
+      canReceive,
+      canReturn,
       accounting,
       billPayments,
+      receiptHistory,
+      returnHistory,
+      receiptTaxableAmount: Math.round(receiptTaxableAmount * 100) / 100,
+      receiptTaxAmount: Math.round(receiptTaxAmount * 100) / 100,
+      returnTaxableAmount: Math.round(returnTaxableAmount * 100) / 100,
+      returnTaxAmount: Math.round(returnTaxAmount * 100) / 100,
     };
   }
 
@@ -4278,10 +4568,90 @@ export class LiveAdminApi {
     const row = data as unknown as Row;
     return {
       purchaseId: str(row['purchaseId'] ?? purchaseId),
-      status: (str(row['status']).toUpperCase() as PurchaseStatus) || 'RECEIVED',
+      status: normalizePurchaseStatus(str(row['status']) || 'RECEIVED'),
       alreadyReceived: row['alreadyReceived'] === true,
       movementCount: num(row['movementCount']),
       totalQuantity: num(row['totalQuantity']),
+    };
+  }
+
+  async createPurchaseReturn(input: {
+    purchaseId: string;
+    lines: Array<{ purchaseItemId: string; quantity: number }>;
+    reason: string;
+    clientRequestId: string;
+  }): Promise<{
+    purchaseId: string;
+    returnId: string | null;
+    idempotentReplay: boolean;
+    movementCount: number;
+    totalQuantity: number;
+    taxableAmount: number;
+    taxAmount: number;
+    totalAmount: number;
+    reason: string;
+  }> {
+    const { data, error } = await this.sb.rpc('admin_create_purchase_return', {
+      p_purchase_id: input.purchaseId,
+      p_lines: input.lines.map((line) => ({
+        purchase_item_id: line.purchaseItemId,
+        quantity: line.quantity,
+      })),
+      p_reason: input.reason,
+      p_client_request_id: input.clientRequestId,
+    });
+    if (error) throwRpcError(error, 'Could not create purchase return');
+    const row = data as unknown as Row;
+    return {
+      purchaseId: str(row['purchaseId'] ?? input.purchaseId),
+      returnId: row['returnId'] ? str(row['returnId']) : null,
+      idempotentReplay: row['idempotentReplay'] === true,
+      movementCount: num(row['movementCount']),
+      totalQuantity: num(row['totalQuantity']),
+      taxableAmount: num(row['taxableAmount']),
+      taxAmount: num(row['taxAmount']),
+      totalAmount: num(row['totalAmount']),
+      reason: str(row['reason'] ?? input.reason),
+    };
+  }
+
+  async receivePurchaseLines(input: {
+    purchaseId: string;
+    lines: Array<{ purchaseItemId: string; quantity: number }>;
+    clientRequestId: string;
+  }): Promise<{
+    purchaseId: string;
+    status: PurchaseStatus;
+    receiptId: string | null;
+    alreadyReceived: boolean;
+    idempotentReplay: boolean;
+    movementCount: number;
+    totalQuantity: number;
+    taxableAmount: number;
+    taxAmount: number;
+    totalAmount: number;
+  }> {
+    const { data, error } = await this.sb.rpc('admin_receive_purchase_lines', {
+      p_purchase_id: input.purchaseId,
+      p_lines: input.lines.map((line) => ({
+        purchase_item_id: line.purchaseItemId,
+        quantity: line.quantity,
+      })),
+      p_client_request_id: input.clientRequestId,
+    });
+    if (error) throwRpcError(error, 'Could not receive purchase lines');
+    const row = data as unknown as Row;
+    return {
+      purchaseId: str(row['purchaseId'] ?? input.purchaseId),
+      status: normalizePurchaseStatus(str(row['status']) || 'RECEIVED'),
+      receiptId: row['receiptId'] ? str(row['receiptId']) : null,
+      alreadyReceived: row['alreadyReceived'] === true,
+      idempotentReplay: row['idempotentReplay'] === true,
+      movementCount: num(row['movementCount']),
+      totalQuantity: num(row['totalQuantity']),
+      taxableAmount: num(row['taxableAmount']),
+      taxAmount: num(row['taxAmount']),
+      totalAmount: num(row['totalAmount']),
     };
   }
 
@@ -7467,7 +7837,7 @@ export class LiveAdminApi {
     const { error } = await this.sb.rpc('delivery_collect_cod', {
       p_order_id: orderId,
       p_collected_amount: collectedAmount,
-      p_collection_method: collectionMethod,
+      p_collection_method: collectionMethod as Database['public']['Enums']['payment_collection_method'],
     });
     if (error) throwRpcError(error, 'Could not collect COD');
   }
@@ -7495,7 +7865,7 @@ export class LiveAdminApi {
   ): Promise<void> {
     const { error } = await this.sb.rpc('delivery_fail_stop', {
       p_stop_id: stopId,
-      p_failure_reason: failureReason,
+      p_failure_reason: failureReason as Database['public']['Enums']['delivery_failure_reason'],
       p_notes: notes ?? null,
       p_photo_captured: false,
     });
