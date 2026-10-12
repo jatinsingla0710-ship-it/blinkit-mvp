@@ -4,7 +4,7 @@
  * Requires local Supabase (`pnpm db:start`) and applied migrations (`pnpm db:reset`).
  */
 import { execSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,6 +21,32 @@ const GENERATED_HEADER = `/**
  *   pnpm db:reset && pnpm db:types
  */
 `;
+
+/**
+ * Newer `supabase gen types` emits optional Args as `?: T` (undefined-only).
+ * Call sites across this repo pass `null` for omitted SQL params. Widen optional
+ * fields to `T | null`, and mark known create-or-update UUID args nullable.
+ */
+function normalizeGeneratedDatabaseTypes(source) {
+  // Multiline (`  p_x?: T`) and single-line Args (`{ p_x?: T; ... }`).
+  // Do not stop at `|` — optional unions must stay intact.
+  let out = source.replace(/(\w+\?: )([^;,\n}]+)/g, (match, prefix, type) => {
+    const trimmed = type.trim();
+    if (/\|\s*null\b/.test(trimmed)) return match;
+    return `${prefix}${trimmed} | null`;
+  });
+  // Repair prior bad passes that truncated at `|` and appended `| null` twice.
+  out = out.replace(/\| null(?:\s*\| null)+/g, '| null');
+
+  const nullableRequiredArgs = [
+    [/(\badmin_upsert_purchase_draft:\s*\{[\s\S]*?\bp_purchase_id:\s*)string(\b)/, '$1string | null$2'],
+    [/(\bsalesman_create_voice_note:\s*\{[\s\S]*?\bp_visit_id:\s*)string(\b)/, '$1string | null$2'],
+  ];
+  for (const [pattern, replacement] of nullableRequiredArgs) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
 
 function main() {
   let types;
@@ -43,7 +69,9 @@ function main() {
     process.exit(1);
   }
 
-  const body = types.startsWith('/**') ? types : `${GENERATED_HEADER}\n${types}`;
+  const body = normalizeGeneratedDatabaseTypes(
+    types.startsWith('/**') ? types : `${GENERATED_HEADER}\n${types}`,
+  );
   writeFileSync(outputPath, body, 'utf8');
 
   const typesBoundaryPath = join(rootDir, 'packages/api-client/src/database.types.ts');
@@ -58,16 +86,16 @@ export type { Database, Json, Tables, TablesInsert, TablesUpdate, Enums } from '
     'utf8',
   );
 
-  const indexPath = join(rootDir, 'packages/api-client/src/index.ts');
-  writeFileSync(
-    indexPath,
-    `export * from './contracts';
-export type { Database, Enums, Json, Tables, TablesInsert, TablesUpdate } from './database.types';
-`,
-    'utf8',
-  );
+  // Do not rewrite packages/api-client/src/index.ts — it re-exports runtime
+  // clients and adapters beyond the Database types.
 
   console.log(`[db:types] Wrote ${outputPath}`);
 }
 
-main();
+if (process.argv.includes('--normalize-only')) {
+  const current = readFileSync(outputPath, 'utf8');
+  writeFileSync(outputPath, normalizeGeneratedDatabaseTypes(current), 'utf8');
+  console.log(`[db:types] Normalized ${outputPath}`);
+} else {
+  main();
+}

@@ -1,7 +1,5 @@
 /**
- * Re-exports Supabase schema types.
- * Sprint 4: uses extended Database (soft-delete + new tables) until
- * `pnpm db:types` regenerates database.generated.ts from local DB.
+ * Re-exports Supabase-generated schema types from database.generated.ts.
+ * Updated automatically by: pnpm db:types
  */
-export type { Json, Tables, TablesInsert, TablesUpdate, Enums } from './database.generated';
-export type { Database } from './database.extended';
+export type { Database, Json, Tables, TablesInsert, TablesUpdate, Enums } from './database.generated';
