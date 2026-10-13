@@ -5656,6 +5656,16 @@ export type Database = {
         }
         Returns: string
       }
+      _accounting_post_sale_refund_reversals: {
+        Args: {
+          p_actor?: string | null
+          p_order_id: string
+          p_payment_id: string
+          p_reverse_cogs: boolean
+          p_sale_id: string
+        }
+        Returns: Json
+      }
       _accounting_purchase_tax_credit_lines: {
         Args: { p_cgst: number; p_igst: number; p_sgst: number; p_tax: number }
         Returns: Json
@@ -5663,6 +5673,19 @@ export type Database = {
       _accounting_purchase_tax_debit_lines: {
         Args: { p_cgst: number; p_igst: number; p_sgst: number; p_tax: number }
         Returns: Json
+      }
+      _accounting_reverse_posted_journal: {
+        Args: {
+          p_actor?: string | null
+          p_entry_date?: string | null
+          p_exclude_account_codes?: string[] | null
+          p_memo: string
+          p_original_source_id: string
+          p_original_source_type: string
+          p_reversal_source_id: string
+          p_reversal_source_type: string
+        }
+        Returns: string
       }
       _accrue_salesman_commission_for_sale: {
         Args: { p_order_id: string; p_sale_id: string }
@@ -6823,7 +6846,7 @@ export type Database = {
           p_notes?: string | null
           p_operational_location_id: string
           p_purchase_date: string
-          p_purchase_id: string | null | null
+          p_purchase_id: string | null
           p_sgst_amount?: number | null
           p_supplier_id: string
           p_supply_type?: string | null
@@ -7220,7 +7243,7 @@ export type Database = {
         Args: {
           p_duration_seconds: number
           p_shop_id: string
-          p_visit_id: string | null | null
+          p_visit_id: string | null
         }
         Returns: Json
       }
