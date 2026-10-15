@@ -152,12 +152,159 @@ describe('Phase 8 ledger financial statements', () => {
       periodLines: period,
     });
     expect(cf.operating).toBe(4000);
+    expect(cf.investing).toBe(0);
     expect(cf.financing).toBe(2000);
     expect(cf.closingCashBank).toBe(16000);
 
     const gl = buildGeneralLedgerRows(period, (d) => d, '1000');
     expect(gl).toHaveLength(2);
     expect(gl.every((row) => row.accountCode === '1000')).toBe(true);
+  });
+
+  it('classifies customer collections and refunds as operating cash flow', () => {
+    const period = [
+      line({
+        accountCode: '1000',
+        accountType: 'ASSET',
+        debit: 7000,
+        credit: 0,
+        sourceType: 'customer_collection',
+        journalId: 'cc1',
+      }),
+      line({
+        accountCode: '1100',
+        accountType: 'ASSET',
+        debit: 0,
+        credit: 7000,
+        sourceType: 'customer_collection',
+        journalId: 'cc1',
+      }),
+      line({
+        accountCode: '1010',
+        accountType: 'ASSET',
+        debit: 0,
+        credit: 2500,
+        sourceType: 'collection_refund',
+        journalId: 'cr1',
+      }),
+      line({
+        accountCode: '1100',
+        accountType: 'ASSET',
+        debit: 2500,
+        credit: 0,
+        sourceType: 'collection_refund',
+        journalId: 'cr1',
+      }),
+      line({
+        accountCode: '1000',
+        accountType: 'ASSET',
+        debit: 1500,
+        credit: 0,
+        sourceType: 'collection_event',
+        journalId: 'ce1',
+      }),
+      line({
+        accountCode: '1100',
+        accountType: 'ASSET',
+        debit: 0,
+        credit: 1500,
+        sourceType: 'collection_event',
+        journalId: 'ce1',
+      }),
+    ];
+    const cf = buildCashFlowStatement({
+      openingCashBank: 10000,
+      periodLines: period,
+    });
+    // customer_collection +7000, collection_event +1500, collection_refund −2500
+    expect(cf.operating).toBe(6000);
+    expect(cf.investing).toBe(0);
+    expect(cf.financing).toBe(0);
+    expect(cf.netChange).toBe(6000);
+    expect(cf.closingCashBank).toBe(16000);
+  });
+
+  it('classifies supplier payment and reversal with correct operating signs', () => {
+    const period = [
+      line({
+        accountCode: '2000',
+        accountType: 'LIABILITY',
+        debit: 4000,
+        credit: 0,
+        sourceType: 'supplier_payment',
+        journalId: 'sp1',
+      }),
+      line({
+        accountCode: '1010',
+        accountType: 'ASSET',
+        debit: 0,
+        credit: 4000,
+        sourceType: 'supplier_payment',
+        journalId: 'sp1',
+      }),
+      line({
+        accountCode: '1010',
+        accountType: 'ASSET',
+        debit: 4000,
+        credit: 0,
+        sourceType: 'supplier_payment_reversal',
+        journalId: 'spr1',
+      }),
+      line({
+        accountCode: '2000',
+        accountType: 'LIABILITY',
+        debit: 0,
+        credit: 4000,
+        sourceType: 'supplier_payment_reversal',
+        journalId: 'spr1',
+      }),
+    ];
+    const cf = buildCashFlowStatement({
+      openingCashBank: 20000,
+      periodLines: period,
+    });
+    // −4000 payment +4000 reversal → operating nets to zero (both operating)
+    expect(cf.operating).toBe(0);
+    expect(cf.investing).toBe(0);
+    expect(cf.financing).toBe(0);
+    expect(cf.closingCashBank).toBe(20000);
+
+    const paymentOnly = buildCashFlowStatement({
+      openingCashBank: 20000,
+      periodLines: period.filter((l) => l.sourceType === 'supplier_payment'),
+    });
+    expect(paymentOnly.operating).toBe(-4000);
+    expect(paymentOnly.investing).toBe(0);
+
+    const reversalOnly = buildCashFlowStatement({
+      openingCashBank: 20000,
+      periodLines: period.filter(
+        (l) => l.sourceType === 'supplier_payment_reversal',
+      ),
+    });
+    expect(reversalOnly.operating).toBe(4000);
+    expect(reversalOnly.investing).toBe(0);
+  });
+
+  it('keeps sale_refund cash legs in operating when present', () => {
+    // Typical sale_refund has no cash; if a cash leg exists it must not dump to investing.
+    const period = [
+      line({
+        accountCode: '1000',
+        accountType: 'ASSET',
+        debit: 0,
+        credit: 500,
+        sourceType: 'sale_refund',
+        journalId: 'sr1',
+      }),
+    ];
+    const cf = buildCashFlowStatement({
+      openingCashBank: 5000,
+      periodLines: period,
+    });
+    expect(cf.operating).toBe(-500);
+    expect(cf.investing).toBe(0);
+    expect(cf.financing).toBe(0);
   });
 
   it('builds trial balance and opening cash from ledger facts', () => {

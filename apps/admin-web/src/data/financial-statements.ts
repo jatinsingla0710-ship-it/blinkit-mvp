@@ -300,10 +300,16 @@ export type CashFlowVm = {
 
 const OPERATING_SOURCES = new Set([
   'collection',
+  'collection_event',
+  'collection_refund',
+  'collection_event_refund',
+  'customer_collection',
   'company_expense',
   'payroll',
   'supplier_payment',
+  'supplier_payment_reversal',
   'sale',
+  'sale_refund',
   'purchase_receive',
 ]);
 const FINANCING_SOURCES = new Set([
