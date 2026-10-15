@@ -5605,47 +5605,55 @@ export class LiveAdminApi {
       expensesRes,
       payrollRes,
       supplierPaymentsRes,
+      shopCollectionsRes,
     ] = await Promise.all([
-        this.sb
-          .from('orders')
-          .select('id, shop_id, status, total, created_at')
-          .gte('created_at', fromTs)
-          .lte('created_at', toTs),
-        this.sb
-          .from('payments')
-          .select(
-            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
-          )
-          .gte('paid_at', fromTs)
-          .lte('paid_at', toTs),
-        this.sb
-          .from('payments')
-          .select(
-            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
-          )
-          .gte('created_at', fromTs)
-          .lte('created_at', toTs),
-        this.sb
-          .from('company_expenses')
-          .select('*')
-          .gte('expense_date', opts.dateFrom)
-          .lte('expense_date', opts.dateTo),
-        this.sb
-          .from('salesman_payroll')
-          .select(
-            'id, salesman_profile_id, payroll_month, total_amount, paid_at, payment_method, status',
-          )
-          .eq('status', 'PAID')
-          .gte('paid_at', fromTs)
-          .lte('paid_at', toTs),
-        this.sb
-          .from('supplier_payments')
-          .select(
-            'id, supplier_id, purchase_id, payment_date, amount, payment_method, reference_number, notes, created_at',
-          )
-          .gte('payment_date', opts.dateFrom)
-          .lte('payment_date', opts.dateTo),
-      ]);
+      this.sb
+        .from('orders')
+        .select('id, shop_id, status, total, created_at')
+        .gte('created_at', fromTs)
+        .lte('created_at', toTs),
+      this.sb
+        .from('payments')
+        .select(
+          'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+        )
+        .gte('paid_at', fromTs)
+        .lte('paid_at', toTs),
+      this.sb
+        .from('payments')
+        .select(
+          'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+        )
+        .gte('created_at', fromTs)
+        .lte('created_at', toTs),
+      this.sb
+        .from('company_expenses')
+        .select('*')
+        .gte('expense_date', opts.dateFrom)
+        .lte('expense_date', opts.dateTo),
+      this.sb
+        .from('salesman_payroll')
+        .select(
+          'id, salesman_profile_id, payroll_month, total_amount, paid_at, payment_method, status',
+        )
+        .eq('status', 'PAID')
+        .gte('paid_at', fromTs)
+        .lte('paid_at', toTs),
+      this.sb
+        .from('supplier_payments')
+        .select(
+          'id, supplier_id, purchase_id, payment_date, amount, payment_method, reference_number, notes, created_at',
+        )
+        .gte('payment_date', opts.dateFrom)
+        .lte('payment_date', opts.dateTo),
+      // Customer-level collections (shop_collections) — distinct from order payments.
+      this.sb
+        .from('shop_collections')
+        .select('id, shop_id, amount, method, note, created_at')
+        .is('deleted_at', null)
+        .gte('created_at', fromTs)
+        .lte('created_at', toTs),
+    ]);
 
     if (ordersRes.error) throwRpcError(ordersRes.error, 'Could not load day book sales');
     if (paymentsByPaid.error) {
@@ -5664,6 +5672,12 @@ export class LiveAdminApi {
       throwRpcError(
         supplierPaymentsRes.error,
         'Could not load day book supplier payments',
+      );
+    }
+    if (shopCollectionsRes.error) {
+      throwRpcError(
+        shopCollectionsRes.error,
+        'Could not load day book customer collections',
       );
     }
 
@@ -5708,7 +5722,13 @@ export class LiveAdminApi {
       : { data: [] as Row[], error: null };
     if (paymentsError) throwRpcError(paymentsError, 'Could not load day book payments');
 
-    const shopIds = [...new Set(allOrders.map((o) => str(o['shop_id'])))];
+    const shopCollectionRows = (shopCollectionsRes.data ?? []) as Row[];
+    const shopIds = [
+      ...new Set([
+        ...allOrders.map((o) => str(o['shop_id'])),
+        ...shopCollectionRows.map((c) => str(c['shop_id'])),
+      ]),
+    ];
     const { data: shops } = shopIds.length
       ? await this.sb.from('shops').select('id, trade_name').in('id', shopIds)
       : { data: [] as Row[] };
@@ -5816,6 +5836,19 @@ export class LiveAdminApi {
         supplierNameMap.get(str(row['supplier_id'])) ?? 'Supplier',
     }));
 
+    const shopCollections = shopCollectionRows.map((row) => {
+      const shopId = str(row['shop_id']);
+      return {
+        id: str(row['id']),
+        shopId,
+        shopName: shopMap.get(shopId) ?? 'Customer',
+        amount: num(row['amount']),
+        method: row['method'] ? str(row['method']) : null,
+        note: row['note'] ? str(row['note']) : null,
+        atIso: str(row['created_at']),
+      };
+    });
+
     return buildDayBookSnapshot({
       generatedAtIso: new Date().toISOString(),
       dateFrom: opts.dateFrom,
@@ -5834,6 +5867,7 @@ export class LiveAdminApi {
       expenses,
       paidPayroll,
       supplierPayments,
+      shopCollections,
     });
   }
 

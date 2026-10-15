@@ -2,6 +2,7 @@ import {
   paymentCollectedAmount,
   type LedgerOrderInput,
   type LedgerPaymentInput,
+  type LedgerShopCollectionInput,
 } from '@/data/customer-ledger';
 import {
   COMPANY_EXPENSE_CATEGORY_LABELS,
@@ -20,6 +21,43 @@ import {
   type SupplierPaymentLedgerInput,
 } from '@/data/supplier-ledger';
 import { formatDate, formatInr } from '@/data/live/format';
+
+/** Customer-level shop_collections row for Day Book (not order payments). */
+export type DayBookShopCollectionInput = LedgerShopCollectionInput & {
+  shopId?: string;
+  shopName?: string | null;
+};
+
+/**
+ * Map shop_collections.method to Day Book payment-method filter labels
+ * (Cash / Bank / UPI / Other / Online), matching expense/supplier conventions.
+ */
+export function shopCollectionPaymentMethodLabel(
+  method: string | null | undefined,
+): string {
+  const raw = (method ?? '').trim();
+  if (!raw) return '—';
+  switch (raw.toUpperCase()) {
+    case 'CASH':
+    case 'CASH_ON_DELIVERY':
+    case 'CASH_COUNTER':
+      return 'Cash';
+    case 'UPI':
+    case 'UPI_ON_DELIVERY':
+    case 'UPI_COUNTER':
+      return 'UPI';
+    case 'BANK':
+      return 'Bank';
+    case 'ONLINE_GATEWAY':
+      return 'Online';
+    case 'CARD':
+    case 'CARD_ON_DELIVERY':
+    case 'OTHER':
+      return 'Other';
+    default:
+      return raw;
+  }
+}
 
 export type DayBookEntryType =
   | 'sale'
@@ -104,11 +142,13 @@ function moneyLabels(inAmount: number, outAmount: number) {
 /**
  * Day Book = actual financial events only.
  * - Sale (PAID): money in once — no separate Collection for the same payment
- * - Collection: partial / pending cash+online collected
+ * - Collection: order partial cash+online collected, plus customer-level
+ *   shop_collections (separate source; never the same row as order payments)
  * - Expense: company_expenses money out
  * - Refund: REFUNDED payment money out
  * - Supplier payment: cash/bank paid to suppliers (not inventory expense)
  * Does not invent inventory/commission/visit entries.
+ * Soft-deleted shop_collections must be omitted by the loader (deleted_at IS NULL).
  */
 export function buildDayBookEntries(input: {
   orders: readonly DayBookOrderInput[];
@@ -118,6 +158,7 @@ export function buildDayBookEntries(input: {
   supplierPayments?: readonly (SupplierPaymentLedgerInput & {
     supplierName?: string | null;
   })[];
+  shopCollections?: readonly DayBookShopCollectionInput[];
 }): DayBookEntry[] {
   const paymentByOrder = new Map<string, LedgerPaymentInput>();
   for (const payment of input.payments) {
@@ -265,6 +306,32 @@ export function buildDayBookEntries(input: {
     });
   }
 
+  for (const collection of input.shopCollections ?? []) {
+    const amount = roundMoney(collection.amount);
+    if (amount <= 0) continue;
+    const atIso = collection.atIso;
+    if (!atIso) continue;
+    const party = collection.shopName?.trim() || 'Customer';
+    const note = collection.note?.trim() || '';
+    entries.push({
+      id: `shop-collection-${collection.id}`,
+      atIso,
+      dateLabel: formatDate(atIso),
+      type: 'collection',
+      typeLabel: 'Collection',
+      description: note
+        ? `${party} · ${note}`
+        : `Customer collection · ${party}`,
+      partyLabel: party,
+      moneyIn: amount,
+      moneyOut: 0,
+      ...moneyLabels(amount, 0),
+      paymentMethod: shopCollectionPaymentMethodLabel(collection.method),
+      href: collection.shopId ? `/customers/${collection.shopId}` : null,
+      sortKey: Date.parse(atIso) || 0,
+    });
+  }
+
   return entries.sort((a, b) => {
     if (a.sortKey !== b.sortKey) return b.sortKey - a.sortKey;
     return a.id.localeCompare(b.id);
@@ -321,6 +388,7 @@ export function buildDayBookSnapshot(input: {
   supplierPayments?: readonly (SupplierPaymentLedgerInput & {
     supplierName?: string | null;
   })[];
+  shopCollections?: readonly DayBookShopCollectionInput[];
   type?: DayBookEntryType | 'all';
   paymentMethod?: string;
 }): DayBookSnapshot {
@@ -330,6 +398,7 @@ export function buildDayBookSnapshot(input: {
     expenses: input.expenses,
     paidPayroll: input.paidPayroll,
     supplierPayments: input.supplierPayments,
+    shopCollections: input.shopCollections,
   });
   const entries = filterDayBookEntries(all, {
     dateFrom: input.dateFrom,
