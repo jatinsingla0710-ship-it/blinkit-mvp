@@ -19,8 +19,9 @@ import { SERVICE_AREA_LIST_FIXTURE } from './service-area-fixtures';
 
 type CustomerDetailFixtureInput = Omit<
   CustomerDetail,
-  'summary' | 'attentionItems' | 'timeline' | 'ledger'
+  'summary' | 'attentionItems' | 'timeline' | 'ledger' | 'openingBalance'
 > & {
+  openingBalance?: CustomerDetail['openingBalance'];
   orders: Array<
     Omit<CustomerOrderRow, 'fulfillmentStatus' | 'totalAmount'> &
       Partial<Pick<CustomerOrderRow, 'fulfillmentStatus' | 'totalAmount'>>
@@ -95,6 +96,7 @@ function enrichCustomerDetail(input: CustomerDetailFixtureInput): CustomerDetail
     orders,
     summary,
     ledger,
+    openingBalance: input.openingBalance ?? null,
     attentionItems,
     timeline: [],
   };

@@ -10,6 +10,7 @@ type Props = {
   canManage: boolean;
   onEdit: () => void;
   onReassign: () => void;
+  onArchive?: () => void;
 };
 
 export function CustomerAccountHeader({
@@ -17,10 +18,18 @@ export function CustomerAccountHeader({
   canManage,
   onEdit,
   onReassign,
+  onArchive,
 }: Props) {
-  const locationLabel = [customer.areaLabel, customer.deliveryCity, customer.deliveryState]
-    .filter((part) => part && part !== '—')
-    .join(', ');
+  const addressBits = [
+    customer.deliveryAddressLine,
+    customer.deliveryCity,
+    customer.deliveryState,
+    customer.deliveryPinCode,
+  ].filter(Boolean);
+  const locationLabel =
+    addressBits.length > 0
+      ? addressBits.join(', ')
+      : [customer.areaLabel].filter((part) => part && part !== '—').join(', ');
 
   return (
     <header className="ga-cust-account-header">
@@ -29,20 +38,20 @@ export function CustomerAccountHeader({
           ← Customers
         </Link>
         <div className="ga-cust-account-header__identity">
-          <div
-            className="ga-cust-account-header__avatar"
-            aria-hidden
-          >
+          <div className="ga-cust-account-header__avatar" aria-hidden>
             {customerInitials(customer.shopName, customer.ownerName)}
           </div>
           <div>
             <h1 className="ga-cust-account-header__title">{customer.shopName}</h1>
-            <p className="ga-cust-account-header__owner">{customer.ownerName}</p>
+            <p className="ga-cust-account-header__owner">
+              {customer.ownerName !== '—' ? customer.ownerName : 'Customer'}
+            </p>
             <div className="ga-cust-account-header__meta">
               {customer.phoneLabel !== '—' ? (
-                <span>📱 {customer.phoneLabel}</span>
+                <span>{customer.phoneLabel}</span>
               ) : null}
-              {locationLabel ? <span>📍 {locationLabel}</span> : null}
+              {locationLabel ? <span>{locationLabel}</span> : null}
+              {customer.gstin ? <span>GSTIN {customer.gstin}</span> : null}
             </div>
             <div className="ga-cust-account-header__badges">
               <CustomerStatusBadge status={customer.status} />
@@ -53,12 +62,17 @@ export function CustomerAccountHeader({
 
       {canManage ? (
         <div className="ga-cust-account-header__actions">
-          <Button variant="primary" onClick={onEdit}>
-            Edit Customer
+          <Button variant="secondary" onClick={onEdit}>
+            Edit customer
           </Button>
           <Button variant="ghost" onClick={onReassign}>
-            Reassign Salesman
+            Reassign salesman
           </Button>
+          {onArchive ? (
+            <Button variant="ghost" onClick={onArchive}>
+              Archive customer
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </header>

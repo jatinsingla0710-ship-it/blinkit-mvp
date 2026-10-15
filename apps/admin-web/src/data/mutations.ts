@@ -33,6 +33,15 @@ import type { LiveAdminApi } from '@/data/live/LiveAdminApi';
 import type { OrderDetail } from '@/data/orders-types';
 import { formatDateTime, formatInr } from '@/data/live/format';
 
+export {
+  useArchiveCustomerMutation,
+  useCreateCustomerDocumentMutation,
+  useRecordCustomerCollectionMutation,
+  useSetShopOpeningBalanceMutation,
+  useSoftDeleteCustomerDocumentMutation,
+  useUploadCustomerDocumentImageMutation,
+} from '@/data/customer-account-mutations';
+
 type OrderStatus =
   | 'DRAFT_ASSISTED'
   | 'AWAITING_CUSTOMER_CONFIRMATION'

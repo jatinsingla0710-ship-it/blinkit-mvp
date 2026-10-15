@@ -133,6 +133,9 @@ export const JOURNAL_SOURCE_LABELS: Record<string, string> = {
   opening_balance: 'Opening balance',
   cash_deposit: 'Deposit',
   cash_withdrawal: 'Withdrawal',
+  customer_opening: 'Customer opening',
+  customer_opening_reversal: 'Customer opening reversal',
+  customer_collection: 'Customer collection',
 };
 
 export function journalSourceLabel(sourceType: string): string {

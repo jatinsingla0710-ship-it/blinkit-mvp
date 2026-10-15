@@ -69,6 +69,12 @@ export function CustomerAccountBusinessInfo({
               <CustomerStatusBadge status={customer.status} />
             </dd>
           </div>
+          {customer.gstin ? (
+            <div>
+              <dt>GSTIN</dt>
+              <dd>{customer.gstin}</dd>
+            </div>
+          ) : null}
           <div>
             <dt>Assigned salesman</dt>
             <dd>{customer.salesmanName}</dd>

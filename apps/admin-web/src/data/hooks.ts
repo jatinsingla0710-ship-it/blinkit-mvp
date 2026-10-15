@@ -213,6 +213,8 @@ export function useCustomerDetailQuery(customerId: string | undefined) {
   };
 }
 
+export { useCustomerDocumentsQuery } from '@/data/customer-account-hooks';
+
 export function useOrdersSnapshotQuery() {
   const client = useAdminDataClient();
   const query = useQuery({

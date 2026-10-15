@@ -295,6 +295,15 @@ import type {
   PriceRecordStatus,
 } from '../pricing-types';
 import type { CounterSaleResult } from '../counter-sale';
+import {
+  CUSTOMER_DOCUMENT_ALLOWED_MIME,
+  CUSTOMER_DOCUMENT_BUCKET,
+  CUSTOMER_DOCUMENT_MAX_BYTES,
+  customerDocumentStoragePath,
+  type CustomerDocumentOcrStatus,
+  type CustomerDocumentType,
+  type CustomerDocumentVm,
+} from '../customer-documents';
 import type {
   InventorySnapshot,
   InventoryListRow,
@@ -2757,22 +2766,6 @@ export class LiveAdminApi {
       };
     });
 
-    const customerPayments: CustomerPaymentRow[] = paymentRows.map((p) => {
-      const paidAt = p['paid_at'] ? str(p['paid_at']) : null;
-      const createdAt = p['created_at'] ? str(p['created_at']) : '';
-      const atIso = paidAt || createdAt;
-      return {
-        id: str(p['id']),
-        orderCode: shortCode(str(p['order_id']), 'GA'),
-        orderId: str(p['order_id']),
-        methodLabel: str(p['method']) || '—',
-        amountLabel: formatInr(num(p['amount'])),
-        status: mapPaymentStatusFromDb(str(p['status'])),
-        atLabel: formatDateTime(atIso),
-        atIso,
-      };
-    });
-
     const addressRows: CustomerAddressRow[] = ((addresses ?? []) as Row[])
       .filter((a) => a['deleted_at'] == null)
       .map((a) => ({
@@ -2864,17 +2857,36 @@ export class LiveAdminApi {
     });
 
     const allOrderIds = countableOrders.map((o) => str(o['id']));
-    const { data: allPaymentsData } = allOrderIds.length
-      ? await this.sb
-          .from('payments')
-          .select(
-            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
-          )
-          .in('order_id', allOrderIds)
-      : { data: [] as Row[] };
+    const [
+      { data: allPaymentsData },
+      { data: openingData },
+      { data: shopCollectionsData },
+    ] = await Promise.all([
+      allOrderIds.length
+        ? this.sb
+            .from('payments')
+            .select(
+              'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+            )
+            .in('order_id', allOrderIds)
+        : Promise.resolve({ data: [] as Row[] }),
+      this.sb
+        .from('shop_opening_balances')
+        .select('id, amount, as_of_date, note')
+        .eq('shop_id', id)
+        .is('deleted_at', null)
+        .maybeSingle(),
+      this.sb
+        .from('shop_collections')
+        .select('id, amount, method, note, created_at')
+        .eq('shop_id', id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true }),
+    ]);
 
     const orderAggregates = countableOrders.map((o) => ({
       id: str(o['id']),
+      shop_id: id,
       status: str(o['status']),
       total: num(o['total']),
       created_at: str(o['created_at']),
@@ -2905,13 +2917,35 @@ export class LiveAdminApi {
       };
     });
 
+    const openingRow = openingData as Row | null;
+    const opening = openingRow
+      ? {
+          id: str(openingRow['id']),
+          amount: num(openingRow['amount']),
+          asOfDate: str(openingRow['as_of_date']),
+          note: openingRow['note'] ? str(openingRow['note']) : null,
+        }
+      : null;
+    const shopCollections = ((shopCollectionsData ?? []) as Row[]).map((c) => ({
+      id: str(c['id']),
+      amount: num(c['amount']),
+      method: c['method'] ? str(c['method']) : null,
+      note: c['note'] ? str(c['note']) : null,
+      atIso: str(c['created_at']),
+    }));
+
     const ledger = buildCustomerLedger({
       orders: orderAggregates,
       payments: paymentAggregates,
+      opening,
+      shopCollections,
+      shopId: id,
     });
     const oldestOpenDays = oldestOpenReceivableDays(
       orderAggregates,
       paymentAggregates,
+      new Date().toISOString(),
+      { opening, shopCollections },
     );
     const attentionItems = buildCustomerAttentionItems(customerOrders, {
       outstanding: ledger.outstanding,
@@ -2923,6 +2957,8 @@ export class LiveAdminApi {
       buildCustomerAccountSummary({
         orders: orderAggregates,
         payments: paymentAggregates,
+        opening,
+        shopCollections,
       }),
       attentionItems,
     );
@@ -2930,6 +2966,72 @@ export class LiveAdminApi {
       delivery_lat: s['delivery_lat'],
       delivery_lng: s['delivery_lng'],
     });
+
+    const orderPayments: CustomerPaymentRow[] = [];
+    for (const p of (allPaymentsData ?? []) as Row[]) {
+      const paidAt = p['paid_at'] ? str(p['paid_at']) : null;
+      const createdAt = p['created_at'] ? str(p['created_at']) : '';
+      const atIso = paidAt || createdAt;
+      const cash = num(p['cash_collected_amount']);
+      const online = num(p['online_collected_amount']);
+      const collected = cash + online;
+      if (collected <= 0 && str(p['status']).toUpperCase() !== 'PAID') {
+        continue;
+      }
+      const amount = collected > 0 ? collected : num(p['amount']);
+      const collectionMethod = p['collection_method']
+        ? str(p['collection_method'])
+        : '';
+      const methodIntent = p['method_intent'] ? str(p['method_intent']) : '';
+      const methodLabel = collectionMethod
+        ? collectionMethodLabel(collectionMethod)
+        : methodIntent === 'PAY_ONLINE_NOW'
+          ? 'Online'
+          : methodIntent === 'PAY_ON_DELIVERY'
+            ? 'Pay on delivery'
+            : '—';
+      orderPayments.push({
+        id: str(p['id']),
+        orderCode: shortCode(str(p['order_id']), 'GA'),
+        orderId: str(p['order_id']),
+        methodLabel,
+        amountLabel: formatInr(amount),
+        status: mapPaymentStatusFromDb(str(p['status'])),
+        atLabel: formatDateTime(atIso),
+        atIso,
+        source: 'order',
+      });
+    }
+
+    const collectionPayments: CustomerPaymentRow[] = shopCollections.map(
+      (c) => ({
+        id: c.id,
+        orderCode: 'Receive payment',
+        orderId: undefined,
+        methodLabel: c.method?.trim() || '—',
+        amountLabel: formatInr(c.amount),
+        status: 'PAID' as const,
+        atLabel: formatDateTime(c.atIso),
+        atIso: c.atIso,
+        note: c.note,
+        source: 'collection' as const,
+      }),
+    );
+
+    const customerPayments = [...orderPayments, ...collectionPayments].sort(
+      (a, b) => Date.parse(b.atIso || '') - Date.parse(a.atIso || ''),
+    );
+
+    const openingBalance = opening
+      ? {
+          id: opening.id,
+          amount: opening.amount,
+          amountLabel: formatInr(opening.amount),
+          asOfDate: opening.asOfDate,
+          asOfDateLabel: formatDate(opening.asOfDate),
+          note: opening.note,
+        }
+      : null;
 
     const detail: CustomerDetail = {
       id: str(s['id']),
@@ -2944,6 +3046,7 @@ export class LiveAdminApi {
       areaLabel: areaMap.get(str(s['service_area_id'])) ?? '—',
       serviceAreaId: str(s['service_area_id']) || undefined,
       legalName: s['legal_name'] != null ? str(s['legal_name']) : null,
+      gstin: s['gstin'] != null ? str(s['gstin']) : null,
       deliveryAddressLine: str(s['delivery_address_line']) || undefined,
       deliveryCity: str(s['delivery_city']) || undefined,
       deliveryState: str(s['delivery_state']) || undefined,
@@ -2973,11 +3076,12 @@ export class LiveAdminApi {
         averageOrderValueLabel: formatInr(monthHealth.averageOrderValue),
         lastOrderDateLabel: lastOrderDate ? formatDate(lastOrderDate) : '—',
         lastPaymentStatus: customerPayments.length
-          ? customerPayments[0].status
+          ? customerPayments[0]!.status
           : 'UNKNOWN',
       },
       summary,
       ledger,
+      openingBalance,
       attentionItems,
       timeline: [],
       activation,
@@ -3048,20 +3152,37 @@ export class LiveAdminApi {
     );
     const orderIds = orderRows.map((o) => str(o['id']));
 
-    const { data: paymentsData } = orderIds.length
-      ? await this.sb
-          .from('payments')
-          .select(
-            'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
-          )
-          .in('order_id', orderIds)
-      : { data: [] as Row[] };
+    const [
+      { data: paymentsData },
+      { data: openingsData },
+      { data: collectionsData },
+    ] = await Promise.all([
+      orderIds.length
+        ? this.sb
+            .from('payments')
+            .select(
+              'id, order_id, status, amount, cash_collected_amount, online_collected_amount, paid_at, created_at, collection_method, method_intent',
+            )
+            .in('order_id', orderIds)
+        : Promise.resolve({ data: [] as Row[] }),
+      this.sb
+        .from('shop_opening_balances')
+        .select('id, shop_id, amount, as_of_date, note')
+        .in('shop_id', shopIds)
+        .is('deleted_at', null),
+      this.sb
+        .from('shop_collections')
+        .select('id, shop_id, amount, method, note, created_at')
+        .in('shop_id', shopIds)
+        .is('deleted_at', null),
+    ]);
 
     const paymentsByShop = new Map<
       string,
       {
         orders: {
           id: string;
+          shop_id: string;
           status: string;
           total: number;
           created_at: string;
@@ -3078,11 +3199,54 @@ export class LiveAdminApi {
           created_at: string | null;
           method_label: string | null;
         }[];
+        opening: {
+          id: string;
+          amount: number;
+          asOfDate: string;
+          note: string | null;
+        } | null;
+        shopCollections: {
+          id: string;
+          amount: number;
+          method: string | null;
+          note: string | null;
+          atIso: string;
+        }[];
       }
     >();
 
     for (const sid of shopIds) {
-      paymentsByShop.set(sid, { orders: [], payments: [] });
+      paymentsByShop.set(sid, {
+        orders: [],
+        payments: [],
+        opening: null,
+        shopCollections: [],
+      });
+    }
+
+    for (const row of (openingsData ?? []) as Row[]) {
+      const sid = str(row['shop_id']);
+      const bucket = paymentsByShop.get(sid);
+      if (!bucket) continue;
+      bucket.opening = {
+        id: str(row['id']),
+        amount: num(row['amount']),
+        asOfDate: str(row['as_of_date']),
+        note: row['note'] ? str(row['note']) : null,
+      };
+    }
+
+    for (const row of (collectionsData ?? []) as Row[]) {
+      const sid = str(row['shop_id']);
+      const bucket = paymentsByShop.get(sid);
+      if (!bucket) continue;
+      bucket.shopCollections.push({
+        id: str(row['id']),
+        amount: num(row['amount']),
+        method: row['method'] ? str(row['method']) : null,
+        note: row['note'] ? str(row['note']) : null,
+        atIso: str(row['created_at']),
+      });
     }
 
     const orderShop = new Map<string, string>();
@@ -3094,6 +3258,7 @@ export class LiveAdminApi {
       if (!bucket) continue;
       bucket.orders.push({
         id: oid,
+        shop_id: sid,
         status: str(o['status']),
         total: num(o['total']),
         created_at: str(o['created_at']),
@@ -3134,7 +3299,12 @@ export class LiveAdminApi {
       generatedAtIso: new Date().toISOString(),
       customers: shopRows.map((s) => {
         const sid = str(s['id']);
-        const bucket = paymentsByShop.get(sid) ?? { orders: [], payments: [] };
+        const bucket = paymentsByShop.get(sid) ?? {
+          orders: [],
+          payments: [],
+          opening: null,
+          shopCollections: [],
+        };
         return {
           customerId: sid,
           shopName: str(s['trade_name']),
@@ -3142,6 +3312,8 @@ export class LiveAdminApi {
           areaLabel: areaMap.get(str(s['service_area_id'])) ?? '—',
           orders: bucket.orders,
           payments: bucket.payments,
+          opening: bucket.opening,
+          shopCollections: bucket.shopCollections,
         };
       }),
     });
@@ -7766,6 +7938,250 @@ export class LiveAdminApi {
       amountPaid: num(row['amountPaid'] ?? row['amount_paid']),
       amountDue: num(row['amountDue'] ?? row['amount_due']),
       paymentStatus: str(row['paymentStatus'] ?? row['payment_status']),
+    };
+  }
+
+  /**
+   * Phase 4C/4D — set customer opening receivable (Dr AR / Cr Opening Equity).
+   * Wired via CustomerOpeningBalanceModal → useSetShopOpeningBalanceMutation.
+   */
+  async setShopOpeningBalance(input: {
+    shopId: string;
+    asOfDate: string;
+    amount: number;
+    note?: string | null;
+  }): Promise<{
+    id: string;
+    shopId: string;
+    asOfDate: string;
+    amount: number;
+    note: string | null;
+    journalEntryId: string | null;
+    outstanding: number;
+    idempotentReplay: boolean;
+  }> {
+    const { data, error } = await this.sb.rpc('admin_set_shop_opening_balance', {
+      p_shop_id: input.shopId,
+      p_as_of_date: input.asOfDate,
+      p_amount: input.amount,
+      p_note: input.note ?? null,
+    });
+    if (error) throwRpcError(error, 'Could not set opening balance');
+    const row = (data ?? {}) as Record<string, unknown>;
+    return {
+      id: str(row['id']),
+      shopId: str(row['shopId'] ?? row['shop_id']),
+      asOfDate: str(row['asOfDate'] ?? row['as_of_date']),
+      amount: num(row['amount']),
+      note: row['note'] != null ? str(row['note']) : null,
+      journalEntryId: row['journalEntryId']
+        ? str(row['journalEntryId'])
+        : row['journal_entry_id']
+          ? str(row['journal_entry_id'])
+          : null,
+      outstanding: num(row['outstanding']),
+      idempotentReplay: Boolean(row['idempotentReplay']),
+    };
+  }
+
+  /**
+   * Phase 4C/4D — unallocated customer-level collection (Dr cash/bank, Cr AR).
+   * Wired via CustomerReceivePaymentModal → useRecordCustomerCollectionMutation.
+   */
+  async recordCustomerCollection(input: {
+    shopId: string;
+    amount: number;
+    method: string;
+    note?: string | null;
+    clientRequestId?: string | null;
+  }): Promise<{
+    id: string;
+    shopId: string;
+    amount: number;
+    method: string;
+    note: string | null;
+    journalEntryId: string | null;
+    outstanding: number;
+    idempotentReplay: boolean;
+  }> {
+    const { data, error } = await this.sb.rpc(
+      'admin_record_customer_collection',
+      {
+        p_shop_id: input.shopId,
+        p_amount: input.amount,
+        p_method: input.method,
+        p_note: input.note ?? null,
+        p_client_request_id: input.clientRequestId ?? null,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not record customer collection');
+    const row = (data ?? {}) as Record<string, unknown>;
+    return {
+      id: str(row['id']),
+      shopId: str(row['shopId'] ?? row['shop_id']),
+      amount: num(row['amount']),
+      method: str(row['method']),
+      note: row['note'] != null ? str(row['note']) : null,
+      journalEntryId: row['journalEntryId']
+        ? str(row['journalEntryId'])
+        : row['journal_entry_id']
+          ? str(row['journal_entry_id'])
+          : null,
+      outstanding: num(row['outstanding']),
+      idempotentReplay: Boolean(row['idempotentReplay']),
+    };
+  }
+
+  /**
+   * Phase 4B/4D — list active private customer documents (signed URLs, 1h).
+   * Wired via CustomerDetailPage → useCustomerDocumentsQuery / bill-photo UI.
+   */
+  async listCustomerDocuments(shopId: string): Promise<CustomerDocumentVm[]> {
+    const { data, error } = await this.sb.rpc('admin_list_customer_documents', {
+      p_shop_id: shopId,
+    });
+    if (error) throwRpcError(error, 'Could not load customer documents');
+    const rows = Array.isArray(data) ? data : [];
+    const mapped = await Promise.all(
+      rows.map((row) => this.mapCustomerDocument(row as unknown as Row)),
+    );
+    return mapped;
+  }
+
+  async createCustomerDocument(input: {
+    shopId: string;
+    documentType?: CustomerDocumentType;
+    title?: string | null;
+    notes?: string | null;
+    billDate?: string | null;
+    billNumber?: string | null;
+  }): Promise<CustomerDocumentVm> {
+    const { data, error } = await this.sb.rpc('admin_create_customer_document', {
+      p_shop_id: input.shopId,
+      p_document_type: input.documentType ?? 'BILL_PHOTO',
+      p_title: input.title?.trim() || null,
+      p_notes: input.notes?.trim() || null,
+      p_bill_date: input.billDate ?? null,
+      p_bill_number: input.billNumber?.trim() || null,
+    });
+    if (error) throwRpcError(error, 'Could not create customer document');
+    return this.mapCustomerDocument(data as unknown as Row);
+  }
+
+  async uploadCustomerDocumentImage(
+    documentId: string,
+    file: { bytes: Blob | ArrayBuffer | Uint8Array; contentType: string },
+  ): Promise<CustomerDocumentVm> {
+    const allowed = new Set<string>(CUSTOMER_DOCUMENT_ALLOWED_MIME);
+    if (!allowed.has(file.contentType)) {
+      throw new Error('Use a JPEG, PNG, or WebP photo.');
+    }
+    const byteSize =
+      file.bytes instanceof Blob
+        ? file.bytes.size
+        : file.bytes instanceof ArrayBuffer
+          ? file.bytes.byteLength
+          : file.bytes.byteLength;
+    if (byteSize > CUSTOMER_DOCUMENT_MAX_BYTES) {
+      throw new Error('File size cannot exceed 10 MB.');
+    }
+    const path = customerDocumentStoragePath(documentId, file.contentType);
+    const { error: uploadError } = await this.sb.storage
+      .from(CUSTOMER_DOCUMENT_BUCKET)
+      .upload(path, file.bytes, {
+        contentType: file.contentType,
+        upsert: true,
+      });
+    if (uploadError) {
+      throw new Error(uploadError.message || 'Could not upload document photo');
+    }
+    const { data, error } = await this.sb.rpc(
+      'admin_set_customer_document_image',
+      {
+        p_document_id: documentId,
+        p_storage_path: path,
+        p_mime_type: file.contentType,
+        p_byte_size: byteSize,
+      },
+    );
+    if (error) throwRpcError(error, 'Could not attach document photo');
+    return this.mapCustomerDocument(data as unknown as Row);
+  }
+
+  async softDeleteCustomerDocument(documentId: string): Promise<void> {
+    const { error } = await this.sb.rpc('admin_soft_delete_customer_document', {
+      p_document_id: documentId,
+    });
+    if (error) throwRpcError(error, 'Could not delete customer document');
+  }
+
+  private async mapCustomerDocument(row: Row): Promise<CustomerDocumentVm> {
+    const storagePath = row['storagePath']
+      ? str(row['storagePath'])
+      : row['storage_path']
+        ? str(row['storage_path'])
+        : null;
+    let signedUrl: string | null = null;
+    if (storagePath) {
+      const signed = await this.sb.storage
+        .from(CUSTOMER_DOCUMENT_BUCKET)
+        .createSignedUrl(storagePath, 60 * 60);
+      if (!signed.error) signedUrl = signed.data?.signedUrl ?? null;
+    }
+    const typeRaw = str(
+      row['documentType'] ?? row['document_type'] ?? 'BILL_PHOTO',
+    ).toUpperCase();
+    const documentType: CustomerDocumentType =
+      typeRaw === 'GST' || typeRaw === 'OTHER' || typeRaw === 'BILL_PHOTO'
+        ? typeRaw
+        : 'BILL_PHOTO';
+    const ocrRaw = str(
+      row['ocrStatus'] ?? row['ocr_status'] ?? 'NONE',
+    ).toUpperCase();
+    const ocrStatus: CustomerDocumentOcrStatus =
+      ocrRaw === 'PENDING' ||
+      ocrRaw === 'DONE' ||
+      ocrRaw === 'FAILED' ||
+      ocrRaw === 'NONE'
+        ? ocrRaw
+        : 'NONE';
+    const createdAt = str(row['createdAt'] ?? row['created_at'] ?? '');
+    const byteRaw = row['byteSize'] ?? row['byte_size'];
+    return {
+      id: str(row['id']),
+      shopId: str(row['shopId'] ?? row['shop_id']),
+      documentType,
+      storagePath,
+      mimeType: row['mimeType']
+        ? str(row['mimeType'])
+        : row['mime_type']
+          ? str(row['mime_type'])
+          : null,
+      byteSize:
+        byteRaw == null || byteRaw === ''
+          ? null
+          : num(byteRaw),
+      title: row['title'] ? str(row['title']) : null,
+      notes: row['notes'] ? str(row['notes']) : null,
+      billDate: row['billDate']
+        ? str(row['billDate'])
+        : row['bill_date']
+          ? str(row['bill_date'])
+          : null,
+      billNumber: row['billNumber']
+        ? str(row['billNumber'])
+        : row['bill_number']
+          ? str(row['bill_number'])
+          : null,
+      ocrStatus,
+      uploadedByProfileId: row['uploadedByProfileId']
+        ? str(row['uploadedByProfileId'])
+        : row['uploaded_by_profile_id']
+          ? str(row['uploaded_by_profile_id'])
+          : null,
+      createdAt,
+      createdAtLabel: formatDateTime(createdAt),
+      signedUrl,
     };
   }
 

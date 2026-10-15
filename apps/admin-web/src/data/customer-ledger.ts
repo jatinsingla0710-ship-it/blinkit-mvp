@@ -32,7 +32,33 @@ export type LedgerPaymentInput = {
   method_label?: string | null;
 };
 
-export type CustomerLedgerEntryType = 'sale' | 'payment';
+/** Active customer opening receivable (positive = customer owes). */
+export type LedgerOpeningInput = {
+  id: string;
+  amount: number;
+  asOfDate: string;
+  note?: string | null;
+};
+
+/** Unallocated customer-level collection (not tied to an order). */
+export type LedgerShopCollectionInput = {
+  id: string;
+  amount: number;
+  method?: string | null;
+  note?: string | null;
+  atIso: string;
+};
+
+export type CustomerLedgerExtras = {
+  opening?: LedgerOpeningInput | null;
+  shopCollections?: readonly LedgerShopCollectionInput[];
+};
+
+export type CustomerLedgerEntryType =
+  | 'sale'
+  | 'payment'
+  | 'opening'
+  | 'collection';
 
 export type CustomerLedgerEntry = {
   id: string;
@@ -146,13 +172,21 @@ export function paymentCollectedAmount(
 export function customerOutstandingTotal(
   orders: readonly LedgerOrderInput[],
   payments: readonly LedgerPaymentInput[],
+  extras?: CustomerLedgerExtras | null,
 ): number {
   const byOrder = indexPaymentsByOrder(payments);
-  let total = 0;
+  let orderDue = 0;
   for (const order of orders) {
-    total += orderOutstandingResidual(order, byOrder.get(order.id) ?? null);
+    orderDue += orderOutstandingResidual(order, byOrder.get(order.id) ?? null);
   }
-  return roundMoney(total);
+  const opening = Math.max(0, Number(extras?.opening?.amount) || 0);
+  const collections = roundMoney(
+    (extras?.shopCollections ?? []).reduce(
+      (sum, row) => sum + (Number(row.amount) || 0),
+      0,
+    ),
+  );
+  return roundMoney(Math.max(0, opening + orderDue - collections));
 }
 
 export function customerSalesTotal(
@@ -168,15 +202,19 @@ export function customerSalesTotal(
 export function customerPaidTotal(
   orders: readonly LedgerOrderInput[],
   payments: readonly LedgerPaymentInput[],
+  extras?: CustomerLedgerExtras | null,
 ): number {
   const eligible = new Set(
     orders.filter((o) => isLedgerEligibleOrder(o.status)).map((o) => o.id),
   );
-  return roundMoney(
-    payments
-      .filter((p) => eligible.has(p.order_id))
-      .reduce((sum, p) => sum + paymentCollectedAmount(p), 0),
+  const orderPaid = payments
+    .filter((p) => eligible.has(p.order_id))
+    .reduce((sum, p) => sum + paymentCollectedAmount(p), 0);
+  const shopPaid = (extras?.shopCollections ?? []).reduce(
+    (sum, row) => sum + (Number(row.amount) || 0),
+    0,
   );
+  return roundMoney(orderPaid + shopPaid);
 }
 
 function indexPaymentsByOrder(
@@ -211,13 +249,21 @@ function orderCodeOf(order: LedgerOrderInput): string {
 }
 
 /**
- * Chronological customer ledger from orders + payments (no journal table).
- * Running balance = cumulative sales − cumulative collections.
+ * Chronological customer ledger from opening + orders + payments + shop collections.
+ * Outstanding = opening + order residuals − unallocated shop collections.
  */
 export function buildCustomerLedger(input: {
   orders: readonly LedgerOrderInput[];
   payments: readonly LedgerPaymentInput[];
+  opening?: LedgerOpeningInput | null;
+  shopCollections?: readonly LedgerShopCollectionInput[];
+  /** Used for opening/collection deep-links when no order carries shop_id. */
+  shopId?: string | null;
 }): CustomerLedgerVm {
+  const extras: CustomerLedgerExtras = {
+    opening: input.opening ?? null,
+    shopCollections: input.shopCollections ?? [],
+  };
   const byOrder = indexPaymentsByOrder(input.payments);
   const eligibleOrders = input.orders.filter((o) =>
     isLedgerEligibleOrder(o.status),
@@ -237,6 +283,27 @@ export function buildCustomerLedger(input: {
   };
 
   const raw: Raw[] = [];
+  const shopId =
+    input.shopId ||
+    eligibleOrders.find((o) => o.shop_id)?.shop_id ||
+    input.orders.find((o) => o.shop_id)?.shop_id ||
+    null;
+
+  if (input.opening && input.opening.amount > 0) {
+    const atIso = `${input.opening.asOfDate}T00:00:00.000Z`;
+    raw.push({
+      id: `opening-${input.opening.id}`,
+      atIso,
+      type: 'opening',
+      typeLabel: 'Opening balance',
+      reference: input.opening.note?.trim() || 'Opening',
+      referenceHref: shopId ? `/customers/${shopId}#ledger` : '#ledger',
+      debit: roundMoney(input.opening.amount),
+      credit: 0,
+      collectHref: shopId ? `/customers/${shopId}#ledger` : null,
+      sortKey: Date.parse(atIso) || 0,
+    });
+  }
 
   for (const order of eligibleOrders) {
     const code = orderCodeOf(order);
@@ -281,9 +348,35 @@ export function buildCustomerLedger(input: {
     });
   }
 
+  for (const collection of extras.shopCollections ?? []) {
+    if (!(collection.amount > 0)) continue;
+    const method = collection.method?.trim();
+    raw.push({
+      id: `collect-${collection.id}`,
+      atIso: collection.atIso,
+      type: 'collection',
+      typeLabel: method
+        ? `Collection · ${method}`
+        : 'Collection received',
+      reference: collection.note?.trim() || 'Customer collection',
+      referenceHref: shopId ? `/customers/${shopId}#ledger` : '#ledger',
+      debit: 0,
+      credit: roundMoney(collection.amount),
+      collectHref: null,
+      sortKey: (Date.parse(collection.atIso) || 0) + 1,
+    });
+  }
+
+  const typeRank = (type: CustomerLedgerEntryType): number => {
+    if (type === 'opening') return 0;
+    if (type === 'sale') return 1;
+    if (type === 'payment') return 2;
+    return 3;
+  };
+
   raw.sort((a, b) => {
     if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
-    if (a.type !== b.type) return a.type === 'sale' ? -1 : 1;
+    if (a.type !== b.type) return typeRank(a.type) - typeRank(b.type);
     return a.id.localeCompare(b.id);
   });
 
@@ -308,9 +401,13 @@ export function buildCustomerLedger(input: {
     };
   });
 
-  const outstanding = customerOutstandingTotal(input.orders, input.payments);
+  const outstanding = customerOutstandingTotal(
+    input.orders,
+    input.payments,
+    extras,
+  );
   const totalSales = customerSalesTotal(input.orders);
-  const totalPaid = customerPaidTotal(input.orders, input.payments);
+  const totalPaid = customerPaidTotal(input.orders, input.payments, extras);
   const last = entries.length ? entries[entries.length - 1]! : null;
 
   const firstOpen = eligibleOrders
@@ -333,16 +430,24 @@ export function buildCustomerLedger(input: {
     totalPaidLabel: formatInr(totalPaid),
     lastTransactionAtLabel: last ? formatDate(last.atIso) : null,
     entries: [...entries].reverse(),
-    collectHref: firstOpen ? `/orders/${firstOpen.order.id}` : null,
+    collectHref: firstOpen
+      ? `/orders/${firstOpen.order.id}`
+      : outstanding > 0 && shopId
+        ? `/customers/${shopId}#ledger`
+        : null,
   };
 }
 
-/** Oldest unpaid order age in calendar days (null when nothing due). */
+/** Oldest unpaid order / opening age in calendar days (null when nothing due). */
 export function oldestOpenReceivableDays(
   orders: readonly LedgerOrderInput[],
   payments: readonly LedgerPaymentInput[],
   asOfIso: string = new Date().toISOString(),
+  extras?: CustomerLedgerExtras | null,
 ): number | null {
+  const outstanding = customerOutstandingTotal(orders, payments, extras);
+  if (outstanding <= 0) return null;
+
   const byOrder = indexPaymentsByOrder(payments);
   let oldestIso: string | null = null;
   for (const order of orders) {
@@ -358,6 +463,15 @@ export function oldestOpenReceivableDays(
       oldestIso = order.created_at;
     }
   }
+
+  const opening = extras?.opening;
+  if (opening && opening.amount > 0) {
+    const openingIso = `${opening.asOfDate}T00:00:00.000Z`;
+    if (!oldestIso || Date.parse(openingIso) < Date.parse(oldestIso)) {
+      oldestIso = openingIso;
+    }
+  }
+
   if (!oldestIso) return null;
   return daysBetween(oldestIso, asOfIso);
 }
@@ -369,24 +483,38 @@ export function buildReceivableRow(input: {
   areaLabel: string;
   orders: readonly LedgerOrderInput[];
   payments: readonly LedgerPaymentInput[];
+  opening?: LedgerOpeningInput | null;
+  shopCollections?: readonly LedgerShopCollectionInput[];
   asOfIso?: string;
 }): ReceivableRow {
   const asOfIso = input.asOfIso ?? new Date().toISOString();
+  const extras: CustomerLedgerExtras = {
+    opening: input.opening ?? null,
+    shopCollections: input.shopCollections ?? [],
+  };
   const ledger = buildCustomerLedger({
     orders: input.orders,
     payments: input.payments,
+    opening: extras.opening,
+    shopCollections: extras.shopCollections,
+    shopId: input.customerId,
   });
-  const lastPayment = [...input.payments]
+  const lastOrderPayment = [...input.payments]
     .filter((p) => paymentCollectedAmount(p) > 0)
-    .sort(
-      (a, b) =>
-        Date.parse(b.paid_at || b.created_at || '') -
-        Date.parse(a.paid_at || a.created_at || ''),
-    )[0];
+    .map((p) => ({
+      at: p.paid_at || p.created_at || '',
+    }));
+  const lastShopPayment = (extras.shopCollections ?? []).map((c) => ({
+    at: c.atIso,
+  }));
+  const lastPayment = [...lastOrderPayment, ...lastShopPayment].sort(
+    (a, b) => Date.parse(b.at) - Date.parse(a.at),
+  )[0];
   const oldestOpenDays = oldestOpenReceivableDays(
     input.orders,
     input.payments,
     asOfIso,
+    extras,
   );
   const ageingBucket = receivableAgeingBucket(
     oldestOpenDays,
@@ -404,9 +532,7 @@ export function buildReceivableRow(input: {
     totalPaidLabel: ledger.totalPaidLabel,
     outstanding: ledger.outstanding,
     outstandingLabel: ledger.outstandingLabel,
-    lastPaymentAtLabel: lastPayment
-      ? formatDate(lastPayment.paid_at || lastPayment.created_at || null)
-      : null,
+    lastPaymentAtLabel: lastPayment?.at ? formatDate(lastPayment.at) : null,
     oldestOpenDays,
     ageingBucket,
     ageingLabel: ageingBucketLabel(ageingBucket),
@@ -424,6 +550,8 @@ export function buildReceivablesSnapshot(input: {
     areaLabel: string;
     orders: readonly LedgerOrderInput[];
     payments: readonly LedgerPaymentInput[];
+    opening?: LedgerOpeningInput | null;
+    shopCollections?: readonly LedgerShopCollectionInput[];
   }[];
 }): ReceivablesSnapshot {
   const rows = input.customers

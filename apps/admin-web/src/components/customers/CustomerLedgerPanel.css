@@ -8,6 +8,30 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: flex-end;
+}
+
+.ga-cust-ledger__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.ga-cust-ledger__desc {
+  display: block;
+  font-weight: 600;
+}
+
+.ga-cust-ledger__ref {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ga-text-secondary);
+  text-decoration: none;
+}
+
+.ga-cust-ledger__ref:hover {
+  text-decoration: underline;
 }
 
 .ga-cust-ledger__summary {

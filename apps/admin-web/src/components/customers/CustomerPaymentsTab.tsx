@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { CustomerPaymentRow } from '@/data/customers-types';
 import { CustomerPaymentStatusBadge } from '@/components/customers/CustomerStatusBadges';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -11,8 +12,8 @@ export function CustomerPaymentsTab({ rows }: Props) {
   if (rows.length === 0) {
     return (
       <EmptyState
-        title="No payments"
-        detail="Collections and online settlements will appear here."
+        title="No payments recorded yet."
+        detail="Receive payment or collect against a sale to see history here."
       />
     );
   }
@@ -22,23 +23,36 @@ export function CustomerPaymentsTab({ rows }: Props) {
       <table className="ga-table">
         <thead>
           <tr>
-            <th>Order</th>
-            <th>Method</th>
+            <th>Date</th>
             <th>Amount</th>
+            <th>Method</th>
+            <th>Reference</th>
             <th>Status</th>
-            <th>When</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.id}>
-              <td className="ga-table__mono">{row.orderCode}</td>
-              <td>{row.methodLabel}</td>
+              <td>{row.atLabel}</td>
               <td>{row.amountLabel}</td>
+              <td>{row.methodLabel}</td>
+              <td>
+                {row.source === 'collection' ? (
+                  <span>
+                    Receive payment
+                    {row.note ? ` · ${row.note}` : ''}
+                  </span>
+                ) : row.orderId ? (
+                  <Link className="ga-table__mono" to={`/orders/${row.orderId}`}>
+                    {row.orderCode}
+                  </Link>
+                ) : (
+                  <span className="ga-table__mono">{row.orderCode}</span>
+                )}
+              </td>
               <td>
                 <CustomerPaymentStatusBadge status={row.status} />
               </td>
-              <td>{row.atLabel}</td>
             </tr>
           ))}
         </tbody>

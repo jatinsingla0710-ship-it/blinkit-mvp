@@ -181,6 +181,69 @@ describe('customer ledger build', () => {
     ];
     expect(customerOutstandingTotal(orders, payments)).toBe(8000);
   });
+
+  it('opening + sale − shop collection matches outstanding formula', () => {
+    const ledger = buildCustomerLedger({
+      orders: [
+        {
+          id: 'o1',
+          shop_id: 'shop-1',
+          status: 'DELIVERED',
+          total: 5000,
+          created_at: '2026-04-10T10:00:00.000Z',
+          order_code: 'GA-SALE',
+        },
+      ],
+      payments: [],
+      opening: {
+        id: 'ob1',
+        amount: 20000,
+        asOfDate: '2026-04-01',
+        note: 'Opening',
+      },
+      shopCollections: [
+        {
+          id: 'sc1',
+          amount: 8000,
+          method: 'UPI',
+          note: 'Against total',
+          atIso: '2026-04-15T10:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(ledger.outstanding).toBe(17000);
+    expect(ledger.totalPaid).toBe(8000);
+    expect(ledger.entries.some((e) => e.type === 'opening')).toBe(true);
+    expect(ledger.entries.some((e) => e.type === 'collection')).toBe(true);
+    expect(
+      customerOutstandingTotal(
+        [
+          {
+            id: 'o1',
+            status: 'DELIVERED',
+            total: 5000,
+            created_at: '2026-04-10T10:00:00.000Z',
+          },
+        ],
+        [],
+        {
+          opening: {
+            id: 'ob1',
+            amount: 20000,
+            asOfDate: '2026-04-01',
+          },
+          shopCollections: [
+            {
+              id: 'sc1',
+              amount: 8000,
+              atIso: '2026-04-15T10:00:00.000Z',
+            },
+          ],
+        },
+      ),
+    ).toBe(17000);
+  });
 });
 
 describe('receivables', () => {
@@ -278,6 +341,31 @@ describe('receivables', () => {
     expect(row.collectHref).toBe('/orders/o9');
     expect(row.oldestOpenDays).toBe(92);
     expect(row.ageingBucket).toBe('days_61_plus');
+  });
+
+  it('includes opening-only customers in receivables outstanding', () => {
+    const snapshot = buildReceivablesSnapshot({
+      generatedAtIso: '2026-07-10T12:00:00.000Z',
+      customers: [
+        {
+          customerId: 'c-open',
+          shopName: 'Legacy Debtor',
+          phoneLabel: '9000000099',
+          areaLabel: 'West',
+          orders: [],
+          payments: [],
+          opening: {
+            id: 'ob',
+            amount: 20000,
+            asOfDate: '2026-04-01',
+          },
+          shopCollections: [],
+        },
+      ],
+    });
+    expect(snapshot.rows).toHaveLength(1);
+    expect(snapshot.totalOutstanding).toBe(20000);
+    expect(snapshot.rows[0]?.collectHref).toBe('/customers/c-open#ledger');
   });
 
   it('exports a chronological customer statement CSV', () => {

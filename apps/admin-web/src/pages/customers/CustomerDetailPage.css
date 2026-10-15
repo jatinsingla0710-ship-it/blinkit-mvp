@@ -1,8 +1,11 @@
 .ga-cust-account {
   display: flex;
   flex-direction: column;
-  gap: var(--ga-space-2);
-  max-width: 1440px;
+  gap: var(--ga-space-2, 16px);
+  max-width: 1100px;
+  min-width: 0;
+  width: 100%;
+  overflow-x: clip;
 }
 
 .ga-cust-account__error {
@@ -14,28 +17,38 @@
   font-size: 0.875rem;
 }
 
-.ga-cust-account__layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 0.75fr);
-  gap: var(--ga-space-2);
-  align-items: start;
+.ga-cust-account__tabs-card {
+  min-width: 0;
 }
 
-.ga-cust-account__main,
-.ga-cust-account__side {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ga-space-2);
+.ga-cust-account__tab-panel {
+  margin-top: 14px;
+  min-width: 0;
 }
 
 .ga-cust-account__ledger-intro {
-  margin: 0;
+  margin: 0 0 12px;
   font-size: 0.875rem;
   color: var(--ga-color-text-muted, #667085);
 }
 
-@media (max-width: 1100px) {
-  .ga-cust-account__layout {
-    grid-template-columns: 1fr;
+.ga-cust-account__statement {
+  min-width: 0;
+}
+
+.ga-cust-account__side-row {
+  min-width: 0;
+}
+
+/* Tabs scroll horizontally on small screens without page overflow */
+.ga-cust-account__tabs-card .ga-tabs {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 720px) {
+  .ga-cust-account {
+    gap: 12px;
   }
 }

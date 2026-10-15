@@ -8,6 +8,7 @@ import type {
 import {
   customerOutstandingTotal,
   oldestOpenReceivableDays,
+  type CustomerLedgerExtras,
   type LedgerPaymentInput,
 } from '@/data/customer-ledger';
 import { ageingBucketLabel, receivableAgeingBucket } from '@/data/customer-ageing';
@@ -42,6 +43,8 @@ export function customerInitials(shopName: string, ownerName: string): string {
 export function buildCustomerAccountSummary(input: {
   orders: readonly OrderAggregateRow[];
   payments: readonly PaymentAggregateRow[];
+  opening?: CustomerLedgerExtras['opening'];
+  shopCollections?: CustomerLedgerExtras['shopCollections'];
 }): CustomerAccountSummary {
   const nonCancelled = input.orders.filter(
     (o) => o.status.toUpperCase() !== 'CANCELLED',
@@ -76,6 +79,10 @@ export function buildCustomerAccountSummary(input: {
       created_at: o.created_at,
     })),
     input.payments,
+    {
+      opening: input.opening ?? null,
+      shopCollections: input.shopCollections ?? [],
+    },
   );
 
   return {

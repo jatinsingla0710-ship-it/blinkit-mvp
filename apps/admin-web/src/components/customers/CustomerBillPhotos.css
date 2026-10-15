@@ -1,0 +1,143 @@
+.ga-cust-bills {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ga-cust-bills__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-cust-bills__muted {
+  margin: 0;
+  color: var(--ga-text-muted);
+  font-size: 0.875rem;
+}
+
+.ga-cust-bills__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.ga-cust-bills__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--ga-border-subtle, #e8e8ec);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--ga-surface-raised, #fff);
+}
+
+.ga-cust-bills__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f4f4f5;
+  cursor: pointer;
+}
+
+.ga-cust-bills__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ga-cust-bills__placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--ga-text-muted);
+  font-size: 0.8rem;
+}
+
+.ga-cust-bills__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ga-cust-bills__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-cust-bills__line {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ga-text-secondary);
+}
+
+.ga-cust-bills__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.ga-cust-bill-upload__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ga-cust-bill-upload__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.ga-cust-bill-upload__preview {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--ga-border-subtle, #e8e8ec);
+  max-height: 280px;
+}
+
+.ga-cust-bill-upload__preview img {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  background: #111;
+}
+
+.ga-cust-bill-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ga-cust-bill-viewer__frame {
+  overflow: auto;
+  max-height: min(70vh, 560px);
+  border-radius: 10px;
+  background: #111;
+  touch-action: pan-x pan-y;
+}
+
+.ga-cust-bill-viewer__frame img {
+  display: block;
+  width: 100%;
+  transform-origin: center center;
+  transition: transform 0.15s ease;
+}

@@ -28,6 +28,7 @@ type Props = {
 type FormState = {
   tradeName: string;
   legalName: string;
+  gstin: string;
   ownerName: string;
   ownerMobile: string;
   ownerEmail: string;
@@ -46,6 +47,7 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
   const [form, setForm] = useState<FormState>({
     tradeName: '',
     legalName: '',
+    gstin: '',
     ownerName: '',
     ownerMobile: '',
     ownerEmail: '',
@@ -80,7 +82,8 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
     setForm({
       tradeName: customer.shopName,
       legalName: customer.legalName ?? '',
-      ownerName: customer.ownerName,
+      gstin: customer.gstin ?? '',
+      ownerName: customer.ownerName === '—' ? '' : customer.ownerName,
       ownerMobile: displayMobile(customer.phoneLabel),
       ownerEmail: customer.emailLabel ?? '',
       serviceAreaId: customer.serviceAreaId ?? '',
@@ -125,6 +128,7 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
     const shopParsed = customerUpdateSchema.safeParse({
       tradeName: form.tradeName.trim(),
       legalName: form.legalName.trim() || undefined,
+      gstin: form.gstin.trim() ? form.gstin.trim().toUpperCase() : null,
       serviceAreaId: form.serviceAreaId || null,
       deliveryAddressLine: form.deliveryAddressLine.trim(),
       deliveryCity: form.deliveryCity.trim(),
@@ -207,6 +211,15 @@ export function CustomerEditModal({ open, customer, onClose }: Props) {
           label="Legal name (optional)"
           value={form.legalName}
           onChange={(e) => setForm((f) => ({ ...f, legalName: e.target.value }))}
+        />
+        <TextField
+          label="GSTIN (optional)"
+          value={form.gstin}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, gstin: e.target.value.toUpperCase() }))
+          }
+          hint="15 characters"
+          className="ga-cust-form__mono"
         />
 
         <h3 className="ga-cust-form__section">Primary contact</h3>

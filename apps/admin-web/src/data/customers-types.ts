@@ -129,6 +129,20 @@ export interface CustomerPaymentRow {
   /** ISO timestamp for timeline sorting. */
   atIso?: string;
   orderId?: string;
+  /** Optional note (customer-level collections). */
+  note?: string | null;
+  /** order = order-linked payment; collection = customer-level receive payment. */
+  source?: 'order' | 'collection';
+}
+
+/** Active opening receivable shown on Customer 2.0 (from shop_opening_balances). */
+export interface CustomerOpeningBalanceVm {
+  id: string;
+  amount: number;
+  amountLabel: string;
+  asOfDate: string;
+  asOfDateLabel: string;
+  note: string | null;
 }
 
 export interface CustomerAddressRow {
@@ -167,6 +181,7 @@ export interface CustomerDetail {
   areaLabel: string;
   serviceAreaId?: string;
   legalName?: string | null;
+  gstin?: string | null;
   deliveryAddressLine?: string;
   deliveryCity?: string;
   deliveryState?: string;
@@ -191,8 +206,10 @@ export interface CustomerDetail {
   updatedAtLabel: string;
   health: CustomerHealth;
   summary: CustomerAccountSummary;
-  /** Derived ledger from orders + payments (no separate journal table). */
+  /** Derived ledger from opening + orders + payments + collections. */
   ledger: CustomerLedgerVm;
+  /** Active opening receivable, if set. */
+  openingBalance: CustomerOpeningBalanceVm | null;
   attentionItems: CustomerAttentionItem[];
   timeline: CustomerTimelineEvent[];
   activation: ActivationStage[];

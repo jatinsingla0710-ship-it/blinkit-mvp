@@ -1,0 +1,27 @@
+.ga-cust-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.ga-cust-primary-actions__main {
+  min-height: 44px;
+  min-width: 148px;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .ga-cust-primary-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ga-cust-primary-actions__main {
+    width: 100%;
+  }
+
+  .ga-cust-primary-actions > :last-child {
+    grid-column: 1 / -1;
+  }
+}
