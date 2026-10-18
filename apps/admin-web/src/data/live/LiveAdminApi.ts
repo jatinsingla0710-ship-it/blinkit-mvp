@@ -182,15 +182,24 @@ import {
   AR_ACCOUNT_CODE,
   BANK_ACCOUNT_CODE,
   CASH_ACCOUNT_CODE,
+  CASH_BANK_JOURNAL_ENTRY_QUERY_LIMIT,
+  CASH_BANK_JOURNAL_LINE_QUERY_LIMIT,
   attachRunningBalances,
   buildCashBankHonestyNote,
+  emptyCashBankJournalCompleteness,
   ledgerAssetBalance,
   ledgerLiabilityBalance,
+  resolveCashBankJournalCompleteness,
   type CashBankAccountKind,
   type CashBankExternalKind,
   type CashBankSnapshot,
   type CashBankTransferDirection,
 } from '../cash-bank';
+import {
+  composeArApReconciliationFromSnapshots,
+  parsePendingSupplierPaymentJournals,
+} from '../ar-ap-reconciliation-load';
+import type { ArApReconciliationResult } from '../ar-ap-reconciliation';
 import {
   buildGstTaxSummary,
   type GstTaxSummaryVm,
@@ -6287,6 +6296,44 @@ export class LiveAdminApi {
     };
   }
 
+
+  /**
+   * Read-only AR/AP reconciliation: domain Money Due / Money to Pay vs Books.
+   * Uses existing receivables, payables, cashBankSnapshot, and pending-journal RPC.
+   * Never syncs journals or mutates balances.
+   */
+  async arApReconciliation(opts: {
+    asOfDate: string;
+  }): Promise<ArApReconciliationResult> {
+    const asOfDate = opts.asOfDate.slice(0, 10);
+    const todayBusinessDate = ymdInBusinessTz(new Date());
+
+    const [receivables, payables, cashBank] = await Promise.all([
+      this.receivablesSnapshot(),
+      this.supplierPayablesSnapshot(),
+      this.cashBankSnapshot({ asOfDate }),
+    ]);
+
+    const untypedSb = this.sb as unknown as UntypedSupabaseClient;
+    const pendingRpc = await untypedSb.rpc(
+      'admin_pending_supplier_payment_journals',
+      {},
+    );
+    const pending = parsePendingSupplierPaymentJournals({
+      data: pendingRpc.data,
+      error: pendingRpc.error,
+    });
+
+    return composeArApReconciliationFromSnapshots({
+      asOfDate,
+      todayBusinessDate,
+      receivables,
+      payables,
+      cashBank,
+      pending,
+    });
+  }
+
   /**
    * Phase 7 Cash & Bank snapshot from posted journal lines only.
    * Never invents balances when the ledger is empty.
@@ -6339,6 +6386,7 @@ export class LiveAdminApi {
         hasLedgerActivity: false,
         honestyNote: buildCashBankHonestyNote(false),
         movements: [],
+        journalCompleteness: emptyCashBankJournalCompleteness(),
       };
     }
 
@@ -6348,7 +6396,7 @@ export class LiveAdminApi {
       .lte('entry_date', asOfDate)
       .order('entry_date', { ascending: true })
       .order('created_at', { ascending: true })
-      .limit(5000);
+      .limit(CASH_BANK_JOURNAL_ENTRY_QUERY_LIMIT);
     if (entriesError) {
       throwRpcError(entriesError, 'Could not load cash/bank journals');
     }
@@ -6359,19 +6407,53 @@ export class LiveAdminApi {
       entryRows.map((row) => [str(row['id']), row] as const),
     );
 
+    // Exact as-of entry count (independent of client limit / PostgREST max_rows).
+    // Count failure must not invent completeness — leave null → unknown.
+    let entryExactCount: number | null = null;
+    {
+      const { count, error: entryCountError } = await this.sb
+        .from('journal_entries')
+        .select('id', { count: 'exact', head: true })
+        .lte('entry_date', asOfDate);
+      if (!entryCountError && typeof count === 'number' && Number.isFinite(count)) {
+        entryExactCount = count;
+      }
+    }
+
     let lineRows: Row[] = [];
+    let lineExactCount: number | null = 0;
     if (entryIds.length > 0) {
       const { data: lines, error: linesError } = await this.sb
         .from('journal_lines')
         .select('id, journal_entry_id, account_id, debit, credit')
         .in('journal_entry_id', entryIds)
         .in('account_id', trackedIds)
-        .limit(8000);
+        .limit(CASH_BANK_JOURNAL_LINE_QUERY_LIMIT);
       if (linesError) {
         throwRpcError(linesError, 'Could not load cash/bank journal lines');
       }
       lineRows = (lines ?? []) as Row[];
+
+      // Same filters as the line select: truncation here can understate AR/AP.
+      lineExactCount = null;
+      const { count, error: lineCountError } = await this.sb
+        .from('journal_lines')
+        .select('id', { count: 'exact', head: true })
+        .in('journal_entry_id', entryIds)
+        .in('account_id', trackedIds);
+      if (!lineCountError && typeof count === 'number' && Number.isFinite(count)) {
+        lineExactCount = count;
+      }
     }
+
+    const journalCompleteness = resolveCashBankJournalCompleteness({
+      entryExactCount,
+      entryReturnedCount: entryRows.length,
+      entryQueryLimit: CASH_BANK_JOURNAL_ENTRY_QUERY_LIMIT,
+      lineExactCount,
+      lineReturnedCount: lineRows.length,
+      lineQueryLimit: CASH_BANK_JOURNAL_LINE_QUERY_LIMIT,
+    });
 
     const totals = new Map<string, { debit: number; credit: number }>();
     for (const line of lineRows) {
@@ -6450,6 +6532,7 @@ export class LiveAdminApi {
       hasLedgerActivity,
       honestyNote: buildCashBankHonestyNote(hasLedgerActivity),
       movements,
+      journalCompleteness,
     };
   }
 
