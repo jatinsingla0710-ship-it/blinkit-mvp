@@ -4,6 +4,8 @@
  */
 
 export type WholesaleFulfillmentStatus =
+  | 'DRAFT_ASSISTED'
+  | 'AWAITING_CUSTOMER_CONFIRMATION'
   | 'CONFIRMED'
   | 'STOCK_RESERVED'
   | 'PACKING'

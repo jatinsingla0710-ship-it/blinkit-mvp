@@ -95,6 +95,12 @@ function resolveTimelineActiveIndex(
   if (fulfillment === 'PACKING') {
     return TIMELINE_DEFS.findIndex((s) => s.status === 'PACKING');
   }
+  if (
+    fulfillment === 'DRAFT_ASSISTED' ||
+    fulfillment === 'AWAITING_CUSTOMER_CONFIRMATION'
+  ) {
+    return TIMELINE_DEFS.findIndex((s) => s.status === 'ORDER_CREATED');
+  }
   if (fulfillment === 'CONFIRMED' || fulfillment === 'STOCK_RESERVED') {
     return options.hasInvoice
       ? TIMELINE_DEFS.findIndex((s) => s.status === 'PACKING')
@@ -314,15 +320,7 @@ export function applyOrdersListPreset(
           row.dbStatus === 'AWAITING_CUSTOMER_CONFIRMATION',
       );
     case 'processing':
-      return rows.filter(
-        (row) =>
-          row.dbStatus === 'PROCESSING' ||
-          row.fulfillmentStatus === 'PACKING' ||
-          row.fulfillmentStatus === 'STOCK_RESERVED' ||
-          (row.fulfillmentStatus === 'CONFIRMED' &&
-            row.dbStatus !== 'DRAFT_ASSISTED' &&
-            row.dbStatus !== 'AWAITING_CUSTOMER_CONFIRMATION'),
-      );
+      return rows.filter((row) => orderCountsAsProcessing(row));
     case 'ready_dispatch':
       return rows.filter(
         (row) => row.fulfillmentStatus === 'READY_FOR_DISPATCH',
@@ -450,10 +448,38 @@ export function paginateRows<T>(
   };
 }
 
+/**
+ * Processing KPI and list: invoice or packing work.
+ * Awaiting customer confirmation and salesman drafts are not ready to pack.
+ */
+export function orderCountsAsProcessing(row: {
+  dbStatus?: string;
+  fulfillmentStatus: WholesaleFulfillmentStatus;
+}): boolean {
+  if (
+    row.dbStatus === 'DRAFT_ASSISTED' ||
+    row.dbStatus === 'AWAITING_CUSTOMER_CONFIRMATION' ||
+    row.fulfillmentStatus === 'DRAFT_ASSISTED' ||
+    row.fulfillmentStatus === 'AWAITING_CUSTOMER_CONFIRMATION'
+  ) {
+    return false;
+  }
+  return (
+    row.dbStatus === 'PROCESSING' ||
+    row.fulfillmentStatus === 'PACKING' ||
+    row.fulfillmentStatus === 'STOCK_RESERVED' ||
+    row.fulfillmentStatus === 'CONFIRMED'
+  );
+}
+
 export function fulfillmentStatusLabel(
   status: WholesaleFulfillmentStatus,
 ): string {
   switch (status) {
+    case 'DRAFT_ASSISTED':
+      return 'Draft';
+    case 'AWAITING_CUSTOMER_CONFIRMATION':
+      return 'Awaiting customer confirmation';
     case 'CONFIRMED':
       return 'Confirmed';
     case 'STOCK_RESERVED':
@@ -485,8 +511,9 @@ export function mapDbOrderStatusToFulfillment(
     case 'PROCESSING':
       return 'PACKING';
     case 'DRAFT_ASSISTED':
+      return 'DRAFT_ASSISTED';
     case 'AWAITING_CUSTOMER_CONFIRMATION':
-      return 'CONFIRMED';
+      return 'AWAITING_CUSTOMER_CONFIRMATION';
     case 'CONFIRMED':
       return 'CONFIRMED';
     case 'STOCK_RESERVED':
@@ -726,7 +753,9 @@ export function getOrderBusinessStage(order: {
   }
   if (
     db === 'DRAFT_ASSISTED' ||
-    db === 'AWAITING_CUSTOMER_CONFIRMATION'
+    db === 'AWAITING_CUSTOMER_CONFIRMATION' ||
+    status === 'DRAFT_ASSISTED' ||
+    status === 'AWAITING_CUSTOMER_CONFIRMATION'
   ) {
     return {
       label: 'Awaiting approval',
@@ -852,7 +881,9 @@ export function getNextOrderAction(order: {
 
   if (
     db === 'DRAFT_ASSISTED' ||
-    db === 'AWAITING_CUSTOMER_CONFIRMATION'
+    db === 'AWAITING_CUSTOMER_CONFIRMATION' ||
+    status === 'DRAFT_ASSISTED' ||
+    status === 'AWAITING_CUSTOMER_CONFIRMATION'
   ) {
     return {
       id: 'confirm_order',
