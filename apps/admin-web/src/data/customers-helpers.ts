@@ -85,4 +85,4 @@ export const CUSTOMER_ACTIVITY_UNAVAILABLE_DETAIL =
   'Customer activity timeline is not available yet — there is no live activity feed for shops in Admin. Orders and payments appear on their own tabs.';
 
 export const CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL =
-  'Customer documents are not available yet — no document store exists in the current schema (GST / license uploads deferred).';
+  'GST and other customer document uploads are not offered in Admin yet. Bill photos are on the customer page. OCR is not implemented.';

@@ -27,6 +27,10 @@ Cash & Bank shows a read-only Books check. It calls the existing `LiveAdminApi.a
 - The next action remains Approve Order. Pack, deliver, and convert RPCs are unchanged.
 - Live status filter options use `fulfillmentStatusLabel`.
 
+### Customer document empty state
+
+`CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL` no longer says the schema has no document store. The unused documents tab says GST and other uploads are not offered, and points at bill photos. No upload flow was added.
+
 ## Test evidence
 
 Books check:
@@ -83,11 +87,26 @@ Not run: workspace-wide `pnpm typecheck`, `pnpm lint`, and `pnpm test`. Those al
 ## Remaining issues
 
 - Admin share of the customer app still has no page control. `buildCustomerAppWhatsappMessage` requires a real app URL. This repo does not define one. Do not invent a production URL.
-- `CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL` still says no document store exists. `customer_documents` and bill photos are already wired. `CustomerDocumentsTab` is unused. GST and license upload UI is still absent. OCR is not implemented.
+- `customer_documents` allows `BILL_PHOTO`, `GST`, and `OTHER`. Admin only offers bill photos. `CustomerDocumentsTab` is unused; its empty state no longer claims the schema has no document store. OCR is not implemented. Choosing a GST upload flow still needs a product decision.
 - Canonical primary staff role when a profile has several roles is still a Phase 26 P0 and needs a business rule before code changes.
 - `PACKING` in the admin view and `PROCESSING` in the database remain different words for the same stage.
 - Inventory and product lifecycle gaps in `docs/admin-erp-implementation-audit.md` (July 2026) are older than the current purchase and accounting work. Re-check that audit against `main` before building inventory features. This environment has no extra local inventory diff to preserve.
 
+## Test evidence for the document copy
+
+```bash
+pnpm --filter @groaurum/admin-web exec vitest run \
+  src/data/customers-h1-honesty.test.ts \
+  src/pages/customers/CustomerDetailPage.test.tsx
+pnpm --filter @groaurum/admin-web exec eslint \
+  src/data/customers-helpers.ts \
+  src/data/customers-h1-honesty.test.ts \
+  src/components/customers/CustomerDocumentsTab.tsx \
+  --config ../../packages/config/eslint.config.mjs
+```
+
+Result: 2 files, 16 tests passed. eslint exited 0. Full admin vitest was not re-run after this copy-only change. The earlier full run was 122 files, 675 tests, before this copy edit.
+
 ## Recommended next task
 
-Replace the unused customer-documents empty state so it no longer claims the schema has no document store. Keep GST and license upload unwired until someone chooses which document types Admin should accept. Leave the customer-app share button until an app URL is provided.
+Stop for review before the remaining Phase 26 items. The customer-app share button needs a real app URL. Canonical primary role for multi-role staff needs a business rule. GST upload needs a decision on which document types Admin should accept. Re-check `docs/admin-erp-implementation-audit.md` against `main` before any inventory work. Do not apply migrations or deploy from this branch.

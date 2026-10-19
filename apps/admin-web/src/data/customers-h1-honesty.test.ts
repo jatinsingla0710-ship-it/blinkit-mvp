@@ -83,11 +83,12 @@ describe('Customers H1 health calendar month', () => {
 });
 
 describe('Customers H1 deferred empty copy', () => {
-  it('states activity/documents are unavailable without inventing GST vault', () => {
+  it('states activity is unavailable and does not invent a missing document store', () => {
     expect(CUSTOMER_ACTIVITY_UNAVAILABLE_DETAIL).toMatch(/not available/i);
-    expect(CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL).toMatch(/schema|not available/i);
+    expect(CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL).toMatch(/bill photos/i);
+    expect(CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL).toMatch(/not offered/i);
     expect(CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL.toLowerCase()).not.toMatch(
-      /will appear here/,
+      /no document store|will appear here/,
     );
   });
 });

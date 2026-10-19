@@ -6,7 +6,7 @@ import '@groaurum/ui/styles/data-table.css';
 
 type Props = {
   rows: CustomerDocumentRow[];
-  /** No documents table in schema — show deferred copy when empty. */
+  /** GST and other non-bill uploads are not offered yet. */
   deferred?: boolean;
 };
 
@@ -18,7 +18,7 @@ export function CustomerDocumentsTab({ rows, deferred = false }: Props) {
         detail={
           deferred
             ? CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL
-            : 'Uploaded customer files will appear here when a document store exists.'
+            : 'No documents are stored for this customer.'
         }
       />
     );
