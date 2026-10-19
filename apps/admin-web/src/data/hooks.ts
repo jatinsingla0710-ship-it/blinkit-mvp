@@ -1166,6 +1166,31 @@ export function useCashBankSnapshotQuery(opts: { asOfDate: string }) {
   };
 }
 
+/** Read-only Books vs Money Due / Money to Pay. Hidden when live API is off. */
+export function useArApReconciliationQuery(opts: { asOfDate: string }) {
+  const client = useAdminDataClient();
+  const enabled = Boolean(client.liveApi && opts.asOfDate);
+  const query = useQuery({
+    queryKey: ['groaurum', 'cash-bank', 'ar-ap', opts.asOfDate],
+    enabled,
+    queryFn: () => {
+      if (!client.liveApi) throw new Error('Live API required');
+      return client.liveApi.arApReconciliation(opts);
+    },
+  });
+  return {
+    ...query,
+    enabled,
+    state: toQueryState({
+      isPending: query.isPending,
+      isError: query.isError,
+      error: query.error,
+      data: query.data ?? null,
+      isEmpty: (data) => data == null,
+    }),
+  };
+}
+
 export function useLedgerStatementsQuery(opts: {
   dateFrom: string;
   dateTo: string;
