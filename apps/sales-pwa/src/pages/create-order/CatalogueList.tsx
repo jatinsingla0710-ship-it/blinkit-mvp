@@ -3,6 +3,7 @@ import type { CatalogueSkuRow, OrderPreviewLine } from '@groaurum/api-client';
 import { Button, TextField } from '@groaurum/ui';
 import { ProductThumb } from '@/components/order/ProductThumb';
 import { QuantityStepper } from '@/components/order/QuantityStepper';
+import { catalogueListPriceNote } from '@/data/catalogue-price-note';
 import type { OrderDraftLine } from '@/data/order-draft';
 import {
   displayUnitPrice,
@@ -89,6 +90,9 @@ export function CatalogueList({
             preview?.ok && preview.lineTotal != null && orderUnits > 0
               ? preview.lineTotal / orderUnits
               : listPrice.price;
+          const priceNote = preview?.ok
+            ? catalogueListPriceNote(row.unitPrice, preview.unitPrice)
+            : null;
           return (
             <li
               key={row.sku.id}
@@ -108,6 +112,9 @@ export function CatalogueList({
                     {formatMoney(previewUnitPrice)}{' '}
                     <span className="ga-sales-muted">/ {listPrice.unitLabel}</span>
                   </p>
+                  {priceNote ? (
+                    <p className="ga-sales-list-item__meta">{priceNote}</p>
+                  ) : null}
                   {packInfo ? <p className="ga-sales-list-item__meta">{packInfo}</p> : null}
                   {outOfStock ? (
                     <p className="ga-sales-product__stock ga-sales-product__stock--out">

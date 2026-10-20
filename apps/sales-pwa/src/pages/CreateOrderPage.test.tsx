@@ -243,8 +243,17 @@ describe('cart running total (H, J, L, M)', () => {
     expect(html).toContain('₹8,275');
     expect(html).toContain('50 Packs = 5 Bags');
     expect(html).toContain('Line total <strong>₹8,275</strong>');
+    expect(html).toContain('This quantity uses a different price than the list price.');
     expect(html).toContain('Draft — not submitted. Saved on this phone.');
     expect(isButtonDisabled(html, REVIEW)).toBe(false);
+  });
+
+  it('stays quiet when the server pack price matches the list price', () => {
+    withCart(50);
+    mocks.queries['order-preview'] = { data: preview(50, 8300) };
+    const html = render('/orders/new?shopId=shop-1');
+    expect(html).toContain('Line total <strong>₹8,300</strong>');
+    expect(html).not.toContain('different price than the list price');
   });
 
   it('never shows a client-computed total while the server preview is pending', () => {

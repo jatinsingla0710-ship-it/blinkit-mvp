@@ -1,8 +1,10 @@
 # RichlyBook progress
 
-Updated: 2026-10-19
+Updated: 2026-10-20
 
-This checkout is `origin/main` plus the work on `cursor/arap-books-check-9515`. It does not contain uncommitted Inventory or Product edits from another machine. `apps/admin-web/src/data/live/LiveAdminApi.ts` matches `origin/main` except for the Cash & Bank query wiring already on this branch and the order-status label/count changes below. Do not treat a cloud workspace as a copy of a developer’s dirty tree.
+Branch `cursor/arap-books-check-9515` tracks `origin/cursor/arap-books-check-9515`. It is `origin/main` (`e8243dd`) plus the commits on this branch. The working tree was clean at the 2026-10-20 checkpoint. This environment has no stash and no extra worktree.
+
+`apps/admin-web/src/data/live/LiveAdminApi.ts` differs from `origin/main` only in the order-status work below: processing counts, status-filter labels, and the Confirmed timeline stamp. There is no Inventory or Product diff in that file on this branch. Uncommitted Inventory or Product edits from another machine are not in this checkout, this branch, or `origin/main`. Do not treat a cloud workspace as a copy of a developer’s dirty tree.
 
 ## Completed in this pass
 
@@ -29,7 +31,24 @@ Cash & Bank shows a read-only Books check. It calls the existing `LiveAdminApi.a
 
 ### Customer document empty state
 
-`CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL` no longer says the schema has no document store. The unused documents tab says GST and other uploads are not offered, and points at bill photos. No upload flow was added.
+`CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL` no longer says the schema has no document store. The unused documents tab says GST and other uploads are not offered, and points at bill photos. No upload flow was added. The view-model comment in `customer-documents.ts` now says bill photos upload from the customer page.
+
+### Sales list price vs server preview
+
+The salesman catalogue still shows the current trade price before a quantity is chosen. After a successful server preview, if that preview’s pack price differs from the list pack price by at least ₹0.01, the card says this quantity uses a different price than the list price. The note does not load tiers, pick a “from” price, or recompute the line total.
+
+## July 2026 audit vs this branch
+
+`docs/admin-erp-implementation-audit.md` (2026-07-18) is not a current gap list. Checked on this branch, which matches `origin/main` for these modules:
+
+- Product create and SKU create are used (`ProductFormModal`, `ProductSkusTab`). The audit said those hooks were unused.
+- Inventory adjustment and a movement timeline exist (`InventoryAdjustForm`, `MovementHistoryTimeline`, `inventory_movements` reads). The audit said there was no movement ledger UX.
+- Customer create uses the service-area form (`CustomerFormModal`), not a hardcoded seed UUID.
+- Service Areas is `ServiceAreasListPage` at `/service-areas`, not `PlaceholderPage`.
+- Reports are separate live pages (sales, stock valuation, P&L, balance sheet, and others). The audit’s “all charts are placeholder” verdict does not describe this tree.
+- `useCreateSalesmanMutation` throws on purpose and tells the caller to use provision. That is not an unfinished insert button.
+
+Inventory code was not changed. The missing desktop diff is still unknown, so this reconciliation does not authorize new inventory behavior.
 
 ## Test evidence
 
@@ -90,7 +109,7 @@ Not run: workspace-wide `pnpm typecheck`, `pnpm lint`, and `pnpm test`. Those al
 - `customer_documents` allows `BILL_PHOTO`, `GST`, and `OTHER`. Admin only offers bill photos. `CustomerDocumentsTab` is unused; its empty state no longer claims the schema has no document store. OCR is not implemented. Choosing a GST upload flow still needs a product decision.
 - Canonical primary staff role when a profile has several roles is still a Phase 26 P0 and needs a business rule before code changes.
 - `PACKING` in the admin view and `PROCESSING` in the database remain different words for the same stage.
-- Inventory and product lifecycle gaps in `docs/admin-erp-implementation-audit.md` (July 2026) are older than the current purchase and accounting work. Re-check that audit against `main` before building inventory features. This environment has no extra local inventory diff to preserve.
+- The July 2026 audit is reconciled above and is not a build list. Inventory behavior on this branch is still `origin/main`. The earlier desktop Inventory/Product diff is not here.
 
 ## Test evidence for the document copy
 
@@ -107,6 +126,21 @@ pnpm --filter @groaurum/admin-web exec eslint \
 
 Result: 2 files, 16 tests passed. eslint exited 0. Full admin vitest was not re-run after this copy-only change. The earlier full run was 122 files, 675 tests, before this copy edit.
 
+## Test evidence for the sales price note
+
+```bash
+pnpm --filter @groaurum/sales-pwa exec vitest run
+pnpm --filter @groaurum/sales-pwa exec tsc -b --pretty false
+pnpm --filter @groaurum/sales-pwa exec eslint \
+  src/data/catalogue-price-note.ts \
+  src/data/catalogue-price-note.test.ts \
+  src/pages/create-order/CatalogueList.tsx \
+  src/pages/CreateOrderPage.test.tsx \
+  --config ../../packages/config/eslint.config.mjs
+```
+
+Result: 39 files, 258 tests passed. `tsc` and eslint exited 0. The catalogue cases include a ₹165.50 preview against a ₹166 list price, and a ₹166 preview that stays quiet.
+
 ## Recommended next task
 
-Stop for review before the remaining Phase 26 items. The customer-app share button needs a real app URL. Canonical primary role for multi-role staff needs a business rule. GST upload needs a decision on which document types Admin should accept. Re-check `docs/admin-erp-implementation-audit.md` against `main` before any inventory work. Do not apply migrations or deploy from this branch.
+Leave these for a person: a real customer-app URL, the primary role when a profile has several staff roles, and which non-bill document types Admin should upload. Do not edit inventory behavior until the owner confirms the missing desktop diff is abandoned or restored. `PACKING` versus `PROCESSING` is still a vocabulary split. Do not apply migrations or deploy from this branch.
