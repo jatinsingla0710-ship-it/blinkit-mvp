@@ -6,7 +6,12 @@ import { KpiCards } from '@/components/dashboard/KpiCards';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { QueryStateGate } from '@/data/QueryStateGate';
-import { useCashBankSnapshotQuery } from '@/data/hooks';
+import { ArApReconciliationPanel } from '@/components/cash-bank/ArApReconciliationPanel';
+import { toArApReconciliationView } from '@/data/ar-ap-reconciliation-view';
+import {
+  useArApReconciliationQuery,
+  useCashBankSnapshotQuery,
+} from '@/data/hooks';
 import {
   useRecordCashBankExternalMutation,
   useRecordCashBankOpeningMutation,
@@ -32,6 +37,7 @@ export function CashBankPage() {
   const today = todayExpenseDate();
   const [asOfDate, setAsOfDate] = useState(today);
   const { state, refetch } = useCashBankSnapshotQuery({ asOfDate });
+  const reconciliation = useArApReconciliationQuery({ asOfDate });
 
   const transferMutation = useRecordCashBankTransferMutation();
   const openingMutation = useRecordCashBankOpeningMutation();
@@ -171,6 +177,8 @@ export function CashBankPage() {
             />
 
             <p className="ga-cashbank__note">{snapshot.honestyNote}</p>
+
+            <BooksCheck reconciliation={reconciliation} />
 
             <section className="ga-cashbank__card">
               <h2>Record verified money move</h2>
@@ -365,5 +373,28 @@ export function CashBankPage() {
         )}
       </QueryStateGate>
     </div>
+  );
+}
+
+function BooksCheck({
+  reconciliation,
+}: {
+  reconciliation: ReturnType<typeof useArApReconciliationQuery>;
+}) {
+  if (!reconciliation.enabled) return null;
+  const { state } = reconciliation;
+  if (state.isLoading) {
+    return <p className="ga-cashbank__check-status">Checking Books…</p>;
+  }
+  if (state.isError) {
+    return (
+      <p className="ga-cashbank__error" role="alert">
+        {state.error?.message ?? 'Could not compare Books.'}
+      </p>
+    );
+  }
+  if (!state.data) return null;
+  return (
+    <ArApReconciliationPanel view={toArApReconciliationView(state.data)} />
   );
 }

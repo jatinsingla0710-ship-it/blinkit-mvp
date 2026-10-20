@@ -79,7 +79,7 @@ export const PHASE_26_INTEGRATION_FINDINGS: readonly IntegrationFinding[] = [
     seam: 'orders_pipeline',
     status: 'EXISTS',
     summary:
-      'Salesman place → Admin pack/assign → Delivery execute is RPC-backed. Admin maps AWAITING_CUSTOMER_CONFIRMATION→CONFIRMED (PARTIAL honesty).',
+      'Salesman place → Admin pack/assign → Delivery execute is RPC-backed. Admin shows DRAFT_ASSISTED and AWAITING_CUSTOMER_CONFIRMATION separately from CONFIRMED.',
     evidence: [
       'packages/api-client/src/adapters/supabase/salesman.ts',
       'apps/admin-web/src/data/live/LiveAdminApi.ts',
@@ -142,7 +142,6 @@ export const PHASE_26_DO_NOT_REBUILD = [
 export const PHASE_26_TOP_RISKS = [
   'Multi-role profiles.roles[0] picks the wrong app audience',
   'Customer App link API without Admin share UI',
-  'Admin fulfillment VM collapses awaiting-approval into CONFIRMED',
   'Browse trade price may differ from tiered order price until preview',
   'Notification outbox without live SMS/WhatsApp providers',
   'PACKING vs PROCESSING vocabulary split across Admin vs DB',
@@ -152,10 +151,6 @@ export const PHASE_26_LATER_FIXES = [
   {
     priority: 'P0' as const,
     fix: 'Canonical primary role (or forbid multi-staff roles) when provisioning',
-  },
-  {
-    priority: 'P0' as const,
-    fix: 'Surface AWAITING_CUSTOMER_CONFIRMATION distinctly in Admin (stop mapping to CONFIRMED)',
   },
   {
     priority: 'P1' as const,

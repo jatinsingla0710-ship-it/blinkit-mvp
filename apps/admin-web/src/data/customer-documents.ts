@@ -1,6 +1,7 @@
 /**
- * Phase 4B — Customer private documents / bill photos (API view-models).
- * UI wiring is Phase 4D; OCR is not implemented.
+ * Customer private documents / bill photos (API view-models).
+ * Bill photos upload from the customer page. GST and OTHER are stored types.
+ * OCR is not implemented.
  */
 
 export type CustomerDocumentType = 'BILL_PHOTO' | 'GST' | 'OTHER';

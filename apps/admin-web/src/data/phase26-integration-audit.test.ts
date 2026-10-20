@@ -43,14 +43,20 @@ describe('Phase 26 Admin + Salesman + Delivery integration audit', () => {
     expect(audienceForRole('delivery_executive')).toBe('delivery_pwa');
   });
 
-  it('documents Admin fulfillment honesty gap for awaiting confirmation', () => {
+  it('keeps awaiting customer confirmation distinct from confirmed', () => {
     expect(mapDbOrderStatusToFulfillment('AWAITING_CUSTOMER_CONFIRMATION')).toBe(
-      'CONFIRMED',
+      'AWAITING_CUSTOMER_CONFIRMATION',
     );
+    expect(mapDbOrderStatusToFulfillment('DRAFT_ASSISTED')).toBe('DRAFT_ASSISTED');
     expect(mapDbOrderStatusToFulfillment('PROCESSING')).toBe('PACKING');
     expect(
       integrationFindingBySeam('orders_pipeline')?.summary,
     ).toMatch(/AWAITING_CUSTOMER_CONFIRMATION/);
+    expect(
+      PHASE_26_LATER_FIXES.some((f) =>
+        f.fix.includes('stop mapping to CONFIRMED'),
+      ),
+    ).toBe(false);
   });
 
   it('keeps Sales catalogue realtime on products/skus/prices', () => {

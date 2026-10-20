@@ -32,7 +32,9 @@ import {
 } from '../product-readiness';
 import {
   buildOrderTimeline,
+  fulfillmentStatusLabel,
   mapDbOrderStatusToFulfillment,
+  orderCountsAsProcessing,
   orderNeedsAttentionFromEvents,
 } from '../order-helpers';
 import {
@@ -7234,15 +7236,7 @@ export class LiveAdminApi {
         r.dbStatus === 'DRAFT_ASSISTED' ||
         r.dbStatus === 'AWAITING_CUSTOMER_CONFIRMATION',
     ).length;
-    const processingCount = rows.filter(
-      (r) =>
-        r.dbStatus === 'PROCESSING' ||
-        r.fulfillmentStatus === 'PACKING' ||
-        r.fulfillmentStatus === 'STOCK_RESERVED' ||
-        (r.fulfillmentStatus === 'CONFIRMED' &&
-          r.dbStatus !== 'DRAFT_ASSISTED' &&
-          r.dbStatus !== 'AWAITING_CUSTOMER_CONFIRMATION'),
-    ).length;
+    const processingCount = rows.filter((r) => orderCountsAsProcessing(r)).length;
     const readyDispatchCount = rows.filter(
       (r) => r.fulfillmentStatus === 'READY_FOR_DISPATCH',
     ).length;
@@ -7283,7 +7277,7 @@ export class LiveAdminApi {
       { value: 'all', label: 'All statuses' },
       ...[...new Set(rows.map((r) => r.fulfillmentStatus))].map((v) => ({
         value: v,
-        label: v.replace(/_/g, ' '),
+        label: fulfillmentStatusLabel(v),
       })),
     ];
     const paymentOpts = [
@@ -7642,7 +7636,11 @@ export class LiveAdminApi {
       actors[mapped] =
         profileMap.get(str(e['actor_profile_id'])) ?? 'System';
     }
-    if (!stamps.CONFIRMED) {
+    if (
+      !stamps.CONFIRMED &&
+      fulfillment !== 'AWAITING_CUSTOMER_CONFIRMATION' &&
+      fulfillment !== 'DRAFT_ASSISTED'
+    ) {
       stamps.CONFIRMED = formatDateTime(str(o['created_at']));
       actors.CONFIRMED =
         profileMap.get(str(o['created_by_profile_id'])) ?? 'System';

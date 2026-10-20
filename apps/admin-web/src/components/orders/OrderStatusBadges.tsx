@@ -29,6 +29,9 @@ export function FulfillmentStatusBadge({
   status: WholesaleFulfillmentStatus;
 }) {
   const label = fulfillmentStatusLabel(status);
+  if (status === 'DRAFT_ASSISTED' || status === 'AWAITING_CUSTOMER_CONFIRMATION') {
+    return <Badge tone="info">{label}</Badge>;
+  }
   if (status === 'DELIVERED') return <Badge tone="success">{label}</Badge>;
   if (status === 'OUT_FOR_DELIVERY') return <Badge tone="info">{label}</Badge>;
   if (status === 'PACKING' || status === 'READY_FOR_DISPATCH') {
