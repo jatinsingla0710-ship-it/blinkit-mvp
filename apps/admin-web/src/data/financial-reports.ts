@@ -10,6 +10,7 @@ import { summarizeDayBook } from '@/data/day-book';
 import type { CompanyExpenseRow } from '@/data/company-expenses';
 import type { PayrollRow } from '@/data/salesman-payroll';
 import type { ReceivableRow } from '@/data/customer-ledger';
+import type { SupplierPayableRow } from '@/data/supplier-ledger';
 import type { KpiCardItem } from '@/components/dashboard/KpiCards';
 
 function roundMoney(n: number): number {
@@ -395,6 +396,32 @@ export function exportReceivablesCsv(rows: readonly ReceivableRow[]): string {
   return [header.join(','), ...lines].join('\n');
 }
 
+export function exportPayablesCsv(rows: readonly SupplierPayableRow[]): string {
+  const header = [
+    'Supplier',
+    'Purchases',
+    'Paid',
+    'Outstanding',
+    'Supplier Credit',
+    'Age Bucket',
+    'Days Open',
+    'Last Payment',
+  ];
+  const lines = rows.map((r) =>
+    [
+      csvEscape(r.supplierName),
+      String(r.totalPurchases),
+      String(r.totalPaid),
+      String(r.outstanding),
+      String(r.supplierCredit),
+      csvEscape(r.ageingLabel),
+      r.oldestOpenDays != null ? String(r.oldestOpenDays) : '',
+      csvEscape(r.lastPaymentAtLabel ?? ''),
+    ].join(','),
+  );
+  return [header.join(','), ...lines].join('\n');
+}
+
 export function exportExpensesCsv(rows: readonly CompanyExpenseRow[]): string {
   const header = [
     'Date',
@@ -538,6 +565,45 @@ export function summarizeReceivableRows(rows: readonly ReceivableRow[]): {
   };
 }
 
+/**
+ * Filtered supplier outstanding KPIs.
+ * To-pay uses positive outstanding only, matching Money to Pay snapshot totals.
+ * Credit uses each row’s supplierCredit and is never treated as cash to recover.
+ */
+export function summarizePayableRows(rows: readonly SupplierPayableRow[]): {
+  supplierCount: number;
+  totalPurchases: number;
+  totalPurchasesLabel: string;
+  totalPaid: number;
+  totalPaidLabel: string;
+  totalOutstanding: number;
+  totalOutstandingLabel: string;
+  totalSupplierCredit: number;
+  totalSupplierCreditLabel: string;
+} {
+  let totalPurchases = 0;
+  let totalPaid = 0;
+  let totalOutstanding = 0;
+  let totalSupplierCredit = 0;
+  for (const row of rows) {
+    totalPurchases += row.totalPurchases;
+    totalPaid += row.totalPaid;
+    totalOutstanding += Math.max(row.outstanding, 0);
+    totalSupplierCredit += row.supplierCredit;
+  }
+  return {
+    supplierCount: rows.length,
+    totalPurchases: roundMoney(totalPurchases),
+    totalPurchasesLabel: formatInr(roundMoney(totalPurchases)),
+    totalPaid: roundMoney(totalPaid),
+    totalPaidLabel: formatInr(roundMoney(totalPaid)),
+    totalOutstanding: roundMoney(totalOutstanding),
+    totalOutstandingLabel: formatInr(roundMoney(totalOutstanding)),
+    totalSupplierCredit: roundMoney(totalSupplierCredit),
+    totalSupplierCreditLabel: formatInr(roundMoney(totalSupplierCredit)),
+  };
+}
+
 /** Filtered Payroll report KPIs — must match the visible table. */
 export function summarizePayrollRows(rows: readonly PayrollRow[]): {
   salesmanCount: number;
@@ -678,6 +744,11 @@ export const REPORT_HUB_LINKS = [
     to: '/reports/outstanding',
     title: 'Customer Outstanding',
     description: 'Who still owes money',
+  },
+  {
+    to: '/reports/supplier-outstanding',
+    title: 'Supplier Outstanding',
+    description: 'Who you still need to pay',
   },
   {
     to: '/reports/expenses',
