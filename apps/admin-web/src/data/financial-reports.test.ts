@@ -10,13 +10,16 @@ import {
   exportExpensesCsv,
   exportPayrollCsv,
   exportProductSalesCsv,
+  exportPayablesCsv,
   exportReceivablesCsv,
   exportSalesmanPerformanceCsv,
+  REPORT_HUB_LINKS,
   filterExpensesByDate,
   sumInventoryCogs,
   sumPaidPayroll,
   sumSalesTotal,
   summarizeDayBookByType,
+  summarizePayableRows,
   summarizePayrollRows,
   summarizeReceivableRows,
 } from './financial-reports';
@@ -476,6 +479,114 @@ describe('Phase 3D financial reports', () => {
         },
       ]),
     ).toContain('31–60 days');
+  });
+
+  it('summarizes supplier outstanding using positive dues only', () => {
+    const due = {
+      supplierId: 's1',
+      supplierName: 'Acme Oils',
+      contactLabel: 'Ravi',
+      mobileLabel: '999',
+      totalPurchases: 1000,
+      totalPurchasesLabel: '₹1,000',
+      totalPaid: 200,
+      totalPaidLabel: '₹200',
+      outstanding: 800,
+      outstandingLabel: '₹800',
+      supplierCredit: 0,
+      supplierCreditLabel: '₹0',
+      lastPaymentAtLabel: '1 Oct 2026',
+      oldestOpenDays: 20,
+      ageingBucket: 'days_1_30' as const,
+      ageingLabel: '1–30 days',
+      ledgerHref: '/suppliers/s1',
+      payHref: '/suppliers/s1/pay',
+    };
+    const credit = {
+      ...due,
+      supplierId: 's2',
+      supplierName: 'Credit Mill',
+      totalPurchases: 100,
+      totalPurchasesLabel: '₹100',
+      totalPaid: 150,
+      totalPaidLabel: '₹150',
+      outstanding: -50,
+      outstandingLabel: '₹50 credit',
+      supplierCredit: 50,
+      supplierCreditLabel: '₹50',
+      oldestOpenDays: null,
+      ageingBucket: 'none' as const,
+      ageingLabel: 'Paid up',
+      lastPaymentAtLabel: null,
+      ledgerHref: '/suppliers/s2',
+      payHref: '/suppliers/s2/pay',
+    };
+    const dueOnly = summarizePayableRows([due]);
+    expect(dueOnly.supplierCount).toBe(1);
+    expect(dueOnly.totalOutstanding).toBe(800);
+    expect(dueOnly.totalPurchases).toBe(1000);
+    expect(dueOnly.totalPaid).toBe(200);
+    expect(dueOnly.totalSupplierCredit).toBe(0);
+
+    const mixed = summarizePayableRows([due, credit]);
+    expect(mixed.supplierCount).toBe(2);
+    expect(mixed.totalOutstanding).toBe(800);
+    expect(mixed.totalSupplierCredit).toBe(50);
+    expect(mixed.totalPurchases).toBe(1100);
+    expect(mixed.totalPaid).toBe(350);
+  });
+
+  it('exports supplier outstanding rows without treating credit as to-pay', () => {
+    const csv = exportPayablesCsv([
+      {
+        supplierId: 's1',
+        supplierName: 'Acme Oils',
+        contactLabel: 'Ravi',
+        mobileLabel: '999',
+        totalPurchases: 1000,
+        totalPurchasesLabel: '₹1,000',
+        totalPaid: 200,
+        totalPaidLabel: '₹200',
+        outstanding: 800,
+        outstandingLabel: '₹800',
+        supplierCredit: 0,
+        supplierCreditLabel: '₹0',
+        lastPaymentAtLabel: '1 Oct 2026',
+        oldestOpenDays: 20,
+        ageingBucket: 'days_1_30',
+        ageingLabel: '1–30 days',
+        ledgerHref: '/suppliers/s1',
+        payHref: '/suppliers/s1/pay',
+      },
+      {
+        supplierId: 's2',
+        supplierName: 'Credit Mill',
+        contactLabel: '—',
+        mobileLabel: null,
+        totalPurchases: 100,
+        totalPurchasesLabel: '₹100',
+        totalPaid: 150,
+        totalPaidLabel: '₹150',
+        outstanding: -50,
+        outstandingLabel: '₹50 credit',
+        supplierCredit: 50,
+        supplierCreditLabel: '₹50',
+        lastPaymentAtLabel: null,
+        oldestOpenDays: null,
+        ageingBucket: 'none',
+        ageingLabel: 'Paid up',
+        ledgerHref: '/suppliers/s2',
+        payHref: '/suppliers/s2/pay',
+      },
+    ]);
+    expect(csv).toContain('Acme Oils');
+    expect(csv).toContain('Credit Mill');
+    expect(csv).toContain('1–30 days');
+    expect(csv).toContain('-50');
+    expect(csv).toMatch(/Supplier Credit/);
+    expect(
+      REPORT_HUB_LINKS.some((item) => item.to === '/reports/supplier-outstanding'),
+    ).toBe(true);
   });
 
   it('treats empty datasets as zero totals', () => {

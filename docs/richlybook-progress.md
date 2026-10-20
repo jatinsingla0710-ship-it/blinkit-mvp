@@ -2,40 +2,26 @@
 
 Updated: 2026-10-20
 
-Branch `cursor/arap-books-check-9515` tracks `origin/cursor/arap-books-check-9515`. It is `origin/main` (`e8243dd`) plus the commits on this branch. The working tree was clean at the 2026-10-20 checkpoint. This environment has no stash and no extra worktree.
-
-`apps/admin-web/src/data/live/LiveAdminApi.ts` differs from `origin/main` only in the order-status work below: processing counts, status-filter labels, and the Confirmed timeline stamp. There is no Inventory or Product diff in that file on this branch. Uncommitted Inventory or Product edits from another machine are not in this checkout, this branch, or `origin/main`. Do not treat a cloud workspace as a copy of a developer’s dirty tree.
+Branch `cursor/agent-development-process-03c8` is based on `cursor/arap-books-check-9515` (itself `origin/main` `e8243dd` plus earlier work on this line). This pass added a supplier outstanding report. No Inventory or Product behavior was changed. Uncommitted Inventory or Product edits from another machine are not in this checkout. Do not treat a cloud workspace as a copy of a developer’s dirty tree.
 
 ## Completed in this pass
 
-### Cash & Bank Books check
+### Supplier Outstanding report
 
-Cash & Bank shows a read-only Books check. It calls the existing `LiveAdminApi.arApReconciliation` method and displays Money Due and Money to Pay against Books. Match rules stay in `buildArApReconciliation`. The panel does not post journals or change balances.
+Reports now has **Supplier Outstanding** at `/reports/supplier-outstanding`. It reads the existing `useSupplierPayablesSnapshotQuery` / supplier ledger snapshot. It does not post journals, change balances, or invent a second payable total.
 
-- A match says both sides match within the configured tolerance.
-- A difference shows domain minus Books, with a plus sign when the business total is higher.
-- An incomplete check, including supplier payments that still need a Books journal, is labeled “Not compared” and does not say the books match.
-- Non-finite amounts render as an em dash.
-- The query key sits under `['groaurum', 'cash-bank']`, so existing cash and bank saves refresh it.
-- Mock mode hides the check because there is no live API.
+- Filtered **To pay** is the sum of positive outstanding only, matching Money to Pay snapshot semantics.
+- Supplier credit is shown separately and is not treated as cash to recover.
+- Ageing buckets reuse `summarizeAgeingOutstanding` on the full snapshot rows (same calendar-day buckets as customer AR).
+- CSV export uses the filtered table rows, including signed outstanding and supplier credit.
+- The hub card and route sit next to Customer Outstanding. Mock vs live follows the existing payables query.
 
-### Admin pre-approval order statuses
+### Earlier work on this line (unchanged)
 
-`AWAITING_CUSTOMER_CONFIRMATION` and `DRAFT_ASSISTED` are their own admin fulfillment statuses. They no longer use the Confirmed badge.
-
-- Labels are “Awaiting customer confirmation” and “Draft”.
-- Pending and Processing lists exclude both. The Awaiting Approval list still includes them by database status.
-- The detail timeline stays on Order Received. Confirmed stays upcoming, and the detail loader does not invent a Confirmed timestamp from `created_at`.
-- The next action remains Approve Order. Pack, deliver, and convert RPCs are unchanged.
-- Live status filter options use `fulfillmentStatusLabel`.
-
-### Customer document empty state
-
-`CUSTOMER_DOCUMENTS_UNAVAILABLE_DETAIL` no longer says the schema has no document store. The unused documents tab says GST and other uploads are not offered, and points at bill photos. No upload flow was added. The view-model comment in `customer-documents.ts` now says bill photos upload from the customer page.
-
-### Sales list price vs server preview
-
-The salesman catalogue still shows the current trade price before a quantity is chosen. After a successful server preview, if that preview’s pack price differs from the list pack price by at least ₹0.01, the card says this quantity uses a different price than the list price. The note does not load tiers, pick a “from” price, or recompute the line total.
+- Cash & Bank read-only Books check (`buildArApReconciliation`).
+- Admin pre-approval order statuses kept out of Confirmed.
+- Customer document empty-state copy.
+- Sales list vs server preview price note.
 
 ## July 2026 audit vs this branch
 
@@ -52,56 +38,35 @@ Inventory code was not changed. The missing desktop diff is still unknown, so th
 
 ## Test evidence
 
-Books check:
+Supplier outstanding:
 
 ```bash
 pnpm --filter @groaurum/admin-web exec vitest run \
-  src/data/ar-ap-reconciliation-view.test.ts \
-  src/components/cash-bank/ArApReconciliationPanel.test.tsx \
-  src/data/ar-ap-reconciliation.test.ts \
-  src/data/ar-ap-reconciliation-load.test.ts
-```
-
-Result: 4 files, 28 tests passed (view 4, panel 1, comparison 13, load 10).
-
-Order status, then the full admin suite after both changes:
-
-```bash
-pnpm --filter @groaurum/admin-web exec vitest run \
-  src/data/orders-awaiting-status.test.ts \
-  src/data/phase26-integration-audit.test.ts \
-  src/data/orders-h1-workflow.test.ts \
-  src/data/order-lifecycle-next-action.test.ts \
-  src/data/order-attention.test.ts \
-  src/data/orders-h1-create-contract.test.ts \
-  src/data/order-lifecycle-api.test.ts
-```
-
-Result: 7 files, 46 tests passed.
-
-```bash
+  src/data/financial-reports.test.ts \
+  src/pages/reports/SupplierOutstandingReportPage.test.tsx
 pnpm --filter @groaurum/admin-web exec tsc -b --pretty false
 pnpm --filter @groaurum/admin-web exec eslint \
-  src/data/orders-types.ts \
-  src/data/order-helpers.ts \
-  src/data/orders-awaiting-status.test.ts \
-  src/data/phase26-integration-audit.ts \
-  src/data/phase26-integration-audit.test.ts \
-  src/components/orders/OrderStatusBadges.tsx \
-  src/data/live/LiveAdminApi.ts \
-  src/data/ar-ap-reconciliation-view.ts \
-  src/data/ar-ap-reconciliation-view.test.ts \
-  src/components/cash-bank/ArApReconciliationPanel.tsx \
-  src/components/cash-bank/ArApReconciliationPanel.test.tsx \
-  src/pages/cash-bank/CashBankPage.tsx \
-  src/data/hooks.ts \
+  src/data/financial-reports.ts \
+  src/data/financial-reports.test.ts \
+  src/pages/reports/SupplierOutstandingReportPage.tsx \
+  src/pages/reports/SupplierOutstandingReportPage.test.tsx \
+  src/App.tsx \
   --config ../../packages/config/eslint.config.mjs
 pnpm --filter @groaurum/admin-web exec vitest run
 ```
 
-`tsc` and `eslint` exited 0. Admin vitest: 122 files, 675 tests passed.
+Result: targeted tests 2 files, 20 tests passed. `tsc` and `eslint` exited 0. Full admin vitest: 123 files, 678 tests passed.
 
 Not run: workspace-wide `pnpm typecheck`, `pnpm lint`, and `pnpm test`. Those already fail on `main` outside this change (validation typecheck, api-client lint, empty `@groaurum/data` test script). Passing these admin tests is not production readiness. No migration was applied. No shared or production Supabase was contacted.
+
+Changed files:
+
+- `apps/admin-web/src/data/financial-reports.ts`
+- `apps/admin-web/src/data/financial-reports.test.ts`
+- `apps/admin-web/src/pages/reports/SupplierOutstandingReportPage.tsx`
+- `apps/admin-web/src/pages/reports/SupplierOutstandingReportPage.test.tsx`
+- `apps/admin-web/src/App.tsx`
+- `docs/richlybook-progress.md`
 
 ## Remaining issues
 
@@ -111,36 +76,8 @@ Not run: workspace-wide `pnpm typecheck`, `pnpm lint`, and `pnpm test`. Those al
 - `PACKING` in the admin view and `PROCESSING` in the database remain different words for the same stage.
 - The July 2026 audit is reconciled above and is not a build list. Inventory behavior on this branch is still `origin/main`. The earlier desktop Inventory/Product diff is not here.
 
-## Test evidence for the document copy
-
-```bash
-pnpm --filter @groaurum/admin-web exec vitest run \
-  src/data/customers-h1-honesty.test.ts \
-  src/pages/customers/CustomerDetailPage.test.tsx
-pnpm --filter @groaurum/admin-web exec eslint \
-  src/data/customers-helpers.ts \
-  src/data/customers-h1-honesty.test.ts \
-  src/components/customers/CustomerDocumentsTab.tsx \
-  --config ../../packages/config/eslint.config.mjs
-```
-
-Result: 2 files, 16 tests passed. eslint exited 0. Full admin vitest was not re-run after this copy-only change. The earlier full run was 122 files, 675 tests, before this copy edit.
-
-## Test evidence for the sales price note
-
-```bash
-pnpm --filter @groaurum/sales-pwa exec vitest run
-pnpm --filter @groaurum/sales-pwa exec tsc -b --pretty false
-pnpm --filter @groaurum/sales-pwa exec eslint \
-  src/data/catalogue-price-note.ts \
-  src/data/catalogue-price-note.test.ts \
-  src/pages/create-order/CatalogueList.tsx \
-  src/pages/CreateOrderPage.test.tsx \
-  --config ../../packages/config/eslint.config.mjs
-```
-
-Result: 39 files, 258 tests passed. `tsc` and eslint exited 0. The catalogue cases include a ₹165.50 preview against a ₹166 list price, and a ₹166 preview that stays quiet.
-
 ## Recommended next task
 
 Leave these for a person: a real customer-app URL, the primary role when a profile has several staff roles, and which non-bill document types Admin should upload. Do not edit inventory behavior until the owner confirms the missing desktop diff is abandoned or restored. `PACKING` versus `PROCESSING` is still a vocabulary split. Do not apply migrations or deploy from this branch.
+
+A later low-risk reporting pass could add a Books check note on Receivables/Payables (read-only, same `arApReconciliation` query already used on Cash & Bank), without changing match rules.

@@ -274,6 +274,11 @@ const OutstandingReportPage = lazy(() =>
     default: m.OutstandingReportPage,
   })),
 );
+const SupplierOutstandingReportPage = lazy(() =>
+  import('@/pages/reports/SupplierOutstandingReportPage').then((m) => ({
+    default: m.SupplierOutstandingReportPage,
+  })),
+);
 const ExpenseReportPage = lazy(() =>
   import('@/pages/reports/ExpenseReportPage').then((m) => ({
     default: m.ExpenseReportPage,
@@ -609,6 +614,10 @@ export function AppRoutes() {
         <Route
           path="reports/outstanding"
           element={guard('reports', <OutstandingReportPage />)}
+        />
+        <Route
+          path="reports/supplier-outstanding"
+          element={guard('reports', <SupplierOutstandingReportPage />)}
         />
         <Route
           path="reports/expenses"
